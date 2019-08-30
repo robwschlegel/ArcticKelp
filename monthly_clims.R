@@ -97,12 +97,15 @@ load_NAPA_surface <- function(file_name){
     right_join(NAPA_arctic, by = c("x", "y")) %>% 
     dplyr::rename(t = time_counter) %>%
     mutate(t = as.Date(as.POSIXct(t, origin = "1900-01-01")),
-           month = lubridate::month(t, label = T)) %>% 
+           month = lubridate::month(t, label = T),
+           bathy = round(bathy)) %>% 
     select(x, y, nav_lon, nav_lat, t, month, everything())
   if("ncatice" %in% colnames(res)){
     res <- res %>% 
       dplyr::select(-ncatice) %>% 
-      unique()
+      unique() %>% 
+      mutate(iceconc_cat = round(iceconc_cat, 2),
+             icethic_cat = round(icethic_cat, 2))
   }
   return(res)
 }
@@ -160,10 +163,10 @@ load_NAPA_depth <- function(file_name){
 # system.time(save(Arctic_depth_T, file = "data/Arctic_depth_T.RData")) # 58 seconds, 17.9 GB
 
 # Ice data
-system.time(Arctic_depth_T <- plyr::ldply(NAPA_ice_files,
-                                          .fun = load_NAPA_ice,
-                                          .parallel = TRUE)) # xxx seconds
-system.time(save(Arctic_depth_T, file = "data/Arctic_depth_T.RData")) # xxx seconds, xxx GB
+# system.time(Arctic_ice <- plyr::ldply(NAPA_ice_files,
+                                      # .fun = load_NAPA_surface,
+                                      # .parallel = TRUE)) # 134 seconds
+# system.time(save(Arctic_ice, file = "data/Arctic_ice.RData")) # 12 seconds, 6.2 GB
 
 
 # Monthly climatologies ---------------------------------------------------
@@ -196,6 +199,9 @@ monthly_clims <- function(df, depth = F){
 # system.time(Arctic_depth_T_clim <- monthly_clims(Arctic_depth_T, depth = T)) # 74 seconds
 # save(Arctic_depth_T_clim, file = "data/Arctic_depth_T_clim.RData") # 151 MB
 
+# Calculate monthly clims for ice data
+system.time(Arctic_ice_clim <- monthly_clims(Arctic_ice, depth = F)) # 31 seconds
+save(Arctic_ice_clim, file = "data/Arctic_ice_clim.RData") # 17 MB
 
 # Subset for Pond Inlet ---------------------------------------------------
 
@@ -203,10 +209,17 @@ PI_sites <- study_sites %>%
   filter(lon >= bbox_PI[1], lon <= bbox_PI[2],
          lat >= bbox_PI[3], lat <= bbox_PI[4])
 
-PI_depth_T_clim <- Arctic_depth_T_clim %>% 
-  filter(nav_lon >= bbox_PI[1], nav_lon <= bbox_PI[2],
-         nav_lat >= bbox_PI[3], nav_lat <= bbox_PI[4]) 
+# PI_depth_T_clim <- Arctic_depth_T_clim %>% 
+#   filter(nav_lon >= bbox_PI[1], nav_lon <= bbox_PI[2],
+#          nav_lat >= bbox_PI[3], nav_lat <= bbox_PI[4]) 
 
+PI_ice_clim <- Arctic_ice_clim %>%
+  filter(nav_lon >= bbox_PI[1], nav_lon <= bbox_PI[2],
+         nav_lat >= bbox_PI[3], nav_lat <= bbox_PI[4])
+
+# Pull out the weird low salinity data
+# low_sss <- PI_depth_T_clim %>%
+#   filter(soce < 10)
 
 # Visualise ---------------------------------------------------------------
 
@@ -228,14 +241,26 @@ ggplot(filter(Arctic_depth_T_clim, month == "Jan"),
   geom_point(size = 0.001) +
   scale_colour_viridis_c()
 
-# Plot the area just around Pond Inlet
+# Plot the salinity in the area just around Pond Inlet
 sss_month_depth <- ggplot(PI_depth_T_clim, aes(x = nav_lon, y = nav_lat)) +
-  geom_point(size = 3, shape = 15, aes(colour = soce)) +
+  geom_point(size = 3, shape = 19, aes(colour = soce)) +
   borders(fill = "grey70", colour = "black") +
   geom_point(data = PI_sites, colour = "red", aes(x = lon, y = lat)) +
   geom_label_repel(data = PI_sites, aes(x = lon, y = lat, label = site), nudge_y = -1) +
   scale_colour_viridis_c() +
   coord_equal(xlim = c(-81, -76), ylim = c(71.5, 73)) +
-  labs(x = "Longitude", y = "Latitude") +
+  labs(x = "Longitude", y = "Latitude", colour = "salinity") +
   facet_grid(month~depth)
-ggsave("graph/sss_month_depth.pdf", sss_month_depth, height = 10, width = 20)
+ggsave("graph/sss_month_depth.pdf", sss_month_depth, height = 12, width = 25)
+
+# Plot the ice concentration just around Pond Inlet
+ice_month <- ggplot(PI_ice_clim, aes(x = nav_lon, y = nav_lat)) +
+  geom_point(size = 3, shape = 19, aes(colour = iceconc_cat)) +
+  borders(fill = "grey70", colour = "black") +
+  geom_point(data = PI_sites, colour = "red", aes(x = lon, y = lat)) +
+  geom_label_repel(data = PI_sites, aes(x = lon, y = lat, label = site), nudge_y = -1) +
+  scale_colour_gradient(high = "white", low = "blue") +
+  coord_equal(xlim = c(-81, -76), ylim = c(71.5, 73)) +
+  labs(x = "Longitude", y = "Latitude", colour = "Ice cover (%)") +
+  facet_wrap(~month)
+ggsave("graph/ice_month.pdf", ice_month, height = 5, width = 15)
