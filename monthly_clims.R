@@ -30,13 +30,17 @@ doMC::registerDoMC(cores = 50)
 # ncdump::NetCDF("../../data/NAPA025/5d_grid_W/CREG025E-GLSII_5d_grid_W_19931001-19931005.nc")#$variable$longname
 
 # Check the ice NetCDF information
-# ncdump::NetCDF("../../data/NAPA025/5d_icemod/CREG025E-GLSII_5d_icemod_19931001-19931005.nc")#$variable$longname
+# info <- ncdump::NetCDF("../../data/NAPA025/5d_icemod/CREG025E-GLSII_5d_icemod_19931001-19931005.nc")#$variable$longname
+# info2 <- info$variable
 
 
 # Data --------------------------------------------------------------------
 
-# The arctic study area extent
-bbox_arctic <- c(-100, -40, 50, 80)
+# The study sites and bounding box
+source("study_sites.R")
+
+# The POnd Inlet bounding box
+bbox_PI <- c(-81, -76, 71.5, 73) 
 
 # Extract NAPA grid from NetCDF and save as an RData file
 # NAPA_bathy <- tidync("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc") %>%
@@ -93,10 +97,17 @@ load_NAPA_surface <- function(file_name){
     right_join(NAPA_arctic, by = c("x", "y")) %>% 
     dplyr::rename(t = time_counter) %>%
     mutate(t = as.Date(as.POSIXct(t, origin = "1900-01-01")),
-           month = lubridate::month(t, label = T))
+           month = lubridate::month(t, label = T)) %>% 
+    select(x, y, nav_lon, nav_lat, t, month, everything())
+  if("ncatice" %in% colnames(res)){
+    res <- res %>% 
+      dplyr::select(-ncatice) %>% 
+      unique()
+  }
   return(res)
 }
 # system.time(test <- load_NAPA_surface(NAPA_surface_files[111])) # 1 second
+# system.time(test <- load_NAPA_surface(NAPA_ice_files[111])) # 1 second
 
 # Function for loading the individual NAPA NetCDF depth files
 # testers...
@@ -125,26 +136,8 @@ load_NAPA_depth <- function(file_name){
     select(x, y, nav_lon, nav_lat, t, month, depth, bathy, everything())
   return(res)
 }
-# system.time(test <- load_NAPA_depth(NAPA_depth_T_files)) # 5 seconds
+# system.time(test <- load_NAPA_depth(NAPA_depth_T_files)) # 4 seconds
 
-# Function for loading the individual NAPA NetCDF ice files
-# NB: This hasn't been tested yet
-# testers...
-# file_name <- NAPA_ice_files[1]
-load_NAPA_ice <- function(file_name){
-  res <- tidync(file_name) %>%
-    # Quick filter before loading into memory
-    hyper_filter(x = dplyr::between(x, min(NAPA_arctic$x), max(NAPA_arctic$x)),
-                 y = dplyr::between(y, min(NAPA_arctic$y), max(NAPA_arctic$y))) %>%
-    hyper_tibble() %>%
-    # More precise filter to the study area before further processing
-    # This is necessary anyway to attach lon/lat/bathy info
-    right_join(NAPA_arctic, by = c("x", "y")) %>% 
-    dplyr::rename(t = time_counter) %>%
-    mutate(t = as.Date(as.POSIXct(t, origin = "1900-01-01")),
-           month = lubridate::month(t, label = T))
-  return(res)
-}
 
 # Create base data.frames -------------------------------------------------
 
@@ -164,7 +157,13 @@ load_NAPA_ice <- function(file_name){
 # system.time(Arctic_depth_T <- plyr::ldply(NAPA_depth_T_files,
 #                                           .fun = load_NAPA_depth,
 #                                           .parallel = TRUE)) # 451 seconds
-# system.time(save(Arctic_depth_T, file = "data/Arctic_depth_T.RData")) # 58 seconds, 34.9 GB
+# system.time(save(Arctic_depth_T, file = "data/Arctic_depth_T.RData")) # 58 seconds, 17.9 GB
+
+# Ice data
+system.time(Arctic_depth_T <- plyr::ldply(NAPA_ice_files,
+                                          .fun = load_NAPA_ice,
+                                          .parallel = TRUE)) # xxx seconds
+system.time(save(Arctic_depth_T, file = "data/Arctic_depth_T.RData")) # xxx seconds, xxx GB
 
 
 # Monthly climatologies ---------------------------------------------------
@@ -194,43 +193,49 @@ monthly_clims <- function(df, depth = F){
 }
 
 # Calculate monthly clims for depth_T data
-system.time(Arctic_depth_T_clim <- monthly_clims(Arctic_depth_T, depth = T)) # xxx seconds
-save(Arctic_depth_T_clim, file = "data/Arctic_depth_T_clim.RData")
+# system.time(Arctic_depth_T_clim <- monthly_clims(Arctic_depth_T, depth = T)) # 74 seconds
+# save(Arctic_depth_T_clim, file = "data/Arctic_depth_T_clim.RData") # 151 MB
 
-# system.time(Arctic_surface_clim <- Arctic_surface %>% 
-#               mutate(month = month(t, label = T)) %>% 
-#               group_by(nav_lon, nav_lat, month) %>% 
-#               summarise_all(.funs = mean, na.rm = T)) # xxx seconds
 
-# Switch to data.table for faster means
-# Arctic_surface_clim <- Arctic_surface %>% 
-#   mutate(month = month(t, label = T)) %>% 
-#   dplyr::select(-t) %>% 
-#   data.table()
-# setkey(Arctic_surface_clim, nav_lon, nav_lat, month)
-# system.time(Arctic_surface_clim <- Arctic_surface[, lapply(.SD, mean), 
-#                                                   by = list(nav_lon, nav_lat, month)]) # xxx seconds
-# system.time(saveRDS(Arctic_surface, file = "data/Arctic_surface.Rds")) # xxx seconds, xxx MB
+# Subset for Pond Inlet ---------------------------------------------------
+
+PI_sites <- study_sites %>% 
+  filter(lon >= bbox_PI[1], lon <= bbox_PI[2],
+         lat >= bbox_PI[3], lat <= bbox_PI[4])
+
+PI_depth_T_clim <- Arctic_depth_T_clim %>% 
+  filter(nav_lon >= bbox_PI[1], nav_lon <= bbox_PI[2],
+         nav_lat >= bbox_PI[3], nav_lat <= bbox_PI[4]) 
 
 
 # Visualise ---------------------------------------------------------------
 
+# Single file of data
+ggplot(filter(res, depth == 5), 
+       aes(x = nav_lon, y = nav_lat, colour = soce)) +
+  geom_point(size = 0.001) +
+  scale_colour_viridis_c()
+
 # Daily data
 ggplot(filter(Arctic_depth_T, t == "1998-01-05"), 
-       aes(x = nav_lon, y = nav_lat, colour = eken)) +
+       aes(x = nav_lon, y = nav_lat, colour = soce)) +
   geom_point(size = 0.001) +
   scale_colour_viridis_c()
 
  # Monthly clims
 ggplot(filter(Arctic_depth_T_clim, month == "Jan"), 
-       aes(x = nav_lon, y = nav_lat, colour = eken)) +
+       aes(x = nav_lon, y = nav_lat, colour = soce)) +
   geom_point(size = 0.001) +
   scale_colour_viridis_c()
 
-# ggplot(NAPA_all_sub, aes(x = -nav_lon, y = -nav_lat, colour = temp)) +
-#   geom_point(size = 0.001) +
-#   scale_colour_viridis_c() +
-#   coord_polar() +
-#   scale_x_continuous(expand = c(0, 0)) +
-#   scale_y_continuous(expand = c(0, 0)) +
-#   labs(x = "", y = "")
+# Plot the area just around Pond Inlet
+sss_month_depth <- ggplot(PI_depth_T_clim, aes(x = nav_lon, y = nav_lat)) +
+  geom_point(size = 3, shape = 15, aes(colour = soce)) +
+  borders(fill = "grey70", colour = "black") +
+  geom_point(data = PI_sites, colour = "red", aes(x = lon, y = lat)) +
+  geom_label_repel(data = PI_sites, aes(x = lon, y = lat, label = site), nudge_y = -1) +
+  scale_colour_viridis_c() +
+  coord_equal(xlim = c(-81, -76), ylim = c(71.5, 73)) +
+  labs(x = "Longitude", y = "Latitude") +
+  facet_grid(month~depth)
+ggsave("graph/sss_month_depth.pdf", sss_month_depth, height = 10, width = 20)

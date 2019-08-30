@@ -13,7 +13,7 @@ library(measurements)
 # Load data ---------------------------------------------------------------
 
 # The study sites
-study_sites <- readxl::read_xlsx("data/ArcticKelp study sites.xlsx") %>% 
+study_sites <- readxl::read_xlsx("metadata/ArcticKelp study sites.xlsx") %>% 
   dplyr::rename(lon = Longitude, lat = Latitude, site = Site_Name)
 
 # Manually look at the spreadsheet to see which rows need to be converted to decimal lon/lat
@@ -36,11 +36,11 @@ bbox_arctic <- c(-100, -40, 50, 80)
 
 # Visualise ---------------------------------------------------------------
 
-ggplot(data = study_sites, aes(x = lon, y = lat)) +
-  borders(fill = "grey70", colour = "black") +
-  geom_point(colour = "red") +
-  geom_label_repel(aes(label = site)) +
-  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4])) +
-  labs(x = NULL, y = NULL)
-ggsave("study_area.png", width = 9, height = 7)
+# ggplot(data = study_sites, aes(x = lon, y = lat)) +
+#   borders(fill = "grey70", colour = "black") +
+#   geom_point(colour = "red") +
+#   geom_label_repel(aes(label = site)) +
+#   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+#                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+#   labs(x = NULL, y = NULL)
+# ggsave("study_area.png", width = 9, height = 7)
