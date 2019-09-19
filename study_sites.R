@@ -28,7 +28,8 @@ study_sites <- study_sites %>%
   mutate(lon = round(as.numeric(lon), 4),
          lat = round(as.numeric(lat), 4),
          # It seems that there are several coordinates that should be negative
-         lon = -abs(lon))
+         lon = -abs(lon)) %>% 
+  dplyr::select(site, lon, lat, everything())
 
 # Set bounding box for study
 bbox_arctic <- c(-100, -40, 50, 80)
