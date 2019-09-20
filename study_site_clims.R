@@ -2,6 +2,7 @@
 # The purpose of this script is to pull out the monthly clims at each study site
 # This script is meant to be sourced by more advanced analyses
 
+
 # Libraries ---------------------------------------------------------------
 
 # Load study sites and base packages
@@ -14,6 +15,7 @@ library(FNN)
 load("metadata/NAPA_arctic.RData")
 NAPA_arctic <- NAPA_arctic %>% 
   mutate(NAPA_index = as.integer(row.names(.)))
+
 
 # NetCDF information ------------------------------------------------------
 
@@ -116,3 +118,4 @@ ggplot(study_site_clims_long, aes(x = month, y = val, colour = depth)) +
   theme(axis.text.x = element_text(angle = 45),
         legend.position = "bottom")
 ggsave("graph/study_site_clims.pdf", height = 12, width = 44)
+
