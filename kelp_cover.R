@@ -16,7 +16,9 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", dec = ',', sep =
                 sand = Sand.., Agarum = Agarum.., Alaria = Alaria..) %>% 
   filter(sand <= 75, Depth >= 3) %>%
   mutate(kelp.density = S.latissima.No. + Agarum.No. + Alaria.No.,
-         kelp.cover = Laminariales + Agarum + Alaria)
+         kelp.cover = Laminariales + Agarum + Alaria,
+         site = str_replace(site, "Durban Habour", "Durban Harbour"),
+         site = str_replace(site, "Qik", "Qikitarjuak"))
 
 
 # Summarise data ----------------------------------------------------------
