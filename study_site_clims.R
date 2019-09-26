@@ -60,8 +60,8 @@ Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_surface_clim, by = c("x", "
 
 # This is problematic as there are not unique pixels for each site
 # because some sites are at the same location but different depths
-NAPA_match <- NAPA_arctic[which(as.numeric(row.names(NAPA_arctic)) %in% as.vector(knnx.index(as.matrix(NAPA_arctic[,c("nav_lon", "nav_lat")]),
-                                     as.matrix(study_sites[,c("lon", "lat")]), k = 1))),]
+# NAPA_match <- NAPA_arctic[which(as.numeric(row.names(NAPA_arctic)) %in% as.vector(knnx.index(as.matrix(NAPA_arctic[,c("nav_lon", "nav_lat")]),
+                                     # as.matrix(study_sites[,c("lon", "lat")]), k = 1))),]
 
 # Rather just get the row numbers and subset less directly
 study_sites_index <- study_sites %>% 
@@ -96,6 +96,7 @@ study_site_clims <- right_join(Arctic_clim, study_sites_index, by = c("nav_lon",
                 eken, soce, toce, # Depth variables
                 mldr10_1, runoffs, # surface variables
                 iceconc_cat, icethic_cat)  # Ice variables
+save(study_site_clims, file = "data/study_site_clims.RData")
 
 # Melt for plotting purposes
 study_site_clims_long <- study_site_clims %>% 
@@ -104,6 +105,7 @@ study_site_clims_long <- study_site_clims %>%
   mutate(var = factor(var, levels = c("iceconc_cat", "icethic_cat", #Ice
                                       "mldr10_1", "runoffs", # Surface
                                       "eken", "soce", "toce"))) # Depth
+save(study_site_clims_long, file = "data/study_site_clims_long.RData")
 
 
 # Visualise ---------------------------------------------------------------
