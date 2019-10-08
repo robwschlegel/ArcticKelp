@@ -9,6 +9,9 @@ source("study_sites.R")
 source("kelp_cover.R")
 
 
+# Need to consider percent sand and rock when looking at patterns
+
+
 # Load monthly clims ------------------------------------------------------
 
 # The wide format data
@@ -40,25 +43,52 @@ study_site_clims <- study_site_clims %>%
 
 kelp_clims <- left_join(adf_summary, study_site_clims, by = c("site", "Depth")) %>% 
   filter(depth > -1) %>%  # Removes sites with names that don't match up
-  dplyr::select(site:mean_cover, month, depth, eken:icethic_cat) %>% 
+  dplyr::select(Campaign:mean_cover, month, depth, eken:icethic_cat) %>% 
   mutate(eken = ifelse(Depth == depth, eken, NA),  # A funny way of getting rid of non-target depth data
          soce = ifelse(Depth == depth, soce, NA), 
          toce = ifelse(Depth == depth, toce, NA)) %>% 
   dplyr::select(-depth) %>% 
-  gather(key = "model_var", value = "val", -c(site:month)) %>% 
+  gather(key = "model_var", value = "val", -c(Campaign:month)) %>% 
   na.omit()
+
+kelp_clim_mean <- kelp_clims %>% 
+  data.frame() %>% 
+  dplyr::select(-month) %>% 
+  group_by(Campaign, site, Depth, family, mean_cover, model_var) %>% 
+  summarise(val = mean(val, na.rm = T))
+
+
+# Multivariate analyses ---------------------------------------------------
+
 
 
 # Visualise ---------------------------------------------------------------
 
 # Going with scatterplots a.t.m.
 
-scatter_all <- kelp_clims %>% 
-  filter(family != "kelp.cover") %>% 
+# Kelp cover vs. abiotic variables per monthly climatology
+scatter_clims <- kelp_clims %>% 
+  # filter(family != "kelp.cover") %>% 
   ggplot(aes(x = val, y = mean_cover)) +
-  geom_point(aes(group = site, colour = month, shape = as.factor(Depth))) +
-  facet_grid(family~model_var, scales = "free", switch = "both") +
+  geom_point(aes(group = site, colour = family)) +
+  geom_smooth(method = "lm", se = F, aes(colour = family)) +
+  facet_grid(month~model_var, scales = "free_x", switch = "both") +
   labs(x = "Model variable value", y = "Cover (%)", 
-       colour = "Monthly clim", shape = "Depth (m)")
-scatter_all
+       colour = "Family", shape = "Depth (m)") +
+  theme(legend.position = "top")
+scatter_clims
 
+# Kelp cover vs. overall mean for abiotic variables
+scatter_clim_mean <- kelp_clim_mean %>% 
+  filter(family == "kelp.cover") %>%
+  ggplot(aes(x = val, y = mean_cover)) +
+  geom_point(aes(group = site, colour = as.factor(Depth))) +
+  geom_smooth(method = "lm", se = F, aes(colour = as.factor(Depth), linetype = Campaign)) +
+  geom_label(aes(label = site, fill = as.factor(Depth)), size = 2) +
+  facet_grid(~model_var, scales = "free_x", switch = "both") +
+  labs(x = "Model variable value", y = "Cover (%)", 
+       colour = "Depth (m)", fill = "Depth (m)", linetype = "Campaign") +
+  theme(legend.position = "top")
+scatter_clim_mean
+ggsave("graph/scatter_clim_mean.pdf", scatter_clim_mean, height = 4, width = 16)
+ggsave("graph/scatter_clim_mean.png", scatter_clim_mean, height = 4, width = 16)

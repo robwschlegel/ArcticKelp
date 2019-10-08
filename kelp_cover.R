@@ -24,13 +24,13 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", dec = ',', sep =
 # Summarise data ----------------------------------------------------------
 
 adf_summary <- adf %>% 
-  dplyr::select(site, Depth, kelp.cover, Laminariales, Agarum, Alaria) %>% 
+  dplyr::select(Campaign, site, Depth, kelp.cover, Laminariales, Agarum, Alaria) %>% 
   mutate(Depth = ifelse(Depth == 3, 5, Depth), # Match abiotic 5 m Depth increments
          site = as.character(site)) %>% 
-  gather(key = "family", value = "cover", -site, -Depth) %>% 
+  gather(key = "family", value = "cover", -Campaign, -site, -Depth) %>% 
   mutate(family = factor(family, levels = c("Agarum", "Alaria", 
                                             "Laminariales", "kelp.cover"))) %>% 
-  group_by(site, Depth, family) %>% 
+  group_by(Campaign, site, Depth, family) %>% 
   summarise(mean_cover = round(mean(cover, na.rm = T), 2),
             sd_cover = round(sd(cover, na.rm = T), 2),
             count = n())
