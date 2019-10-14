@@ -1,13 +1,18 @@
-# monthly_clims.R
+# analyses/monthly_clims.R
 # The purpose of this script is to create monthly climatologies at each pixel
 # in the arctic from the NAPA model
+# This should only need to be run once at the outset of the project.
+# If any sites change/are added, run "analyses/study_sites_clims.R" 
+# to get the updated values, not this script
 
 
 # Libraries ---------------------------------------------------------------
 
+.libPaths(c("~/R-packages", .libPaths()))
+
 library(tidyverse)
-library(lubridate)
-library(tidync, lib.loc = "../R-packages/")
+# library(lubridate)
+library(tidync)
 library(stringr)
 library(data.table)
 

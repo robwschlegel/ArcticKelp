@@ -1,20 +1,22 @@
-# study_site_clims
+# analyses/study_site_clims
 # The purpose of this script is to pull out the monthly clims at each study site
-# This script is meant to be sourced by more advanced analyses
+# Whenever new sites are added re-run this script to get the clims for the new pixels
 
 
 # Libraries ---------------------------------------------------------------
 
 # Load study sites and base packages
-source("study_sites.R")
+source("analyses/2_study_sites.R")
 
 # Additional packages
 library(FNN)
 
 # The NAPA Arctic coords
-load("metadata/NAPA_arctic.RData")
-NAPA_arctic <- NAPA_arctic %>% 
-  mutate(NAPA_index = as.integer(row.names(.)))
+if(!exists("NAPA_arctic")){
+  load("metadata/NAPA_arctic.RData")
+  NAPA_arctic <- NAPA_arctic %>% 
+    mutate(NAPA_index = as.integer(row.names(.)))
+}
 
 
 # NetCDF information ------------------------------------------------------
@@ -35,25 +37,33 @@ info_depth <- ncdump::NetCDF("../../data/NAPA025/5d_grid_T/CREG025E-GLSII_5d_gri
 # Load clim files ---------------------------------------------------------
 
 # Load clim files
-load("data/Arctic_surface_clim.RData")
-Arctic_surface_clim <- data.frame(Arctic_surface_clim) %>% 
-  mutate(nav_lon = round(nav_lon, 4), 
-         nav_lat = round(nav_lat, 4),
-         depth = 0) %>% 
-  dplyr::select(-qla_oce, -qsb_oce)
-load("data/Arctic_ice_clim.RData")
-Arctic_ice_clim <- data.frame(Arctic_ice_clim) %>% 
-  mutate(nav_lon = round(nav_lon, 4), 
-         nav_lat = round(nav_lat, 4),
-         depth = 0)
-load("data/Arctic_depth_T_clim.RData")
-Arctic_depth_T_clim <- data.frame(Arctic_depth_T_clim) %>% 
-  mutate(nav_lon = round(nav_lon, 4), 
-         nav_lat = round(nav_lat, 4))
+if(!exists("Arctic_surface_clim")){
+  load("data/Arctic_surface_clim.RData")
+  Arctic_surface_clim <- data.frame(Arctic_surface_clim) %>% 
+    mutate(nav_lon = round(nav_lon, 4), 
+           nav_lat = round(nav_lat, 4),
+           depth = 0) %>% 
+    dplyr::select(-qla_oce, -qsb_oce)
+}
+if(!exists("Arctic_ice_clim")){
+  load("data/Arctic_ice_clim.RData")
+  Arctic_ice_clim <- data.frame(Arctic_ice_clim) %>% 
+    mutate(nav_lon = round(nav_lon, 4), 
+           nav_lat = round(nav_lat, 4),
+           depth = 0)
+}
+if(!exists("Arctic_depth_T_clim")){
+  load("data/Arctic_depth_T_clim.RData")
+  Arctic_depth_T_clim <- data.frame(Arctic_depth_T_clim) %>% 
+    mutate(nav_lon = round(nav_lon, 4), 
+           nav_lat = round(nav_lat, 4))
+  }
 
 # Join everything
-Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
-  left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
+if(!exists("Arctic_clim")){
+  Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
+    left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
+}
 
 
 # Find nearest neighbours -------------------------------------------------
@@ -92,7 +102,7 @@ study_sites_index <- study_sites %>%
 # toce - Sea Water Potential Temperature
 
 study_site_clims <- right_join(Arctic_clim, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) %>% 
-  dplyr::select(site:Source, nav_lon:bathy, 
+  dplyr::select(site:Campaign, nav_lon:bathy, 
                 eken, soce, toce, # Depth variables
                 mldr10_1, runoffs, # surface variables
                 iceconc_cat, icethic_cat)  # Ice variables
@@ -110,14 +120,14 @@ save(study_site_clims_long, file = "data/study_site_clims_long.RData")
 
 # Visualise ---------------------------------------------------------------
 
-ggplot(study_site_clims_long, aes(x = month, y = val, colour = depth)) +
-  geom_line(aes(group = depth), size = 1.5) +
-  scale_colour_gradient(low = "steelblue", high = "black", breaks = seq(0, 30, 5),
-                        guide = guide_legend(title.position = "left", nrow = 1)) +
-  facet_grid(var~site+Depth, scales = "free", switch = "y") +
-  scale_x_discrete(expand = c(0, 0)) +
-  labs(x = "Monthly climatology", y = NULL, colour = "Depth (m)") +
-  theme(axis.text.x = element_text(angle = 45),
-        legend.position = "bottom")
-ggsave("graph/study_site_clims.pdf", height = 12, width = 44)
+# ggplot(study_site_clims_long, aes(x = month, y = val, colour = depth)) +
+#   geom_line(aes(group = depth), size = 1.5) +
+#   scale_colour_gradient(low = "steelblue", high = "black", breaks = seq(0, 30, 5),
+#                         guide = guide_legend(title.position = "left", nrow = 1)) +
+#   facet_grid(var~site, scales = "free", switch = "y") +
+#   scale_x_discrete(expand = c(0, 0)) +
+#   labs(x = "Monthly climatology", y = NULL, colour = "Depth (m)") +
+#   theme(axis.text.x = element_text(angle = 45),
+#         legend.position = "bottom")
+# ggsave("graph/study_site_clims.pdf", height = 12, width = 44)
 

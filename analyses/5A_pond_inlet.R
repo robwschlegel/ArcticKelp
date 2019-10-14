@@ -1,4 +1,4 @@
-# pond_inlet.R
+# analyses/pond_inlet.R
 # The purpose of this script is to extract NAPA data for only the Pond Inlet area
 # It then creates visualisations at depth for monthly clims
 
@@ -6,7 +6,7 @@
 # Libraries ---------------------------------------------------------------
 
 # The study sites and bounding box
-source("study_sites.R")
+source("2_study_sites.R")
 
 # The Pond Inlet bounding box
 bbox_PI <- c(-81, -76, 71.5, 73) 
@@ -44,6 +44,7 @@ PI_ice_clim_sub <- PI_ice_clim %>%
 # Pull out the weird low salinity data
 low_sss <- PI_depth_T_clim %>%
   filter(soce < 10)
+
 
 # Visualise ---------------------------------------------------------------
 
