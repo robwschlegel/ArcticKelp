@@ -5,6 +5,10 @@
 # If any sites change/are added, run "analyses/study_sites_clims.R" 
 # to get the updated values, not this script
 
+# NB: This script will only run on Eric Oliver's tikoraluk server
+# This is because it is utilising files that are up to 25GB in size
+# This shouldn't be an issue though as it only needs to be run once
+
 
 # Libraries ---------------------------------------------------------------
 
@@ -202,14 +206,60 @@ monthly_clims <- function(df, depth = F){
 }
 
 # Calculate monthly clims for surface data
+# if(!exists("Arctic_surface")) load("data/Arctic_surface.RData")
 # system.time(Arctic_surface_clim <- monthly_clims(Arctic_surface, depth = F)) # 186 seconds
 # save(Arctic_surface_clim, file = "data/Arctic_surface_clim.RData") # 46.6 MB
 
 # Calculate monthly clims for depth_T data
+# if(!exists("Arctic_depth_T")) load("data/Arctic_depth_T.RData")
 # system.time(Arctic_depth_T_clim <- monthly_clims(Arctic_depth_T, depth = T)) # 74 seconds
 # save(Arctic_depth_T_clim, file = "data/Arctic_depth_T_clim.RData") # 151 MB
 
 # Calculate monthly clims for ice data
+# if(!exists("Arctic_ice")) load("data/Arctic_ice.RData")
 # system.time(Arctic_ice_clim <- monthly_clims(Arctic_ice, depth = F)) # 31 seconds
 # save(Arctic_ice_clim, file = "data/Arctic_ice_clim.RData") # 17 MB
 
+# NB: Note that the climatology files above are too large to push to GitHub
+
+
+# Overall means per pixel -------------------------------------------------
+
+overall_means <- function(df, depth = F){
+  # system.time(
+  df_mean <- data.table(dplyr::select(df, -t, -month))
+  #) # 56 seconds
+  if(!depth){
+    # system.time(
+    setkey(df_mean, nav_lon, nav_lat)
+    # ) # xxx seconds
+    # system.time(
+    df_mean <- df_mean[, lapply(.SD, mean), by = list(nav_lon, nav_lat)]
+    # ) # xxx seconds
+  } else if(depth){
+    # system.time(
+    setkey(df_mean, nav_lon, nav_lat, depth)
+    # ) # 81 seconds
+    # system.time(
+    df_mean <- df_mean[, lapply(.SD, mean), by = list(nav_lon, nav_lat, depth)]
+    # ) # 31 seconds
+  } else{
+    stop("Something has gone wrong...")
+  }
+  return(df_mean)
+}
+
+# Calculate monthly clims for surface data
+# if(!exists("Arctic_surface")) load("data/Arctic_surface.RData")
+# system.time(Arctic_surface_mean <- overall_means(Arctic_surface, depth = F)) # 67 seconds
+# save(Arctic_surface_mean, file = "data/Arctic_surface_mean.RData") # 3.8 MB
+
+# Calculate monthly clims for depth_T data
+# if(!exists("Arctic_depth_T")) load("data/Arctic_depth_T.RData")
+# system.time(Arctic_depth_T_mean <- overall_means(Arctic_depth_T, depth = T)) # 47 seconds
+# save(Arctic_depth_T_mean, file = "data/Arctic_depth_T_mean.RData") # 11.9 MB
+
+# Calculate monthly clims for ice data
+# if(!exists("Arctic_ice")) load("data/Arctic_ice.RData")
+# system.time(Arctic_ice_mean <- overall_means(Arctic_ice, depth = F)) # 15 seconds
+# save(Arctic_ice_mean, file = "data/Arctic_ice_mean.RData") # 1.3 MB

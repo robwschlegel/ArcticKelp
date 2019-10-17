@@ -5,6 +5,7 @@
 # NB: This script will only run on Eric Oliver's tikoraluk server
 # This is because it is utilising files that are up to 25GB in size
 
+
 # Libraries ---------------------------------------------------------------
 
 # Load study sites and base packages
@@ -38,33 +39,63 @@ if(!exists("NAPA_arctic")){
 
 # Load clim files ---------------------------------------------------------
 
-# Load clim files
-if(!exists("Arctic_surface_clim")){
-  load("data/Arctic_surface_clim.RData")
-  Arctic_surface_clim <- data.frame(Arctic_surface_clim) %>% 
-    mutate(nav_lon = round(nav_lon, 4), 
+# if(!exists("Arctic_surface_clim")){
+#   load("data/Arctic_surface_clim.RData")
+#   Arctic_surface_clim <- data.frame(Arctic_surface_clim) %>% 
+#     mutate(nav_lon = round(nav_lon, 4), 
+#            nav_lat = round(nav_lat, 4),
+#            depth = 0) %>% 
+#     dplyr::select(-qla_oce, -qsb_oce)
+# }
+# if(!exists("Arctic_ice_clim")){
+#   load("data/Arctic_ice_clim.RData")
+#   Arctic_ice_clim <- data.frame(Arctic_ice_clim) %>% 
+#     mutate(nav_lon = round(nav_lon, 4), 
+#            nav_lat = round(nav_lat, 4),
+#            depth = 0)
+# }
+# if(!exists("Arctic_depth_T_clim")){
+#   load("data/Arctic_depth_T_clim.RData")
+#   Arctic_depth_T_clim <- data.frame(Arctic_depth_T_clim) %>% 
+#     mutate(nav_lon = round(nav_lon, 4), 
+#            nav_lat = round(nav_lat, 4))
+#   }
+# 
+# # Join everything
+# if(!exists("Arctic_clim")){
+#   Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
+#     left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
+# }
+
+
+# Load overall mean files -------------------------------------------------
+
+if(!exists("Arctic_surface_mean")){
+  load("data/Arctic_surface_mean.RData")
+  Arctic_surface_mean <- data.frame(Arctic_surface_mean) %>%
+    mutate(nav_lon = round(nav_lon, 4),
            nav_lat = round(nav_lat, 4),
-           depth = 0) %>% 
+           depth = 0) %>%
     dplyr::select(-qla_oce, -qsb_oce)
 }
-if(!exists("Arctic_ice_clim")){
-  load("data/Arctic_ice_clim.RData")
-  Arctic_ice_clim <- data.frame(Arctic_ice_clim) %>% 
-    mutate(nav_lon = round(nav_lon, 4), 
+if(!exists("Arctic_ice_mean")){
+  load("data/Arctic_ice_mean.RData")
+  Arctic_ice_mean <- data.frame(Arctic_ice_mean) %>%
+    mutate(nav_lon = round(nav_lon, 4),
            nav_lat = round(nav_lat, 4),
            depth = 0)
 }
-if(!exists("Arctic_depth_T_clim")){
-  load("data/Arctic_depth_T_clim.RData")
-  Arctic_depth_T_clim <- data.frame(Arctic_depth_T_clim) %>% 
-    mutate(nav_lon = round(nav_lon, 4), 
+if(!exists("Arctic_depth_T_mean")){
+  load("data/Arctic_depth_T_mean.RData")
+  Arctic_depth_T_mean <- data.frame(Arctic_depth_T_mean) %>%
+    mutate(nav_lon = round(nav_lon, 4),
            nav_lat = round(nav_lat, 4))
   }
 
 # Join everything
-if(!exists("Arctic_clim")){
-  Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
-    left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
+if(!exists("Arctic_mean")){
+  Arctic_mean <- left_join(Arctic_depth_T_mean, Arctic_surface_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
+    left_join(Arctic_ice_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
 }
 
 
