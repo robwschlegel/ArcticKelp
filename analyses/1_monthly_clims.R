@@ -42,7 +42,7 @@ doMC::registerDoMC(cores = 50)
 # Data --------------------------------------------------------------------
 
 # The study sites and bounding box
-source("study_sites.R")
+source("analyses/2_study_sites.R")
 
 # Extract NAPA grid from NetCDF and save as an RData file
 # NAPA_bathy <- tidync("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc") %>%
