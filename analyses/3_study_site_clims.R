@@ -2,9 +2,6 @@
 # The purpose of this script is to pull out the monthly clims at each study site
 # Whenever new sites are added re-run this script to get the clims for the new pixels
 
-# NB: This script will only run on Eric Oliver's tikoraluk server
-# This is because it is utilising files that are up to 25GB in size
-
 
 # Libraries ---------------------------------------------------------------
 
@@ -38,6 +35,8 @@ if(!exists("NAPA_arctic")){
 
 
 # Load clim files ---------------------------------------------------------
+
+# The climatology files are too large to host on GitHub
 
 # if(!exists("Arctic_surface_clim")){
 #   load("data/Arctic_surface_clim.RData")
@@ -94,8 +93,8 @@ if(!exists("Arctic_depth_T_mean")){
 
 # Join everything
 if(!exists("Arctic_mean")){
-  Arctic_mean <- left_join(Arctic_depth_T_mean, Arctic_surface_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
-    left_join(Arctic_ice_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
+  Arctic_mean <- left_join(Arctic_depth_T_mean, Arctic_surface_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>%
+    left_join(Arctic_ice_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy"))
 }
 
 
@@ -129,21 +128,40 @@ study_sites_index <- study_sites %>%
 # soce - Sea Water Salinity
 # toce - Sea Water Potential Temperature
 
-study_site_clims <- right_join(Arctic_clim, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) %>% 
-  dplyr::select(site:Campaign, nav_lon:bathy, 
+# study_site_clims <- right_join(Arctic_clim, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) %>% 
+#   dplyr::select(site:Campaign, nav_lon:bathy, 
+#                 eken, soce, toce, # Depth variables
+#                 mldr10_1, runoffs, # surface variables
+#                 iceconc_cat, icethic_cat)  # Ice variables
+# save(study_site_clims, file = "data/study_site_clims.RData")
+# 
+# # Melt for plotting purposes
+# study_site_clims_long <- study_site_clims %>% 
+#   gather("var", "val", -c(site:bathy)) %>% 
+#   na.omit() %>% 
+#   mutate(var = factor(var, levels = c("iceconc_cat", "icethic_cat", #Ice
+#                                       "mldr10_1", "runoffs", # Surface
+#                                       "eken", "soce", "toce"))) # Depth
+# save(study_site_clims_long, file = "data/study_site_clims_long.RData")
+
+
+# Study site overall means ------------------------------------------------
+
+study_site_means <- right_join(Arctic_mean, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) %>%
+  dplyr::select(site:Campaign, nav_lon:bathy,
                 eken, soce, toce, # Depth variables
                 mldr10_1, runoffs, # surface variables
                 iceconc_cat, icethic_cat)  # Ice variables
-save(study_site_clims, file = "data/study_site_clims.RData")
+save(study_site_means, file = "data/study_site_means.RData")
 
 # Melt for plotting purposes
-study_site_clims_long <- study_site_clims %>% 
-  gather("var", "val", -c(site:bathy)) %>% 
-  na.omit() %>% 
+study_site_means_long <- study_site_means %>%
+  gather("var", "val", -c(site:bathy)) %>%
+  na.omit() %>%
   mutate(var = factor(var, levels = c("iceconc_cat", "icethic_cat", #Ice
                                       "mldr10_1", "runoffs", # Surface
                                       "eken", "soce", "toce"))) # Depth
-save(study_site_clims_long, file = "data/study_site_clims_long.RData")
+save(study_site_means_long, file = "data/study_site_means_long.RData")
 
 
 # Visualise ---------------------------------------------------------------
