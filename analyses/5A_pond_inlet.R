@@ -6,13 +6,10 @@
 # Libraries ---------------------------------------------------------------
 
 # The study sites and bounding box
-source("2_study_sites.R")
+source("analyses/4_kelp_cover.R")
 
 # The Pond Inlet bounding box
 bbox_PI <- c(-81, -76, 71.5, 73) 
-
-# The arctic lon/lat/depth coords
-load("metadata/NAPA_arctic.RData")
 
 
 # Subset for Pond Inlet ---------------------------------------------------
