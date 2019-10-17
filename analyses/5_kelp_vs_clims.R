@@ -9,11 +9,10 @@ source("analyses/4_kelp_cover.R")
 
 # library(vegan)
 
-# Need a dead GitHub package to make the plotting easier
-# .libPaths(c("~/R-packages", .libPaths()))
-# devtools::install_github("gavinsimpson/ggvegan")
-# library(ggvegan)
 
+# Load study site clims ---------------------------------------------------
+
+load("data/")
 
 # Check for site mismatches -----------------------------------------------
 

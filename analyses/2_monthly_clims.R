@@ -8,10 +8,10 @@
 
 # Libraries ---------------------------------------------------------------
 
-.libPaths(c("~/R-packages", .libPaths()))
+# The study sites and bounding box
+source("analyses/1_study_sites.R")
 
-library(tidyverse)
-# library(lubridate)
+# Other packages
 library(tidync)
 library(stringr)
 library(data.table)
@@ -40,9 +40,6 @@ doMC::registerDoMC(cores = 50)
 
 
 # Data --------------------------------------------------------------------
-
-# The study sites and bounding box
-source("analyses/2_study_sites.R")
 
 # Extract NAPA grid from NetCDF and save as an RData file
 # NAPA_bathy <- tidync("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc") %>%

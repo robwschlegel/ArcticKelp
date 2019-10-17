@@ -2,11 +2,13 @@
 # The purpose of this script is to pull out the monthly clims at each study site
 # Whenever new sites are added re-run this script to get the clims for the new pixels
 
+# NB: This script will only run on Eric Oliver's tikoraluk server
+# This is because it is utilising files that are up to 25GB in size
 
 # Libraries ---------------------------------------------------------------
 
 # Load study sites and base packages
-source("analyses/2_study_sites.R")
+source("analyses/1_study_sites.R")
 
 # Additional packages
 library(FNN)
@@ -22,16 +24,16 @@ if(!exists("NAPA_arctic")){
 # NetCDF information ------------------------------------------------------
 
 # Check the grid data
-info_grid <- ncdump::NetCDF("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc")
+# info_grid <- ncdump::NetCDF("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc")
 
 # Check the surface NetCDF information
-info_surface <- ncdump::NetCDF("../../data/NAPA025/1d_grid_T_2D/CREG025E-GLSII_1d_grid_T_2D_19931001-19931005.nc")
+# info_surface <- ncdump::NetCDF("../../data/NAPA025/1d_grid_T_2D/CREG025E-GLSII_1d_grid_T_2D_19931001-19931005.nc")
 
 # Check the ice NetCDF information
-info_ice <- ncdump::NetCDF("../../data/NAPA025/5d_icemod/CREG025E-GLSII_5d_icemod_19931001-19931005.nc")#$variable$longname
+# info_ice <- ncdump::NetCDF("../../data/NAPA025/5d_icemod/CREG025E-GLSII_5d_icemod_19931001-19931005.nc")#$variable$longname
 
 # Check the depth NetCDF information
-info_depth <- ncdump::NetCDF("../../data/NAPA025/5d_grid_T/CREG025E-GLSII_5d_grid_T_19931001-19931005.nc")#$variable$longname
+# info_depth <- ncdump::NetCDF("../../data/NAPA025/5d_grid_T/CREG025E-GLSII_5d_grid_T_19931001-19931005.nc")#$variable$longname
 
 
 # Load clim files ---------------------------------------------------------
@@ -68,12 +70,7 @@ if(!exists("Arctic_clim")){
 
 # Find nearest neighbours -------------------------------------------------
 
-# This is problematic as there are not unique pixels for each site
-# because some sites are at the same location but different depths
-# NAPA_match <- NAPA_arctic[which(as.numeric(row.names(NAPA_arctic)) %in% as.vector(knnx.index(as.matrix(NAPA_arctic[,c("nav_lon", "nav_lat")]),
-                                     # as.matrix(study_sites[,c("lon", "lat")]), k = 1))),]
-
-# Rather just get the row numbers and subset less directly
+# The row numbers and subset less directly
 study_sites_index <- study_sites %>% 
   mutate(NAPA_index = as.vector(knnx.index(as.matrix(NAPA_arctic[,c("nav_lon", "nav_lat")]),
                                  as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>% 

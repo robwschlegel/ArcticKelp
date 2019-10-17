@@ -5,7 +5,9 @@
 
 # Libraries ---------------------------------------------------------------
 
-source("analyses/3_study_site_clims.R")
+# Load study sites and base packages
+# source("analyses/3_study_site_clims.R")
+source("analyses/1_study_sites.R")
 
 library(ggridges)
 
@@ -19,8 +21,8 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", dec = ',', sep =
   filter(sand <= 95, depth >= 3) %>%
   mutate(depth = ifelse(depth == 3, 5, depth), # Match abiotic 5 m depth increments
          kelp.density = S.latissima.No. + Agarum.No. + Alaria.No.,
-         kelp.cover = Agarum + Alaria+ L.solidungula + L.digitata+Laminariales.unspecified+Sacharrina+Saccorhiza..,
-         Laminariales = L.solidungula + L.digitata+Laminariales.unspecified,
+         kelp.cover = Agarum + Alaria + L.solidungula + L.digitata + Laminariales.unspecified + Sacharrina + Saccorhiza..,
+         Laminariales = L.solidungula + L.digitata + Laminariales.unspecified,
          site = str_replace(site, "Durban Habour", "Durban Harbour"),
          site = as.character(site))
 
