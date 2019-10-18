@@ -263,3 +263,4 @@ overall_means <- function(df, depth = F){
 # if(!exists("Arctic_ice")) load("data/Arctic_ice.RData")
 # system.time(Arctic_ice_mean <- overall_means(Arctic_ice, depth = F)) # 15 seconds
 # save(Arctic_ice_mean, file = "data/Arctic_ice_mean.RData") # 1.3 MB
+

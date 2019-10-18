@@ -12,6 +12,7 @@ source("analyses/1_study_sites.R")
 library(FNN)
 
 # The NAPA Arctic coords
+#KFD: this one doesn't run as a line, I have to break it up for it to make the NAPA INDEX column
 if(!exists("NAPA_arctic")){
   load("metadata/NAPA_arctic.RData")
   NAPA_arctic <- NAPA_arctic %>% 
