@@ -19,8 +19,15 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", dec = ',', sep =
   mutate(depth = ifelse(depth == 3, 5, depth), # Match abiotic 5 m depth increments
          kelp.density = S.latissima.No. + Agarum.No. + Alaria.No.,
          kelp.cover = Laminariales + Agarum + Alaria,
+         Bedrock.. = replace_na(Bedrock.., 0),
+         Boulders.. = replace_na(Boulders.., 0),
+         Cobbles.. = replace_na(Cobbles.., 0),
+         Pebbles.. = replace_na(Pebbles.., 0),
+         rock = Bedrock.. + Boulders.. + Cobbles.. + Pebbles..,
          site = str_replace(site, "Durban Habour", "Durban Harbour"),
-         site = as.character(site))
+         site = as.character(site),
+         too_little_cover = ifelse(sand + rock < 100, TRUE, FALSE),
+         too_much_cover = ifelse(sand + rock > 100, TRUE, FALSE))
 
 
 # Summarise data ----------------------------------------------------------
