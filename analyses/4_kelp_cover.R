@@ -5,7 +5,9 @@
 
 # Libraries ---------------------------------------------------------------
 
+# Load study sites and base packages
 source("analyses/3_study_site_clims.R")
+# source("analyses/1_study_sites.R")
 
 library(ggridges)
 
@@ -14,11 +16,13 @@ library(ggridges)
 
 adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", dec = ',', sep = ';') %>%
   dplyr::rename(site = Site, depth = Depth.m, 
-                sand = Sand.., Agarum = Agarum.., Alaria = Alaria..) %>% 
-  filter(sand <= 75, depth >= 3) %>%
+                sand = Sand.., Agarum = Agarum.., Alaria = Alaria.., Alaria = Alaria.., Sacharrina = S..latissima.., 
+                L.solidungula = L..solid.., L.digitata = L..digitata..) %>% 
+  filter(sand <= 95, depth >= 3) %>%
   mutate(depth = ifelse(depth == 3, 5, depth), # Match abiotic 5 m depth increments
          kelp.density = S.latissima.No. + Agarum.No. + Alaria.No.,
-         kelp.cover = Laminariales + Agarum + Alaria,
+         kelp.cover = Agarum + Alaria + L.solidungula + L.digitata + Laminariales.unspecified + Sacharrina + Saccorhiza..,
+         Laminariales = L.solidungula + L.digitata + Laminariales.unspecified,
          Bedrock.. = replace_na(Bedrock.., 0),
          Boulders.. = replace_na(Boulders.., 0),
          Cobbles.. = replace_na(Cobbles.., 0),
@@ -36,7 +40,7 @@ adf_summary <- adf %>%
   dplyr::select(Campaign, site, depth, kelp.cover, Laminariales, Agarum, Alaria) %>% 
   gather(key = "family", value = "cover", -Campaign, -site, -depth) %>% 
   mutate(family = factor(family, levels = c("Agarum", "Alaria", 
-                                            "Laminariales", "kelp.cover"))) %>% 
+                                            "Laminariales", "Sacharrina", "kelp.cover"))) %>% 
   group_by(Campaign, site, depth, family) %>% 
   summarise(mean_cover = round(mean(cover, na.rm = T), 2),
             sd_cover = round(sd(cover, na.rm = T), 2),

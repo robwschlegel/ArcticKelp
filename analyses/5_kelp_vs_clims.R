@@ -7,21 +7,16 @@
 
 source("analyses/4_kelp_cover.R")
 
-# library(vegan)
-
-# Need a dead GitHub package to make the plotting easier
-# .libPaths(c("~/R-packages", .libPaths()))
-# devtools::install_github("gavinsimpson/ggvegan")
-# library(ggvegan)
+library(vegan)
 
 
 # Check for site mismatches -----------------------------------------------
 
 # Sites from Kelp data not in study site names
-unique(adf_summary$site)[!(unique(adf_summary$site) %in% unique(study_site_clims$site))]
+unique(adf_summary$site)[!(unique(adf_summary$site) %in% unique(study_site_means$site))]
 
 # Study site names not in kelp data
-unique(study_site_clims$site)[!(unique(study_site_clims$site) %in% unique(adf_summary$site))]
+unique(study_site_means$site)[!(unique(study_site_means$site) %in% unique(adf_summary$site))]
 
 # Change site names to match kelp data
 # study_site_clims <- study_site_clims %>% 
@@ -32,39 +27,21 @@ unique(study_site_clims$site)[!(unique(study_site_clims$site) %in% unique(adf_su
 # Re-run the above lines to check if everything has been fixed
 
 
-# Join kelp and clims -----------------------------------------------------
+# Join kelp and means -----------------------------------------------------
 
-kelp_clims <- left_join(adf_summary, study_site_clims, by = c("Campaign", "site")) %>% 
+kelp_means <- left_join(adf_summary, study_site_means, by = c("Campaign", "site")) %>% 
   # filter(depth > -1) %>%  # Removes sites with names that don't match up
-  dplyr::select(Campaign:mean_cover, month, depth.y, eken:icethic_cat) %>% 
+  dplyr::select(Campaign:mean_cover, depth.y, eken:icethic_cat) %>% 
   mutate(eken = ifelse(depth.x == depth.y, eken, NA),  # A funny way of getting rid of non-target depth data
          soce = ifelse(depth.x == depth.y, soce, NA), 
          toce = ifelse(depth.x == depth.y, toce, NA)) %>% 
   dplyr::select(-depth.y) %>% 
   dplyr::rename(depth = depth.x) %>% 
-  gather(key = "model_var", value = "val", -c(Campaign:month)) %>% 
+  gather(key = "model_var", value = "val", -c(Campaign:mean_cover)) %>% 
   na.omit()
 
-kelp_clim_mean <- kelp_clims %>% 
-  data.frame() %>% 
-  dplyr::select(-month) %>% 
-  group_by(Campaign, site, depth, family, mean_cover, model_var) %>% 
-  summarise(val = mean(val, na.rm = T))
-
-# Kelp cover vs. abiotic variables per monthly climatology
-scatter_clims <- kelp_clims %>% 
-  # filter(family != "kelp.cover") %>% 
-  ggplot(aes(x = val, y = mean_cover)) +
-  geom_point(aes(group = site, colour = family)) +
-  geom_smooth(method = "lm", se = F, aes(colour = family)) +
-  facet_grid(month~model_var, scales = "free_x", switch = "both") +
-  labs(x = "Model variable value", y = "Cover (%)", 
-       colour = "Family", shape = "Depth (m)") +
-  theme(legend.position = "top")
-# scatter_clims
-
 # Kelp cover vs. overall mean for abiotic variables
-scatter_clim_mean <- kelp_clim_mean %>% 
+scatter_means <- kelp_means %>% 
   filter(family == "kelp.cover") %>%
   ggplot(aes(x = val, y = mean_cover)) +
   geom_point(aes(group = site, colour = as.factor(depth))) +
@@ -74,7 +51,7 @@ scatter_clim_mean <- kelp_clim_mean %>%
   labs(x = "Model variable value", y = "Cover (%)", 
        colour = "Depth (m)", fill = "Depth (m)", linetype = "Campaign") +
   theme(legend.position = "top")
-# scatter_clim_mean
+# scatter_means
 # ggsave("graph/scatter_clim_mean.pdf", scatter_clim_mean, height = 4, width = 16)
 # ggsave("graph/scatter_clim_mean.png", scatter_clim_mean, height = 4, width = 16)
 
@@ -89,7 +66,7 @@ sand_rock <- adf %>%
   summarise_all(mean, na.rm = T) 
 
 # Create data.frame that makes vegan happy
-kelp_wide <- kelp_clim_mean %>% 
+kelp_wide <- kelp_means %>% 
   spread(key = model_var, value = val) %>% 
   spread(key = family, value = mean_cover) %>% 
   ungroup() %>% 
