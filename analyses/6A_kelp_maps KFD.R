@@ -38,16 +38,31 @@ kelp_var <- adf_summary %>%
   filter(family == 'kelp.cover') %>% filter(depth==10|depth==15) %>% 
   left_join(study_sites_index, by = c("Campaign", "site")) %>% 
   left_join(abiotic_var, by = c("nav_lon" = "lon", "nav_lat" = "lat"))
-data1=kelp_var[,c(5,3,20)]
+data1=kelp_var[,c(5,3,19:25)]
 train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
-TrainSet <- data1[train,]
-
-kelp.rf <- randomForest(kelp.cover ~ ., data=kelp_var, mtry=3,
-                         importance=TRUE, na.action=na.omit)
-
-set.seed(100)
-train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
-TrainSet <- data1[train,]
 ValidSet <- data1[-train,]
-summary(TrainSet)
-summary(ValidSet)
+TrainSet <- data1[train,]
+
+#random forest model. But I don't think we should use means, would perform better with all data points in think
+kelp.rf <- randomForest(mean_cover ~ ., data=TrainSet, mtry=3,
+                         importance=TRUE, na.action=na.omit)
+summary(kelp.rf)
+importance(kelp.rf)
+varImpPlot(kelp.rf)
+
+
+#what about laminariale
+kelp_var <- adf_summary %>% 
+  filter(family == 'Agarum') %>% filter(depth==10|depth==15) %>% 
+  left_join(study_sites_index, by = c("Campaign", "site")) %>% 
+  left_join(abiotic_var, by = c("nav_lon" = "lon", "nav_lat" = "lat"))
+data1=kelp_var[,c(5,3,19:25)]
+train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
+ValidSet <- data1[-train,]
+TrainSet <- data1[train,]
+
+#random forest model. But I don't think we should use means, would perform better with all data points in think
+agar.rf <- randomForest(mean_cover ~ ., data=TrainSet, mtry=3,
+                        importance=TRUE, na.action=na.omit)
+importance(agar.rf)
+varImpPlot(agar.rf)
