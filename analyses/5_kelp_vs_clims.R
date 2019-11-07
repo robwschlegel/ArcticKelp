@@ -8,6 +8,7 @@
 source("analyses/4_kelp_cover.R")
 
 library(vegan)
+library(randomForest)
 
 
 # Check for site mismatches -----------------------------------------------
@@ -60,8 +61,8 @@ scatter_means <- kelp_means %>%
 
 # Need to consider percent sand and rock when looking at patterns
 sand_rock <- adf %>% 
-  select(Campaign, site, depth, Bedrock..:Shell) %>% 
-  replace_na(list(Boulders.. = 0, Cobbles.. = 0, Pebbles.. = 0, sand = 0, Shell = 0)) %>% 
+  select(Campaign, site, depth, sand, rock, Shell) %>% 
+  mutate(Shell = replace_na(Shell, 0)) %>% 
   group_by(Campaign, site, depth) %>% 
   summarise_all(mean, na.rm = T) 
 
@@ -79,7 +80,7 @@ kelp_wide_blind <- kelp_wide %>%
 
 # The "environmental" variables
 kelp_wide_env <- kelp_wide %>% 
-  select(Campaign, depth, kelp.cover, Bedrock..:Shell)
+  select(Campaign, depth, kelp.cover:Shell)
 
 # Run the MDS
 kelp_MDS <- metaMDS(decostand(kelp_wide_blind, method = "standardize"),
@@ -88,7 +89,7 @@ kelp_MDS <- metaMDS(decostand(kelp_wide_blind, method = "standardize"),
 # kelp_MDS$species <- kelp_MDS$points
 
 # Fit environmental variables
-ord_fit <- envfit(kelp_MDS ~ depth + kelp.cover + Bedrock.. + Boulders.. + Cobbles.. + Pebbles.. + sand, data = kelp_wide_env)
+ord_fit <- envfit(kelp_MDS ~ depth + kelp.cover + rock + sand, data = kelp_wide_env)
 ord_fit_df <- data.frame(ord_fit$vectors$arrows) %>% 
   mutate(var = row.names(.))
 
@@ -97,8 +98,8 @@ mds_df <- data.frame(site = kelp_wide$site, kelp_wide_env, kelp_MDS$points)
 
 # Test correlations
 cor(x = kelp_wide$kelp.cover, y = kelp_wide$sand)
-cor(x = kelp_wide$kelp.cover, y = kelp_wide$Pebbles..)
-cor(x = kelp_wide$kelp.cover, y = kelp_wide$Bedrock..)
+cor(x = kelp_wide$kelp.cover, y = kelp_wide$rock)
+cor(x = kelp_wide$kelp.cover, y = kelp_wide$Shell)
 
 # The ordiplot
 ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
@@ -125,3 +126,23 @@ ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
 ggsave("graph/MDS_plot.pdf", width = 10, height = 8)
 ggsave("graph/MDS_plot.png", width = 10, height = 8)
 
+
+# Random forest -----------------------------------------------------------
+
+# Test example
+# set.seed(17)
+# iris.urf <- randomForest(iris[, -5])
+# MDSplot(iris.urf, iris$Species)
+
+# Proposed formulae:
+# Kelp cover ~ Ice + % rock + depth + Kinetic energy + Lat + Exposure + (1|Region/Site)
+# Laminariales cover ~ Ice + % rock + depth + Kinetic energy + Lat + Exposure + (1|Region/Site)  
+
+# Prep the data for a random forest
+random_kelp_prep <- kelp_wide %>% 
+  left_join(study_sites, by = c("Campaign", "site")) %>% 
+  select(kelp.cover, iceconc_cat, rock, depth, eken, toce, lon, lat)
+
+random_kelp <- randomForest(random_kelp_prep)
+MDSplot(random_kelp, factor(kelp_wide$Campaign), k = 1)
+ggsave("graph/random_forest_test_plot.png", height = 5, width = 5)
