@@ -1,4 +1,4 @@
-# analyses/kelp_cover.R
+# analyses/4_kelp_cover.R
 # The purpose of this script is to load the kelp cover data
 # It then goes about making some summaries and visualisations
 
@@ -14,7 +14,7 @@ library(ggridges)
 
 # Load data ---------------------------------------------------------------
 
-adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", dec = ',', sep = ';') %>%
+adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv") %>%
   dplyr::rename(site = Site, depth = Depth.m, 
                 sand = Sand.., Agarum = Agarum.., Alaria = Alaria.., Alaria = Alaria.., Sacharrina = S..latissima.., 
                 L.solidungula = L..solid.., L.digitata = L..digitata..) %>% 
@@ -34,6 +34,14 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", dec = ',', sep =
          too_much_cover = ifelse(sand + rock > 100, TRUE, FALSE))
 
 
+# Quadrat data ------------------------------------------------------------
+
+adf_quadrat <- adf %>% 
+  dplyr::select(Campaign, site, depth, Quadrat, kelp.cover, Laminariales, Agarum, Alaria) %>% 
+  gather(key = "family", value = "cover", -Campaign, -site, -depth, -Quadrat) %>% 
+  mutate(family = factor(family, levels = c("Agarum", "Alaria", 
+                                            "Laminariales", "Sacharrina", "kelp.cover")))
+
 # Summarise data ----------------------------------------------------------
 
 adf_summary <- adf %>% 
@@ -44,7 +52,9 @@ adf_summary <- adf %>%
   group_by(Campaign, site, depth, family) %>% 
   summarise(mean_cover = round(mean(cover, na.rm = T), 2),
             sd_cover = round(sd(cover, na.rm = T), 2),
-            count = n())
+            count = n()) %>% 
+  mutate(mean_cover = ifelse(is.na(mean_cover), 0, mean_cover),
+         sd_cover = ifelse(is.na(sd_cover), 0, sd_cover))
 
 
 # Create figures ----------------------------------------------------------
