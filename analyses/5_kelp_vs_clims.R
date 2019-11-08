@@ -1,4 +1,4 @@
-# analyses/kelp_vs_clims.R
+# analyses/5_kelp_vs_clims.R
 # The purpose of this script is to load the kelp and monthly clim data
 # and then squoosh them together to see if anything interesting falls out
 
