@@ -1,4 +1,4 @@
-# analyses/monthly_clims.R
+# analyses/2_monthly_clims.R
 # The purpose of this script is to create monthly climatologies at each pixel
 # in the arctic from the NAPA model
 # This should only need to be run once at the outset of the project.

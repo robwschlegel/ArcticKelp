@@ -1,4 +1,4 @@
-# analyses/study_sites.R
+# analyses/1_study_sites.R
 # The purpose of this script is to load the study site coordinate data,
 # clean it up and run a test visual on the site coordinates
 
