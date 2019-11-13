@@ -14,7 +14,7 @@ library(ggridges)
 
 # Load data ---------------------------------------------------------------
 
-adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep=',', dec='.') %>%
+adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep=';', dec=',') %>%
   dplyr::rename(site = Site, depth = Depth.m, 
                 sand = Sand.., Agarum = Agarum.., Alaria = Alaria.., Alaria = Alaria.., Sacharrina = S..latissima.., 
                 L.solidungula = L..solid.., L.digitata = L..digitata..) %>% 
@@ -76,11 +76,11 @@ adf_summary <- adf %>%
 # ggsave("graph/kelp_cover_vs_sites.png", fig1, width = 8, height = 10, units = "in", dpi = 300)
 
 # Ridge plots showing coverage of Laminariales by site and depth
-# fig2 <- ggplot(adf, aes(y = site, x = Laminariales, fill = as.factor(depth))) +
-#   stat_density_ridges(alpha = 0.7) +
-#   labs(y = "Site", x = expression(Laminariales~cover~('%')), fill = "depth") +
-#   theme_bw(base_size = 14) +
-#   theme(legend.position = 'top')
+ fig2 <- ggplot(adf, aes(y = site, x = Laminariales, fill = as.factor(depth))) +
+   stat_density_ridges(alpha = 0.7) +
+   labs(y = "Site", x = expression(Laminariales~cover~('%')), fill = "depth") +
+   theme_bw(base_size = 14) +
+   theme(legend.position = 'top')
 # fig2
 # ggsave("graph/Laminariales_cover_vs_sites.png", fig2, width = 8, height = 10, units = "in", dpi = 300)
 

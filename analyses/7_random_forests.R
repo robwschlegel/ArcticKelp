@@ -76,11 +76,11 @@ kelp_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = 2, ntree = 1000
                         importance = TRUE, na.action = na.omit)
 summary(kelp_rf)
 print(kelp_rf)
-#explains 67% pf variance
+#explains 50% pf variance
 
 round(importance(kelp_rf), 1)
 varImpPlot(kelp_rf)
-partialPlot(kelp_rf, train_set, mldr10_1)
+partialPlot(kelp_rf, train_set, lat)
 partialPlot(kelp_rf, train_set, iceconc_cat  )
 
 
@@ -95,29 +95,7 @@ table(pred_valid, valid_set$kelp.cover)
 mean(abs(pred_valid - valid_set$kelp.cover)) # 29% accuracy...
 
 
-#Agarum
-data2 <- select(kelp_all, Agarum:toce, -lon, -Alaria)
-train <- sample(nrow(data2), 0.7*nrow(data2), replace = FALSE)
-train_set <- data2[train,]
-valid_set <- data2[-train,]
-kelp_rf <- randomForest(Agarum ~ ., data = train_set, mtry = 3, ntree = 1000,
-                        importance = TRUE, na.action = na.omit)
-summary(kelp_rf)
-print(kelp_rf)
-round(importance(kelp_rf), 1)
-varImpPlot(kelp_rf)
-partialPlot(kelp_rf, train_set, iceconc_cat)
-partialPlot(kelp_rf, train_set, lat)
-
-# Predicting on training set
-pred_train <- predict(kelp_rf, train_set) # type = 'response' also works but returns the same results
-table(pred_train, train_set$Laminariales)  
-mean(abs(pred_train - train_set$Laminariales)) # 43% accuracy...
-
-# Predicting on Validation set
-pred_valid <- predict(kelp_rf, valid_set)
-table(pred_valid, valid_set$Laminariales)  
-mean(abs(pred_train - valid_set$Laminariales)) # 29% accuracy...
+####KAREN STOPPING
 
 
 
