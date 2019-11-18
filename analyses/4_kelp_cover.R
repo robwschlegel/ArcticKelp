@@ -14,14 +14,21 @@ library(ggridges)
 
 # Load data ---------------------------------------------------------------
 
-adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv") %>%
+adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep=';', dec=',') %>%
   dplyr::rename(site = Site, depth = Depth.m, 
                 sand = Sand.., Agarum = Agarum.., Alaria = Alaria.., Alaria = Alaria.., Sacharrina = S..latissima.., 
                 L.solidungula = L..solid.., L.digitata = L..digitata..) %>% 
-  filter(sand <= 95, depth >= 3) %>%
+  filter(depth >= 3) %>%
   mutate(depth = ifelse(depth == 3, 5, depth), # Match abiotic 5 m depth increments
+         Agarum = replace_na(Agarum, 0),
+         L.solidungula = replace_na(L.solidungula, 0),
+         L.digitata = replace_na(L.digitata, 0),
+         Alaria = replace_na(Alaria, 0),
+         Laminariales.unspecified = replace_na(Laminariales.unspecified, 0),
+         Sacharrina = replace_na(Sacharrina, 0),
+         Saccorhiza.. = replace_na(Saccorhiza.., 0),
          kelp.density = S.latissima.No. + Agarum.No. + Alaria.No.,
-         kelp.cover = Agarum + Alaria + L.solidungula + L.digitata + Laminariales.unspecified + Sacharrina + Saccorhiza..,
+         kelp.cover = Agarum + Alaria + L.solidungula + L.digitata + Laminariales.unspecified + Sacharrina,
          Laminariales = L.solidungula + L.digitata + Laminariales.unspecified,
          Bedrock.. = replace_na(Bedrock.., 0),
          Boulders.. = replace_na(Boulders.., 0),
@@ -60,20 +67,20 @@ adf_summary <- adf %>%
 # Create figures ----------------------------------------------------------
 
 # Ridge plot showing percent kelp cover in quadrats by site and depth
-# fig1 <- ggplot(adf, aes(y = site, x = kelp.cover, fill = as.factor(depth))) +
-#   stat_density_ridges(alpha = 0.7) +
-#   labs(y = "Site", x = expression(Kelp~cover~('%')), fill = "depth") +
-#   theme_bw(base_size = 14) +
-#   theme(legend.position = 'top')
-# fig1
+ fig1 <- ggplot(adf, aes(y = site, x = kelp.cover, fill = as.factor(depth))) +
+   stat_density_ridges(alpha = 0.7) +
+   labs(y = "Site", x = expression(Kelp~cover~('%')), fill = "depth") +
+   theme_bw(base_size = 14) +
+   theme(legend.position = 'top')
+#fig1
 # ggsave("graph/kelp_cover_vs_sites.png", fig1, width = 8, height = 10, units = "in", dpi = 300)
 
 # Ridge plots showing coverage of Laminariales by site and depth
-# fig2 <- ggplot(adf, aes(y = site, x = Laminariales, fill = as.factor(depth))) +
-#   stat_density_ridges(alpha = 0.7) +
-#   labs(y = "Site", x = expression(Laminariales~cover~('%')), fill = "depth") +
-#   theme_bw(base_size = 14) +
-#   theme(legend.position = 'top')
+ fig2 <- ggplot(adf, aes(y = site, x = Laminariales, fill = as.factor(depth))) +
+   stat_density_ridges(alpha = 0.7) +
+   labs(y = "Site", x = expression(Laminariales~cover~('%')), fill = "depth") +
+   theme_bw(base_size = 14) +
+   theme(legend.position = 'top')
 # fig2
 # ggsave("graph/Laminariales_cover_vs_sites.png", fig2, width = 8, height = 10, units = "in", dpi = 300)
 

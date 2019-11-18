@@ -34,21 +34,26 @@ kelp_all <- adf %>%
   na.omit() %>% 
   spread(model_var, val)
 
-# Filter down to only total kelp cover at depths 10 and 15 m
+# Filter down to only total kelp cover at depths 5, 10 and 15 m
 kelp_var <- kelp_all %>% 
-  dplyr::select(-Laminariales, -Agarum, -Alaria) %>% 
-  filter(depth %in% c(10, 15)) %>% 
-  mutate(kelp.cover = round(kelp.cover, -1)) # Round kelp cover to the nearest 10% step
+  dplyr::select(-Laminariales, -Agarum, -Alaria) #%>% 
+#  filter(depth %in% c(10, 15)) #%>% 
+ # mutate(kelp.cover = round(kelp.cover, -1)) # Round kelp cover to the nearest 10% step
 
 
 # Random Forest -----------------------------------------------------------
 
 # The data.frame that will be fed to the model
-# The Quadrat information is fairly random, as it should be, and so isn't used in the model
+# The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
 # The substrate and depth values also score consistently in the bottom of importance so aren't used
-data1 <- select(kelp_var, kelp.cover:toce, -lon, -lat) %>% 
-  mutate(kelp.cover = as.factor(kelp.cover)) #%>% 
+data1 <- select(kelp_var, kelp.cover:toce, -lon) #%>% 
+  #mutate(kelp.cover = as.factor(kelp.cover)) #%>% 
   # mutate(kelp.cover = factor(kelp.cover, levels = as.character(seq(0, 100, by = 10))))
+
+#what variables are highly correlated. 
+round(cor(data1),2)
+
+
 set.seed(666)
 train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
 train_set <- data1[train,]
@@ -59,9 +64,9 @@ rf_mtry_test <- function(mtry_num){
   set.seed(666)
   test_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = mtry_num, ntree = 1000,
                           importance = TRUE)
-  pred_test <- predict(test_rf, train_set, type = "class")
+  pred_test <- predict(test_rf, train_set)
   pred_accuracy <- data.frame(mtry = mtry_num,
-                              acc = round(mean(pred_test == train_set$kelp.cover)*100))
+                              acc = round(mean(abs(pred_test - train_set$kelp.cover))))
   return(pred_accuracy)
 }
 lapply(1:9, rf_mtry_test) # It looks like an mtry >= 2 is best
@@ -70,21 +75,56 @@ lapply(1:9, rf_mtry_test) # It looks like an mtry >= 2 is best
 kelp_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = 2, ntree = 1000,
                         importance = TRUE, na.action = na.omit)
 summary(kelp_rf)
-round(importance(kelp_rf), 2)
+print(kelp_rf)
+#explains 50% pf variance
+
+round(importance(kelp_rf), 1)
 varImpPlot(kelp_rf)
+partialPlot(kelp_rf, train_set, lat)
+partialPlot(kelp_rf, train_set, iceconc_cat  )
+
 
 # Predicting on training set
-pred_train <- predict(kelp_rf, train_set, type = "class") # type = 'response' also works but returns the same results
+pred_train <- predict(kelp_rf, train_set) # type = 'response' also works but returns the same results
 table(pred_train, train_set$kelp.cover)  
-mean(pred_train == train_set$kelp.cover)*100 # 43% accuracy...
+mean(abs(pred_train - train_set$kelp.cover)) # 43% accuracy...
 
 # Predicting on Validation set
-pred_valid <- predict(kelp_rf, valid_set, type = "class")
+pred_valid <- predict(kelp_rf, valid_set)
 table(pred_valid, valid_set$kelp.cover)  
-mean(pred_valid == valid_set$kelp.cover)*100 # 29% accuracy...
+mean(abs(pred_valid - valid_set$kelp.cover)) # 29% accuracy...
+
+
+####KAREN STOPPING
+
+
+
+#laminariales
+data2 <- select(kelp_all, Laminariales:toce, -lon, -lat, -Alaria, -Agarum)
+train <- sample(nrow(data2), 0.7*nrow(data2), replace = FALSE)
+train_set <- data2[train,]
+valid_set <- data2[-train,]
+kelp_rf <- randomForest(Laminariales ~ ., data = train_set, mtry = 3, ntree = 1000,
+                        importance = TRUE, na.action = na.omit)
+summary(kelp_rf)
+print(kelp_rf)
+round(importance(kelp_rf), 1)
+varImpPlot(kelp_rf)
+
+
+# Predicting on training set
+pred_train <- predict(kelp_rf, train_set) # type = 'response' also works but returns the same results
+table(pred_train, train_set$Laminariales)  
+mean(abs(pred_train - train_set$Laminariales)) # 43% accuracy...
+
+# Predicting on Validation set
+pred_valid <- predict(kelp_rf, valid_set)
+table(pred_valid, valid_set$Laminariales)  
+mean(abs(pred_train - valid_set$Laminariales)) # 29% accuracy...
 
 
 # forestRK method ---------------------------------------------------------
+### I do not think we want to go categorical here. It makes no sense with the data
 
 ## Prep data
 
