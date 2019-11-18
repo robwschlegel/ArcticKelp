@@ -26,21 +26,34 @@ doMC::registerDoMC(cores = 50)
 
 # NetCDF information ------------------------------------------------------
 
+# NB: The code in this section is greyed out as it will only run correctly on the server where the model data live
+  # It also only needs to be run once, so is also just stored here for future convenience
+
 # Check the grid data
-# ncdump::NetCDF("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc")
+# info_grid <- ncdump::NetCDF("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc")$variable %>% 
+#   dplyr::select(-addOffset, -scaleFact)
 
 # Check the surface NetCDF information
-# ncdump::NetCDF("../../data/NAPA025/1d_grid_T_2D/CREG025E-GLSII_1d_grid_T_2D_19931001-19931005.nc")
-
-# Check the depth NetCDF information
-# ncdump::NetCDF("../../data/NAPA025/5d_grid_T/CREG025E-GLSII_5d_grid_T_19931001-19931005.nc")#$variable$longname
-# ncdump::NetCDF("../../data/NAPA025/5d_grid_U/CREG025E-GLSII_5d_grid_U_19931001-19931005.nc")#$variable$longname
-# ncdump::NetCDF("../../data/NAPA025/5d_grid_V/CREG025E-GLSII_5d_grid_V_19931001-19931005.nc")#$variable$longname
-# ncdump::NetCDF("../../data/NAPA025/5d_grid_W/CREG025E-GLSII_5d_grid_W_19931001-19931005.nc")#$variable$longname
+# info_surface <- ncdump::NetCDF("../../data/NAPA025/1d_grid_T_2D/CREG025E-GLSII_1d_grid_T_2D_19931001-19931005.nc")$variable
 
 # Check the ice NetCDF information
-# info <- ncdump::NetCDF("../../data/NAPA025/5d_icemod/CREG025E-GLSII_5d_icemod_19931001-19931005.nc")#$variable$longname
-# info2 <- info$variable
+# info_ice <- ncdump::NetCDF("../../data/NAPA025/5d_icemod/CREG025E-GLSII_5d_icemod_19931001-19931005.nc")$variable#$longname
+# info_ice_2 <- info$variable
+
+# Check the depth NetCDF information
+# info_depth_T <- ncdump::NetCDF("../../data/NAPA025/5d_grid_T/CREG025E-GLSII_5d_grid_T_19931001-19931005.nc")$variable#$longname
+# info_depth_U <- ncdump::NetCDF("../../data/NAPA025/5d_grid_U/CREG025E-GLSII_5d_grid_U_19931001-19931005.nc")$variable#$longname
+# info_depth_V <- ncdump::NetCDF("../../data/NAPA025/5d_grid_V/CREG025E-GLSII_5d_grid_V_19931001-19931005.nc")$variable#$longname
+# info_depth_W <- ncdump::NetCDF("../../data/NAPA025/5d_grid_W/CREG025E-GLSII_5d_grid_W_19931001-19931005.nc")$variable#$longname
+
+# Combine and clean-up
+# info_ALL <- rbind(info_grid, info_surface, info_ice, info_depth_T, info_depth_U, info_depth_V, info_depth_W) %>%
+#   dplyr::select(name, ndims, units, longname) %>%
+#   unique() %>% 
+#   arrange(name)
+
+# Save
+# write_csv(info_ALL, "metadata/model_info.csv")
 
 
 # Data --------------------------------------------------------------------
