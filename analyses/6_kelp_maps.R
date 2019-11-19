@@ -1,6 +1,7 @@
-# 6_kelp_maps.R
+# analyses/6_kelp_maps.R
 # The purpose of this script is to provide a spatial visualisation of kelp coverage
 # It also shows how the kelp ecosystems abiotic properties stack up against the broader arctic
+
 
 # Source scripts ----------------------------------------------------------
 
@@ -45,6 +46,7 @@ map_cover_abiotic()
 map_cover_abiotic(cover = "Laminariales", abiotic = "sss")
 map_cover_abiotic(cover = "Laminariales", abiotic = "emp_ice")
 
+
 # Distribution figures ----------------------------------------------------
 
 # Convenience wrapper to show where within the distribution of an abiotic variable throughout the Arctic
@@ -63,14 +65,15 @@ distribution_cover_abiotic <- function(cover = "kelp.cover", abiotic = "sst"){
     mutate(dist_index = 1:n())
   # Subset cover
   kelp_sub <- adf_summary %>% 
-    filter(family == cover) %>% filter(depth==10|depth==15) %>% 
+    filter(family == cover,
+           depth %in% c(10, 15)) %>% 
     left_join(study_sites_index, by = c("Campaign", "site")) %>% 
     left_join(abiotic_sub, by = c("nav_lon" = "lon", "nav_lat" = "lat"))
   # Find nearest 
   # Plot it
   ggplot(data = abiotic_sub, aes(x = dist_index, y = var)) +
     geom_line() +
-    geom_point(data = kelp_sub, size=4,
+    geom_point(data = kelp_sub, size = 4,
                aes(colour = mean_cover, shape = as.factor(depth))) +
     scale_colour_gradient(low = "yellow", high = "red")+
    # geom_label_repel(data = kelp_sub, aes(label = site)) +
@@ -78,13 +81,11 @@ distribution_cover_abiotic <- function(cover = "kelp.cover", abiotic = "sst"){
                     # ylim = c(bbox_arctic[3], bbox_arctic[4])) +
     scale_x_continuous(expand = c(0, 0)) +
     labs(x = "Rank order of all pixels", y = abiotic, colour = cover, shape = "Depth (m)", size = paste(cover," (%)"))
-  
 }
 
 # Visualise all kelp cover against sst
 distribution_cover_abiotic()
 # ggsave("graph/kelp_cover_vs_sst_distribution.png", width = 9, height = 5)
 
-# Laminariales vs sss
-map_cover_abiotic(cover = "kelp.cover", abiotic = "emp_ice")
+
 
