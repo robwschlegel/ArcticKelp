@@ -53,6 +53,7 @@ doMC::registerDoMC(cores = 50)
 
 # Save
 # write_csv(info_ALL, "metadata/model_info.csv")
+model_info <- read_csv("metadata/model_info.csv")
 
 
 # Data --------------------------------------------------------------------

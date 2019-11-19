@@ -12,12 +12,14 @@ source("analyses/1_study_sites.R")
 library(FNN)
 
 # The NAPA Arctic coords
-#KFD: this one doesn't run as a line, I have to break it up for it to make the NAPA INDEX column
 if(!exists("NAPA_arctic")){
   load("metadata/NAPA_arctic.RData")
   NAPA_arctic <- NAPA_arctic %>% 
     mutate(NAPA_index = as.integer(row.names(.)))
 }
+
+# Model variable explanations
+model_info <- read_csv("metadata/model_info.csv")
 
 
 # NetCDF information ------------------------------------------------------
@@ -41,53 +43,53 @@ if(!exists("NAPA_arctic")){
   # These files are too large to host on GitHub
   # e-mail Robert (robert.schlegel@dal.ca) for him to send you the large files
 
-if(!exists("Arctic_surface_clim")){
-  load("data/Arctic_surface_clim.RData")
-  Arctic_surface_clim <- data.frame(Arctic_surface_clim) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4),
-           depth = 0) #%>%
-    # dplyr::select(-qla_oce, -qsb_oce)
-}
-if(!exists("Arctic_ice_clim")){
-  load("data/Arctic_ice_clim.RData")
-  Arctic_ice_clim <- data.frame(Arctic_ice_clim) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4),
-           depth = 0)
-}
-if(!exists("Arctic_depth_T_clim")){
-  load("data/Arctic_depth_T_clim.RData")
-  Arctic_depth_T_clim <- data.frame(Arctic_depth_T_clim) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
-  }
-if(!exists("Arctic_depth_U_clim")){
-  load("data/Arctic_depth_U_clim.RData")
-  Arctic_depth_U_clim <- data.frame(Arctic_depth_U_clim) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
-}
-if(!exists("Arctic_depth_V_clim")){
-  load("data/Arctic_depth_V_clim.RData")
-  Arctic_depth_V_clim <- data.frame(Arctic_depth_V_clim) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
-}
-if(!exists("Arctic_depth_W_clim")){
-  load("data/Arctic_depth_W_clim.RData")
-  Arctic_depth_W_clim <- data.frame(Arctic_depth_W_clim) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
-}
-# Join everything
-if(!exists("Arctic_clim")){
-  Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_depth_U_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
-    left_join(Arctic_depth_V_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
-    left_join(Arctic_depth_W_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
-    left_join(Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
-    left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
-}
+# if(!exists("Arctic_surface_clim")){
+#   load("data/Arctic_surface_clim.RData")
+#   Arctic_surface_clim <- data.frame(Arctic_surface_clim) %>%
+#     mutate(nav_lon = round(nav_lon, 4),
+#            nav_lat = round(nav_lat, 4),
+#            depth = 0) #%>%
+#     # dplyr::select(-qla_oce, -qsb_oce)
+# }
+# if(!exists("Arctic_ice_clim")){
+#   load("data/Arctic_ice_clim.RData")
+#   Arctic_ice_clim <- data.frame(Arctic_ice_clim) %>%
+#     mutate(nav_lon = round(nav_lon, 4),
+#            nav_lat = round(nav_lat, 4),
+#            depth = 0)
+# }
+# if(!exists("Arctic_depth_T_clim")){
+#   load("data/Arctic_depth_T_clim.RData")
+#   Arctic_depth_T_clim <- data.frame(Arctic_depth_T_clim) %>%
+#     mutate(nav_lon = round(nav_lon, 4),
+#            nav_lat = round(nav_lat, 4))
+#   }
+# if(!exists("Arctic_depth_U_clim")){
+#   load("data/Arctic_depth_U_clim.RData")
+#   Arctic_depth_U_clim <- data.frame(Arctic_depth_U_clim) %>%
+#     mutate(nav_lon = round(nav_lon, 4),
+#            nav_lat = round(nav_lat, 4))
+# }
+# if(!exists("Arctic_depth_V_clim")){
+#   load("data/Arctic_depth_V_clim.RData")
+#   Arctic_depth_V_clim <- data.frame(Arctic_depth_V_clim) %>%
+#     mutate(nav_lon = round(nav_lon, 4),
+#            nav_lat = round(nav_lat, 4))
+# }
+# if(!exists("Arctic_depth_W_clim")){
+#   load("data/Arctic_depth_W_clim.RData")
+#   Arctic_depth_W_clim <- data.frame(Arctic_depth_W_clim) %>%
+#     mutate(nav_lon = round(nav_lon, 4),
+#            nav_lat = round(nav_lat, 4))
+# }
+# # Join everything
+# if(!exists("Arctic_clim")){
+#   Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_depth_U_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
+#     left_join(Arctic_depth_V_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
+#     left_join(Arctic_depth_W_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
+#     left_join(Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
+#     left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
+# }
 
 
 # Load overall mean files -------------------------------------------------
@@ -138,7 +140,7 @@ if(!exists("Arctic_mean")){
     left_join(Arctic_depth_V_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>% 
     left_join(Arctic_depth_W_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>% 
     left_join(Arctic_surface_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>% 
-    left_join(Arctic_ice_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy"))
+    left_join(Arctic_ice_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy"))#, "emp_ice", "emp_oce", "qemp_oce"))
 }
 
 
@@ -159,30 +161,30 @@ study_sites_index <- study_sites %>%
   # e-mail Robert (robert.schlegel@dal.ca) for him to send you the large files
 
 # Variable explanations
-head(model_info, 1:66)
+# view(model_info)
 
 # Extract clims for each site
-study_site_clims <- right_join(Arctic_clim, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy"))# %>%
-  # dplyr::select(site:Campaign, nav_lon:bathy,
-  #               eken, soce, toce, # Depth variables
-  #               mldr10_1, runoffs, # surface variables
-  #               iceconc_cat, icethic_cat)  # Ice variables
-save(study_site_clims, file = "data/study_site_clims.RData")
+# study_site_clims <- right_join(Arctic_clim, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) %>%
+#   dplyr::select(site:Campaign, nav_lon:bathy, everything(), -Date, -Notes)#,
+#   #               eken, soce, toce, # Depth variables
+#   #               mldr10_1, runoffs, # surface variables
+#   #               iceconc_cat, icethic_cat)  # Ice variables
+# save(study_site_clims, file = "data/study_site_clims.RData")
 
 # Melt for plotting purposes
-study_site_clims_long <- study_site_clims %>%
-  gather("var", "val", -c(site:bathy)) %>%
-  na.omit() #%>%
-  # mutate(var = factor(var, levels = c("iceconc_cat", "icethic_cat", #Ice
-  #                                     "mldr10_1", "runoffs", # Surface
-  #                                     "eken", "soce", "toce"))) # Depth
-save(study_site_clims_long, file = "data/study_site_clims_long.RData")
+# study_site_clims_long <- study_site_clims %>%
+#   gather("var", "val", -c(site:bathy)) %>%
+#   na.omit() #%>%
+#   # mutate(var = factor(var, levels = c("iceconc_cat", "icethic_cat", #Ice
+#   #                                     "mldr10_1", "runoffs", # Surface
+#   #                                     "eken", "soce", "toce"))) # Depth
+# save(study_site_clims_long, file = "data/study_site_clims_long.RData")
 
 
 # Study site overall means ------------------------------------------------
 
-study_site_means <- right_join(Arctic_mean, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) #%>%
-  # dplyr::select(site:Campaign, nav_lon:bathy,
+study_site_means <- right_join(Arctic_mean, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) %>%
+  dplyr::select(site:Campaign, nav_lon:bathy, everything(), -Date, -Notes)
   #               eken, soce, toce, # Depth variables
   #               mldr10_1, runoffs, # surface variables
   #               iceconc_cat, icethic_cat)  # Ice variables
