@@ -10,6 +10,8 @@ source("analyses/4_kelp_cover.R")
 library(vegan)
 library(randomForest)
 
+model_info <- read_csv("metadata/model_info.csv")
+
 
 # Check for site mismatches -----------------------------------------------
 
