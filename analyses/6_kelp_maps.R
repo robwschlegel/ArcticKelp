@@ -39,7 +39,7 @@ map_cover_abiotic <- function(cover = "kelp.cover", abiotic = "sst"){
 
 # Visualise all kelp cover against sst
 map_cover_abiotic()
-ggsave("graph/kelp_cover_vs_sst.png", width = 9, height = 7)
+# ggsave("graph/kelp_cover_vs_sst.png", width = 9, height = 7)
 
 # Laminariales vs sss
 map_cover_abiotic(cover = "Laminariales", abiotic = "sss")
@@ -83,7 +83,7 @@ distribution_cover_abiotic <- function(cover = "kelp.cover", abiotic = "sst"){
 
 # Visualise all kelp cover against sst
 distribution_cover_abiotic()
-ggsave("graph/kelp_cover_vs_sst_distribution.png", width = 9, height = 5)
+# ggsave("graph/kelp_cover_vs_sst_distribution.png", width = 9, height = 5)
 
 # Laminariales vs sss
 map_cover_abiotic(cover = "kelp.cover", abiotic = "emp_ice")

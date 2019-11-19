@@ -22,8 +22,8 @@ adf_summary_PI <- adf_summary %>%
   filter(site %in% study_site_means_PI$site)
 
 # Pull out the weird low salinity data
-low_sss <- PI_depth_T_mean %>%
-  filter(soce < 10)
+# low_sss <- PI_depth_T_mean %>%
+#   filter(soce < 10)
 
 kelp_means_PI <- left_join(adf_summary_PI, study_site_means_PI, by = c("Campaign", "site")) %>% 
   # filter(depth > -1) %>%  # Removes sites with names that don't match up
