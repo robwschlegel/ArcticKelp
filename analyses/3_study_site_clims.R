@@ -2,11 +2,21 @@
 # The purpose of this script is to pull out the monthly clims at each study site
 # Whenever new sites are added re-run this script to get the clims for the new pixels
 
+# The first round of data compiled come form the NAPA model created at BIO in Halifax
+  # These data are only available through a specific server and so much of the code used below
+  # to access them won't work outside of that environment.
+  # For this reason much of the NAPA code is commented out
+# The second round of data are from Bio-Oracle (http://www.bio-oracle.org/code.php)
+  # They are downloaded directly from their server and so may be accessed from anywhere
 
-# Libraries ---------------------------------------------------------------
+
+# Setup -------------------------------------------------------------------
 
 # Load study sites and base packages
 source("analyses/1_study_sites.R")
+
+# Bio-Oracle access
+library(sdmpredictors)
 
 # Additional packages
 library(FNN)
@@ -21,20 +31,14 @@ if(!exists("NAPA_arctic")){
 # Model variable explanations
 model_info <- read_csv("metadata/model_info.csv")
 
-
-# NetCDF information ------------------------------------------------------
-
-# Check the grid data
-# info_grid <- ncdump::NetCDF("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc")
-
-# Check the surface NetCDF information
-# info_surface <- ncdump::NetCDF("../../data/NAPA025/1d_grid_T_2D/CREG025E-GLSII_1d_grid_T_2D_19931001-19931005.nc")
-
-# Check the ice NetCDF information
-# info_ice <- ncdump::NetCDF("../../data/NAPA025/5d_icemod/CREG025E-GLSII_5d_icemod_19931001-19931005.nc")#$variable$longname
-
-# Check the depth NetCDF information
-# info_depth <- ncdump::NetCDF("../../data/NAPA025/5d_grid_T/CREG025E-GLSII_5d_grid_T_19931001-19931005.nc")#$variable$longname
+# Convenience loading and coord rounding function
+round_coords <- function(df){
+  df_round <- data.frame(df) %>%
+    mutate(nav_lon = round(nav_lon, 4),
+           nav_lat = round(nav_lat, 4))
+  if(!("depth" %in% colnames(df_round))) df_round$depth <- 0
+  return(df_round)
+}
 
 
 # Load clim files ---------------------------------------------------------
@@ -45,49 +49,34 @@ model_info <- read_csv("metadata/model_info.csv")
 
 # if(!exists("Arctic_surface_clim")){
 #   load("data/Arctic_surface_clim.RData")
-#   Arctic_surface_clim <- data.frame(Arctic_surface_clim) %>%
-#     mutate(nav_lon = round(nav_lon, 4),
-#            nav_lat = round(nav_lat, 4),
-#            depth = 0) #%>%
-#     # dplyr::select(-qla_oce, -qsb_oce)
+#   Arctic_surface_clim <- round_coords(Arctic_surface_clim)
 # }
 # if(!exists("Arctic_ice_clim")){
 #   load("data/Arctic_ice_clim.RData")
-#   Arctic_ice_clim <- data.frame(Arctic_ice_clim) %>%
-#     mutate(nav_lon = round(nav_lon, 4),
-#            nav_lat = round(nav_lat, 4),
-#            depth = 0)
+#   Arctic_ice_clim <- round_coords(Arctic_ice_clim)
 # }
 # if(!exists("Arctic_depth_T_clim")){
 #   load("data/Arctic_depth_T_clim.RData")
-#   Arctic_depth_T_clim <- data.frame(Arctic_depth_T_clim) %>%
-#     mutate(nav_lon = round(nav_lon, 4),
-#            nav_lat = round(nav_lat, 4))
+#   Arctic_depth_T_clim <- round_coords(Arctic_depth_T_clim)
 #   }
 # if(!exists("Arctic_depth_U_clim")){
 #   load("data/Arctic_depth_U_clim.RData")
-#   Arctic_depth_U_clim <- data.frame(Arctic_depth_U_clim) %>%
-#     mutate(nav_lon = round(nav_lon, 4),
-#            nav_lat = round(nav_lat, 4))
+#   Arctic_depth_U_clim <- round_coords(Arctic_depth_U_clim)
 # }
 # if(!exists("Arctic_depth_V_clim")){
 #   load("data/Arctic_depth_V_clim.RData")
-#   Arctic_depth_V_clim <- data.frame(Arctic_depth_V_clim) %>%
-#     mutate(nav_lon = round(nav_lon, 4),
-#            nav_lat = round(nav_lat, 4))
+#   Arctic_depth_V_clim <- round_coords(Arctic_depth_V_clim)
 # }
 # if(!exists("Arctic_depth_W_clim")){
 #   load("data/Arctic_depth_W_clim.RData")
-#   Arctic_depth_W_clim <- data.frame(Arctic_depth_W_clim) %>%
-#     mutate(nav_lon = round(nav_lon, 4),
-#            nav_lat = round(nav_lat, 4))
+#   Arctic_depth_W_clim <- round_coords(Arctic_depth_W_clim)
 # }
 # # Join everything
 # if(!exists("Arctic_clim")){
 #   Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_depth_U_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
-#     left_join(Arctic_depth_V_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
-#     left_join(Arctic_depth_W_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
-#     left_join(Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>% 
+#     left_join(Arctic_depth_V_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
+#     left_join(Arctic_depth_W_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
+#     left_join(Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
 #     left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
 # }
 
@@ -96,42 +85,27 @@ model_info <- read_csv("metadata/model_info.csv")
 
 if(!exists("Arctic_surface_mean")){
   load("data/Arctic_surface_mean.RData")
-  Arctic_surface_mean <- data.frame(Arctic_surface_mean) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4),
-           depth = 0) #%>%
-    # dplyr::select(-qla_oce, -qsb_oce)
+  Arctic_surface_mean <- round_coords(Arctic_surface_mean)
 }
 if(!exists("Arctic_ice_mean")){
   load("data/Arctic_ice_mean.RData")
-  Arctic_ice_mean <- data.frame(Arctic_ice_mean) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4),
-           depth = 0)
+  Arctic_ice_mean <- round_coords(Arctic_ice_mean)
 }
 if(!exists("Arctic_depth_T_mean")){
   load("data/Arctic_depth_T_mean.RData")
-  Arctic_depth_T_mean <- data.frame(Arctic_depth_T_mean) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
+  Arctic_depth_T_mean <- round_coords(Arctic_depth_T_mean)
 }
 if(!exists("Arctic_depth_U_mean")){
   load("data/Arctic_depth_U_mean.RData")
-  Arctic_depth_U_mean <- data.frame(Arctic_depth_U_mean) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
+  Arctic_depth_U_mean <- round_coords(Arctic_depth_U_mean)
 }
 if(!exists("Arctic_depth_V_mean")){
   load("data/Arctic_depth_V_mean.RData")
-  Arctic_depth_V_mean <- data.frame(Arctic_depth_V_mean) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
+  Arctic_depth_V_mean <- round_coords(Arctic_depth_V_mean)
 }
 if(!exists("Arctic_depth_W_mean")){
   load("data/Arctic_depth_W_mean.RData")
-  Arctic_depth_W_mean <- data.frame(Arctic_depth_W_mean) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
+  Arctic_depth_W_mean <- round_coords(Arctic_depth_W_mean)
 }
 
 # Join everything
