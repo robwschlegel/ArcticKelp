@@ -1,13 +1,6 @@
 # analyses/3_study_site_clims
-# The purpose of this script is to pull out the monthly clims at each study site
+# The purpose of this script is to pull out the monthly clims and mean states at each study site
 # Whenever new sites are added re-run this script to get the clims for the new pixels
-
-# The first round of data compiled come form the NAPA model created at BIO in Halifax
-  # These data are only available through a specific server and so much of the code used below
-  # to access them won't work outside of that environment.
-  # For this reason much of the NAPA code is commented out
-# The second round of data are from Bio-Oracle (http://www.bio-oracle.org/code.php)
-  # They are downloaded directly from their server and so may be accessed from anywhere
 
 
 # Setup -------------------------------------------------------------------
@@ -15,18 +8,12 @@
 # Load study sites and base packages
 source("analyses/1_study_sites.R")
 
-# Bio-Oracle access
-library(sdmpredictors)
-
 # Additional packages
 library(FNN)
 
 # The NAPA Arctic coords
-if(!exists("NAPA_arctic")){
-  load("metadata/NAPA_arctic.RData")
-  NAPA_arctic <- NAPA_arctic %>% 
-    mutate(NAPA_index = as.integer(row.names(.)))
-}
+load("metadata/NAPA_arctic.RData")
+NAPA_arctic$NAPA_index <- 1:nrow(NAPA_arctic)
 
 # Model variable explanations
 model_info <- read_csv("metadata/model_info.csv")
@@ -117,10 +104,17 @@ if(!exists("Arctic_mean")){
     left_join(Arctic_ice_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy"))#, "emp_ice", "emp_oce", "qemp_oce"))
 }
 
+# Load BO data
+  # NB: This is a bit large to host on GitHub (27.7 MB)
+# if(!exists("Arctic_BO")){
+#   load("data/Arctic_BO.RData")
+# }
+# Arctic_BO$BO_index <- 1:nrow(Arctic_BO)
+
 
 # Find nearest neighbours -------------------------------------------------
 
-# Find the row numbers and subset less directly
+# Find the nearest NAPA points to each site
 study_sites_index <- study_sites %>% 
   mutate(NAPA_index = as.vector(knnx.index(as.matrix(NAPA_arctic[,c("nav_lon", "nav_lat")]),
                                  as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>% 
@@ -172,6 +166,28 @@ study_site_means_long <- study_site_means %>%
   #                                     "mldr10_1", "runoffs", # Surface
   #                                     "eken", "soce", "toce"))) # Depth
 save(study_site_means_long, file = "data/study_site_means_long.RData")
+
+
+# Study site BO data ------------------------------------------------------
+
+# NB: The following code chunks require Arctic_BO.RData
+# This is not hosted on GitHub as it is 27.7 MB
+# E-mail robert.schlegel@dal.ca for the file
+
+# Find the nearest BO points to each site
+# study_site_BO <- study_sites %>% 
+#   mutate(BO_index = as.vector(knnx.index(as.matrix(Arctic_BO[,c("lon", "lat")]),
+#                                          as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>% 
+#   left_join(Arctic_BO, by = "BO_index") %>% 
+#   dplyr::select(-BO_index, -Date, -Notes) %>% 
+#   dplyr::rename(lon = lon.x, lat = lat.x, lon_BO = lon.y, lat_BO = lat.y)
+# save(study_site_BO, file = "data/study_site_BO.RData")
+
+# Melt for plotting purposes
+# study_site_BO_long <- study_site_BO %>%
+#   gather("var", "val", -c(site:lat_BO)) %>%
+#   na.omit()
+# save(study_site_BO_long, file = "data/study_site_BO_long.RData")
 
 
 # Visualise ---------------------------------------------------------------

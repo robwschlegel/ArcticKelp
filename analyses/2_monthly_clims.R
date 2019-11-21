@@ -1,19 +1,33 @@
 # analyses/2_monthly_clims.R
 # The purpose of this script is to create monthly climatologies at each pixel
-# in the arctic from the NAPA model
+# in the arctic from the NAPA model and Bio-Oracle data
 # This should only need to be run once at the outset of the project.
-# If any sites change/are added, run "analyses/study_sites_clims.R" 
+# If any sites change/are added, run "analyses/3_study_sites_clims.R" 
 # to get the updated values, not this script
 
 # NB: This script will only run on Eric Oliver's tikoraluk server
 # This is because it is utilising files that are up to 25GB in size
 # This shouldn't be an issue though as it only needs to be run once
 
+# The first round of data compiled come from the NAPA model created at BIO in Halifax
+  # These data are only available through a specific server and so much of the code used below
+  # to access them won't work outside of that environment.
+  # For this reason much of the NAPA code is commented out
+# The second round of data are from Bio-Oracle (http://www.bio-oracle.org/code.php)
+  # They are downloaded directly from their server and so may be accessed from anywhere
 
-# Libraries ---------------------------------------------------------------
+# Because nearly all of this code is only meant to be run once,
+# much of it has been commented out to prevent it accidentally being re-run
+# This wouldn't create erors etc., it would just be time consuming
+
+
+# Setup -------------------------------------------------------------------
 
 # The study sites and bounding box
 source("analyses/1_study_sites.R")
+
+# Bio-Oracle access
+library(sdmpredictors)
 
 # Other packages
 library(tidync)
@@ -24,7 +38,7 @@ library(data.table)
 doMC::registerDoMC(cores = 50)
 
 
-# NetCDF information ------------------------------------------------------
+# NAPA NetCDF information -------------------------------------------------
 
 # NB: The code in this section is greyed out as it will only run correctly on the server where the model data live
   # It also only needs to be run once, so is also just stored here for future convenience
@@ -56,7 +70,7 @@ doMC::registerDoMC(cores = 50)
 model_info <- read_csv("metadata/model_info.csv")
 
 
-# Data --------------------------------------------------------------------
+# NAPA data ---------------------------------------------------------------
 
 # Extract NAPA grid from NetCDF and save as an RData file
 # NAPA_bathy <- tidync("../../data/NAPA025/mesh_grid/bathy_creg025_extended_5m.nc") %>%
@@ -93,10 +107,10 @@ NAPA_ice_files <- dir("../../data/NAPA025/5d_icemod", full.names = T)[-c(1:311)]
 # head(NAPA_ice_files)
 
 # The depth files location
-NAPA_depth_T_files <- dir("../../data/NAPA025/5d_grid_T/", full.names = T)[-c(1:311)]
-NAPA_depth_U_files <- dir("../../data/NAPA025/5d_grid_U/", full.names = T)[-c(1:311)]
-NAPA_depth_V_files <- dir("../../data/NAPA025/5d_grid_V/", full.names = T)[-c(1:311)]
-NAPA_depth_W_files <- dir("../../data/NAPA025/5d_grid_W/", full.names = T)[-c(1:311)]
+NAPA_depth_T_files <- dir("../../data/NAPA025/5d_grid_T", full.names = T)[-c(1:311)]
+NAPA_depth_U_files <- dir("../../data/NAPA025/5d_grid_U", full.names = T)[-c(1:311)]
+NAPA_depth_V_files <- dir("../../data/NAPA025/5d_grid_V", full.names = T)[-c(1:311)]
+NAPA_depth_W_files <- dir("../../data/NAPA025/5d_grid_W", full.names = T)[-c(1:311)]
 # head(NAPA_depth_T_files)
 
 # A custom rainbow palette
@@ -333,3 +347,61 @@ overall_means <- function(df, depth = F){
 # system.time(Arctic_depth_W_mean <- overall_means(Arctic_depth_W, depth = T)) # 33 seconds
 # save(Arctic_depth_W_mean, file = "data/Arctic_depth_W_mean.RData") # 7.9 MB
 
+
+# Download Bio-Oracle data ------------------------------------------------
+
+# Explore datasets in the package
+list_datasets()
+
+# Explore layers in a dataset
+BO_layers <- list_layers(datasets="Bio-ORACLE")
+
+# Check layer statistics
+layer_stats()
+
+# Check Pearson correlation coefficient between layers
+layers_correlation() 
+
+# Download bathy layers
+bathy <- load_layers(c("BO_bathymin", "BO_bathymean", "BO_bathymax"))
+bathy_df <- as.data.frame(bathy, xy = T)
+
+## The layes currently chosen for use in this study
+  # NB: Many of the varuables below also have surface values
+  # NB: Min depth is the deepest as the values are in -m
+# Calcite - mean - BO_calcite
+# Diffuse attenuation coefficient at 490 nm - mean - BO_damean
+# Photosynthetically available radiation - mean - BO_parmean
+# pH - mean - BO_ph
+# Chl con. - mean at min depth - BO2_chlomean_bdmin
+# Current velocity - passing for now - BO2_curvelmean_bdmin
+# Dissolved oxygen - mean at min depth - BO2_dissoxmean_bdmin
+# Iron con. - mean at min depth -	BO2_ironmean_bdmin
+# Phos con. - mean at min depth - BO2_phosphatemean_bdmin
+# Light at bottom - mean at min depth - BO2_lightbotmean_bdmin
+# Nitr con. - mean at min depth - BO2_nitratemean_bdmin
+# sea temp. - mean at min depth - BO2_tempmean_bdmin
+# Carbon phytoplankton biomass - mean at min depth - BO2_carbonphytomean_bdmin
+# Primary production - mean at min depth - BO2_ppmean_bdmin
+# sea salinity - mean at min depth - BO2_salinitymean_bdmin
+# Silicate con. - mean at min depth - BO2_silicatemean_bdmin
+# Ice con. - mean - BO2_icecovermean_ss
+# Ice thickness - mean + range - BO2_icethickmean_ss + BO2_icethickrange_ss
+
+## Download the chosen layers
+# BO_layers <- load_layers(c("BO_calcite", "BO_damean", "BO_parmean", "BO_ph",
+#                            "BO2_chlomean_bdmin", "BO2_curvelmean_bdmin", "BO2_dissoxmean_bdmin",
+#                            "BO2_ironmean_bdmin", "BO2_phosphatemean_bdmin", "BO2_lightbotmean_bdmin",
+#                            "BO2_nitratemean_bdmin", "BO2_tempmean_bdmin", "BO2_carbonphytomean_bdmin",
+#                            "BO2_ppmean_bdmin", "BO2_salinitymean_bdmin", "BO2_silicatemean_bdmin",
+#                            "BO2_icecovermean_ss", "BO2_icethickmean_ss", "BO2_icethickrange_ss"))
+# BO_layers_df <- as.data.frame(BO_layers, xy = T)
+# Arctic_BO <- BO_layers_df %>% 
+#   dplyr::rename(lon = x, lat = y) %>% 
+#   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+#          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+# save(Arctic_BO, file = "data/Arctic_BO.RData")
+
+# Visualise
+# ggplot(Arctic_BO, aes(x = lon, y = lat)) +
+#   geom_tile(aes(fill = BO2_icecovermean_ss))
