@@ -6,7 +6,8 @@
 # will test out here as well
 
 
-# Libraries ---------------------------------------------------------------
+
+# Setup -------------------------------------------------------------------
 
 # Load all data nad previous libraries
 source("analyses/4_kelp_cover.R")
@@ -14,6 +15,23 @@ source("analyses/4_kelp_cover.R")
 # Libraries for this script specifically
 library(randomForest)
 library(forestRK)
+
+# Site clims
+load("data/study_site_clims.RData")
+
+# BO data
+load("data/study_site_BO.RData")
+
+# Prep data.frames for combining
+study_site_means$month <- "Annual"
+study_site_BO$month <- "Annual"
+study_site_BO$depth <- 0
+
+# Combine the data
+study_site_ALL <- rbind(study_site_means, study_site_clims) %>% 
+  left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth", "month")) %>% 
+  dplyr::select(Campaign, site, month, lon, lat, nav_lon, nav_lat, lon_BO, lat_BO, x, y,
+                bathy, depth, everything())
 
 
 # Data --------------------------------------------------------------------
@@ -23,16 +41,20 @@ library(forestRK)
 kelp_all <- adf %>% 
   dplyr::select(Campaign, site, depth, Quadrat, Quadrat.size.m2, Bedrock..:sand, 
                 kelp.cover, Laminariales, Agarum, Alaria) %>% 
-  left_join(study_site_means, by = c("Campaign", "site")) %>% 
-  dplyr::select(Campaign:Alaria, depth.y, eken:icethic_cat, lon, lat) %>%
+  left_join(study_site_ALL, by = c("Campaign", "site")) %>% 
+  # dplyr::select(Campaign:Alaria, depth.y, eken:icethic_cat, lon, lat) %>%
   mutate(eken = ifelse(depth.x == depth.y, eken, NA),  # A funny way of getting rid of non-target depth data
          soce = ifelse(depth.x == depth.y, soce, NA), 
-         toce = ifelse(depth.x == depth.y, toce, NA)) %>% 
-  dplyr::select(-depth.y) %>% 
+         toce = ifelse(depth.x == depth.y, toce, NA),
+         uoce = ifelse(depth.x == depth.y, uoce, NA),
+         voce = ifelse(depth.x == depth.y, voce, NA),
+         avt = ifelse(depth.x == depth.y, avt, NA),
+         wo = ifelse(depth.x == depth.y, wo, NA)) %>% 
+  dplyr::select(-c(nav_lon:depth.y)) %>% 
   dplyr::rename(depth = depth.x) %>% 
-  gather(key = "model_var", value = "val", -c(Campaign:Alaria, lon, lat)) %>%
+  gather(key = "model_var", value = "val", -c(Campaign:month, lon, lat)) %>%
   na.omit() %>% 
-  spread(model_var, val)
+  pivot_wider(names_from = c(model_var, month), values_from = val)
 
 # Filter down to only total kelp cover at depths 5, 10 and 15 m
 kelp_var <- kelp_all %>% 

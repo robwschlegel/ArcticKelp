@@ -103,6 +103,8 @@ if(!exists("Arctic_mean")){
     left_join(Arctic_surface_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>% 
     left_join(Arctic_ice_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy"))#, "emp_ice", "emp_oce", "qemp_oce"))
 }
+rm(Arctic_depth_T_mean, Arctic_depth_U_mean, Arctic_depth_V_mean, 
+   Arctic_depth_W_mean, Arctic_surface_mean, Arctic_ice_mean)
 
 # Load BO data
   # NB: This is a bit large to host on GitHub (27.7 MB)
