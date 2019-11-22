@@ -42,6 +42,11 @@ rm(study_site_means, study_site_clims, study_site_BO)
 kelp_all <- adf %>% 
   dplyr::select(Campaign, site, depth, Quadrat, Quadrat.size.m2, Bedrock..:sand, 
                 kelp.cover, Laminariales, Agarum, Alaria) %>% 
+  # Create mean kelp cover values per site
+  group_by(Campaign, site, depth) %>% 
+  summarise_all(mean) %>% 
+  ungroup() %>% 
+  # End mean site creation
   left_join(study_site_ALL, by = c("Campaign", "site")) %>% 
   # dplyr::select(Campaign:Alaria, depth.y, eken:icethic_cat, lon, lat) %>%
   mutate(eken = ifelse(depth.x == depth.y, eken, NA),  # A funny way of getting rid of non-target depth data
@@ -65,6 +70,79 @@ kelp_all <- adf %>%
   # mutate(kelp.cover = round(kelp.cover, -1)) # Round kelp cover to the nearest 10% step
 
 
+# Which variables are highly correlated? ----------------------------------
+
+# Identify variables that correlate with 50 or more other variables at abs(0.75) or more
+cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>% 
+  data.frame() %>% 
+  mutate(var1 = row.names(.)) %>% 
+  pivot_longer(cols = -var1, names_to = "var2") %>% 
+  na.omit() %>% 
+  filter(value != 1, abs(value) >= 0.75) %>% # Find high correlation results
+  group_by(var2) %>% 
+  summarise(var2_count = n()) %>% 
+  filter(var2_count >= 50) 
+
+
+# Random Forest function --------------------------------------------------
+
+kelp_choice <- "kelp.cover"
+random_kelp_forest <- function(kelp_choice){
+  
+  # Create double of chosen kelp cover column
+  df_1 <- kelp_all
+  df_1$chosen_kelp <- df_1[,colnames(kelp_all) == kelp_choice]
+  
+  # The data.frame that will be fed to the model
+  # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
+  # The substrate and depth values also score consistently in the bottom of importance so aren't used
+  df_2 <- select(df_1, chosen_kelp, everything(),
+                  -c(Campaign:Quadrat.size.m2), -kelp.cover, -Laminariales, -Agarum, -Alaria) 
+  
+  # Filter by columns that correlate highly with many others
+  df_2 <- df_2[,!(colnames(df_2) %in% cor_df$var2)]
+  
+  # Split data up for training and testing
+  set.seed(666)
+  train <- sample(nrow(df_2), 0.7*nrow(df_2), replace = FALSE)
+  train_set <- df_2[train,]
+  valid_set <- df_2[-train,]
+  
+  # Test function to see what the best `mtry` value is
+  rf_mtry_test <- function(mtry_num){
+    set.seed(666)
+    test_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = mtry_num, ntree = 1000,
+                            importance = TRUE)
+    pred_test <- predict(test_rf, train_set)
+    pred_accuracy <- data.frame(mtry = mtry_num,
+                                acc = round(mean(abs(pred_test - train_set$chosen_kelp))))
+    return(pred_accuracy)
+  }
+  lapply(1:10, rf_mtry_test) # It looks like an mtry >=6 1 is best
+  
+  # Random forest model based on all quadrat data
+  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+                          importance = TRUE, na.action = na.omit)
+  summary(kelp_rf)
+  print(kelp_rf) # explains 48% of variance
+  
+  round(importance(kelp_rf), 1)
+  varImpPlot(kelp_rf)
+  partialPlot(kelp_rf, train_set, lat) # RWS This doesn't run for me
+  partialPlot(kelp_rf, train_set, iceconc_cat) # RWS This doesn't run for me
+  
+  # Predicting on training set
+  pred_train <- predict(kelp_rf, train_set)
+  table(pred_train, train_set$chosen_kelp)  
+  mean(abs(pred_train - train_set$chosen_kelp)) # within 18% accuracy, 10% with meaned sites
+  
+  # Predicting on Validation set
+  pred_valid <- predict(kelp_rf, valid_set)
+  table(pred_valid, valid_set$chosen_kelp)  
+  mean(abs(pred_valid - valid_set$chosen_kelp)) # within 17% accuracy, 21% with meaned sites
+}
+
+
 # Random Forest: Total kelp cover -----------------------------------------
 
 # The data.frame that will be fed to the model
@@ -73,40 +151,8 @@ kelp_all <- adf %>%
 data1 <- select(kelp_all, kelp.cover, everything(),
                 -c(Campaign:Quadrat.size.m2), -Laminariales, -Agarum, -Alaria) 
 
-test <- data1$vfxthin_Jul
-
-# Which variables are highly correlated?
-# RWS: It could be useful here to screen out any variables with correlations over +-0.5
-tmp <- cor(data1) %>% 
-  replace_na(0)
-# tmp <- tmp[complete.cases(tmp)]
-# tmp[upper.tri(tmp)] <- 0
-# diag(tmp) <- 0
-# Above two commands can be replaced with 
-tmp[!lower.tri(tmp)] <- 0
-
-
-data1 <- data1[,!apply(tmp,2,function(x) any(abs(x) >= 0.50))]
-
-
-cor_df <- round(cor(data1), 2) %>% 
-  data.frame() %>% 
-  mutate(var1 = row.names(.)) %>% 
-  pivot_longer(cols = -var1, names_to = "var2") %>% 
-  # filter(value == 1 | value <= 0.5, value >= -0.5) %>%  # Find low correlation results
-  # # filter(!(var1 %in% var2))
-  # select(-value) %>% 
-  # unite(col = "var3", var1, var2, sep = "_") %>% 
-  # unique() %>% 
-  # pivot_wider(names_from = var1, values_from = var2)
-  filter(value != 1, value >= 0.5 | value <= -0.5) %>% # Find high correlation results
-  mutate()
-  # filter(var2 %in% var1)
-  # select(var2) %>%
-  # unique()
-
-# Filter by columns that correlate poorly with something else
-data1 <- data1[,colnames(data1) %in% cor_df$var2] # RWS: This does nothing at the moment
+# Filter by columns that correlate highly with many others
+data1 <- data1[,!(colnames(data1) %in% cor_df$var2)]
 
 # Split data up for training and testing
 set.seed(666)
@@ -124,14 +170,13 @@ rf_mtry_test <- function(mtry_num){
                               acc = round(mean(abs(pred_test - train_set$kelp.cover))))
   return(pred_accuracy)
 }
-lapply(1:10, rf_mtry_test) # It looks like an mtry = 1 is best
+lapply(1:10, rf_mtry_test) # It looks like an mtry >=6 1 is best
 
 # Random forest model based on all quadrat data
-kelp_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = 1, ntree = 1000,
+kelp_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = 6, ntree = 1000,
                         importance = TRUE, na.action = na.omit)
 summary(kelp_rf)
-print(kelp_rf)
-# explains 42% of variance
+print(kelp_rf) # explains 48% of variance
 
 round(importance(kelp_rf), 1)
 varImpPlot(kelp_rf)
@@ -141,41 +186,93 @@ partialPlot(kelp_rf, train_set, iceconc_cat) # RWS This doesn't run for me
 # Predicting on training set
 pred_train <- predict(kelp_rf, train_set)
 table(pred_train, train_set$kelp.cover)  
-mean(abs(pred_train - train_set$kelp.cover)) # within 21% accuracy...
+mean(abs(pred_train - train_set$kelp.cover)) # within 18% accuracy, 10% with meaned sites
 
 # Predicting on Validation set
 pred_valid <- predict(kelp_rf, valid_set)
 table(pred_valid, valid_set$kelp.cover)  
-mean(abs(pred_valid - valid_set$kelp.cover)) # within 18% accuracy...
+mean(abs(pred_valid - valid_set$kelp.cover)) # within 17% accuracy, 21% with meaned sites
 
 
 # Random Forest: Laminariales ---------------------------------------------
 
-data2 <- data1 <- select(kelp_all, Laminariales, everything(),
-                         -c(Campaign:Quadrat.size.m2), -kelp.cover, -Agarum, -Alaria)
+data2 <- select(kelp_all, Laminariales, everything(),
+                -c(Campaign:Quadrat.size.m2), -kelp.cover, -Agarum, -Alaria)
+data2 <- data2[,!(colnames(data2) %in% cor_df$var2)]
 train <- sample(nrow(data2), 0.7*nrow(data2), replace = FALSE)
 train_set <- data2[train,]
 valid_set <- data2[-train,]
-kelp_rf <- randomForest(Laminariales ~ ., data = train_set, mtry = 1, ntree = 1000,
+kelp_rf <- randomForest(Laminariales ~ ., data = train_set, mtry = 6, ntree = 1000,
                         importance = TRUE, na.action = na.omit)
 summary(kelp_rf)
-print(kelp_rf) # 25% variance explained
+print(kelp_rf) # 36% variance explained
 round(importance(kelp_rf), 1)
 varImpPlot(kelp_rf)
-
 
 # Predicting on training set
 pred_train <- predict(kelp_rf, train_set)
 table(pred_train, train_set$Laminariales)  
-mean(abs(pred_train - train_set$Laminariales)) # within 12% accuracy...
+mean(abs(pred_train - train_set$Laminariales)) # within 10% accuracy, 5% with mean sites
 
 # Predicting on Validation set
 pred_valid <- predict(kelp_rf, valid_set)
 table(pred_valid, valid_set$Laminariales)  
-mean(abs(pred_valid - valid_set$Laminariales)) # within 13% accuracy...
+mean(abs(pred_valid - valid_set$Laminariales)) # within 9% accuracy, 16% with mean sites
 
 
-# A different approach ----------------------------------------------------
+# Random Forest: Agarum ---------------------------------------------------
+
+data3 <- select(kelp_all, Agarum, everything(),
+                -c(Campaign:Quadrat.size.m2), -kelp.cover, -Laminariales, -Alaria)
+data3 <- data3[,!(colnames(data3) %in% cor_df$var2)]
+train <- sample(nrow(data3), 0.7*nrow(data3), replace = FALSE)
+train_set <- data3[train,]
+valid_set <- data3[-train,]
+kelp_rf <- randomForest(Agarum ~ ., data = train_set, mtry = 6, ntree = 1000,
+                        importance = TRUE, na.action = na.omit)
+summary(kelp_rf)
+print(kelp_rf) # 41% variance explained
+round(importance(kelp_rf), 1)
+varImpPlot(kelp_rf)
+
+# Predicting on training set
+pred_train <- predict(kelp_rf, train_set)
+table(pred_train, train_set$Agarum)  
+mean(abs(pred_train - train_set$Agarum)) # within 12% accuracy, 10% with meaned sites
+
+# Predicting on Validation set
+pred_valid <- predict(kelp_rf, valid_set)
+table(pred_valid, valid_set$Agarum)  
+mean(abs(pred_valid - valid_set$Agarum)) # within 14% accuracy, 9% with meaned sites
+
+
+# Random Forest: Alaria ---------------------------------------------------
+
+data4 <- select(kelp_all, Alaria, everything(),
+                -c(Campaign:Quadrat.size.m2), -kelp.cover, -Laminariales, -Agarum)
+data4 <- data4[,!(colnames(data4) %in% cor_df$var2)]
+train <- sample(nrow(data4), 0.7*nrow(data4), replace = FALSE)
+train_set <- data4[train,]
+valid_set <- data4[-train,]
+kelp_rf <- randomForest(Alaria ~ ., data = train_set, mtry = 6, ntree = 1000,
+                        importance = TRUE, na.action = na.omit)
+summary(kelp_rf)
+print(kelp_rf) # 48% variance explained
+round(importance(kelp_rf), 1)
+varImpPlot(kelp_rf)
+
+# Predicting on training set
+pred_train <- predict(kelp_rf, train_set)
+table(pred_train, train_set$Alaria)  
+mean(abs(pred_train - train_set$Alaria)) # within 4% accuracy, 4% with meaned sites
+
+# Predicting on Validation set
+pred_valid <- predict(kelp_rf, valid_set)
+table(pred_valid, valid_set$Alaria)  
+mean(abs(pred_valid - valid_set$Alaria)) # within 4% accuracy, 7% with meaned sites
+
+
+# Random Forest: Campaign -------------------------------------------------
 
 # The results from the forestRK method above are worse than the classic random forest
 
@@ -185,13 +282,13 @@ mean(abs(pred_valid - valid_set$Laminariales)) # within 13% accuracy...
 # how well we can predict which campaign a data point comes from
 # We'll do this both with and without lon lat
 
-data3 <- select(kelp_all, Campaign, lon, eken_Annual, soce_Annual, toce_Annual) # With lon/lat
-# data3 <- select(kelp_all, Campaign, eken_Annual, soce_Annual, toce_Annual) # Without lon/lat
-data3$Campaign <- as.factor(data3$Campaign)
+dataC <- select(kelp_all, Campaign, lon, eken_Annual, soce_Annual, toce_Annual) # With lon/lat
+# dataC <- select(kelp_all, Campaign, eken_Annual, soce_Annual, toce_Annual) # Without lon/lat
+dataC$Campaign <- as.factor(dataC$Campaign)
 set.seed(666)
-train <- sample(nrow(data1), 0.7*nrow(data3), replace = FALSE)
-train_set <- data3[train,]
-valid_set <- data3[-train,]
+train <- sample(nrow(data1), 0.7*nrow(dataC), replace = FALSE)
+train_set <- dataC[train,]
+valid_set <- dataC[-train,]
 
 # Test function to see what the best `mtry` value is
 rf_mtry_test <- function(mtry_num){
@@ -203,11 +300,11 @@ rf_mtry_test <- function(mtry_num){
                               acc = round(mean(pred_test == train_set$Campaign)*100))
   return(pred_accuracy)
 }
-lapply(1:9, rf_mtry_test) # It's always 100 percent accurate...
+lapply(1:4, rf_mtry_test) # It's always 100 percent accurate...
 
 # Random forest model based on all quadrat data
 kelp_rf <- randomForest(Campaign ~ ., data = train_set, importance = TRUE,
-                        proximity = TRUE)
+                        proximity = TRUE, mtry = 2)
 summary(kelp_rf)
 round(importance(kelp_rf), 2)
 varImpPlot(kelp_rf)
