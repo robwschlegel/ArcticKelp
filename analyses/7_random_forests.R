@@ -12,8 +12,9 @@
 source("analyses/4_kelp_cover.R")
 
 # Libraries for this script specifically
+library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
+library(skimr)       # Quickly get a sense of data
 library(randomForest)
-library(forestRK)
 
 
 # Data --------------------------------------------------------------------
@@ -30,9 +31,10 @@ kelp_all <- adf %>%
          toce = ifelse(depth.x == depth.y, toce, NA)) %>% 
   dplyr::select(-depth.y) %>% 
   dplyr::rename(depth = depth.x) %>% 
-  gather(key = "model_var", value = "val", -c(Campaign:Alaria, lon, lat)) %>%
+  pivot_longer(cols = eken:icethic_cat, names_to = "model_var", values_to = "val") %>% 
   na.omit() %>% 
-  spread(model_var, val)
+  pivot_wider(names_from = model_var, values_from = val, values_fn = list(val = mean))
+  # spread(model_var, val)
 
 # Filter down to only total kelp cover at depths 5, 10 and 15 m
 kelp_var <- kelp_all %>% 
