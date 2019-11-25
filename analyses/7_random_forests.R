@@ -14,7 +14,7 @@ library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
 library(skimr)       # Quickly get a sense of data
 library(randomForest)
 library(knitr)
-library(doParallel); doParallel::registerDoParallel(cores = 3)
+library(doParallel); doParallel::registerDoParallel(cores = 50)
 
 # Site clims
 load("data/study_site_clims.RData")
@@ -63,28 +63,10 @@ kelp_all <- adf %>%
   pivot_wider(names_from = c(model_var, month), values_from = val)
 
 
-# Data prep function ------------------------------------------------------
+# Quick visuals -----------------------------------------------------------
 
-# Convenience function for prepping dataframe for use in the random forest
-# This removes all other kelp cover values
-rf_data_prep <- function(kelp_choice){
-  # Trim down data.frame
-  # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-  df_1 <- data.frame(select(kelp_all, -c(Campaign:Quadrat.size.m2)))
-  df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
-  
-  # Create double of chosen kelp cover column
-  names(df_1)[names(df_1) == kelp_choice] <- "chosen_kelp"
-  
-  # Determine which kelp cover is being used
-  other_kelps <- c("kelp.cover", "Laminariales", "Agarum", "Alaria")
-  other_kelps <- other_kelps[other_kelps != kelp_choice]
-  
-  # The data.frame that will be fed to the model
-  # The substrate and depth values also score consistently in the bottom of importance so aren't used
-  # RWS: I put them back in for the moment...
-  df_2 <- select(df_1, chosen_kelp, everything(), -c(other_kelps)) 
-}
+ggplot(kelp_all, aes(x = lon, y = kelp.cover)) +
+  geom_point(aes(colour = as.factor(depth)))
 
 
 # Which variables are highly correlated? ----------------------------------
@@ -102,6 +84,31 @@ cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>%
   ungroup()
 
 
+# Data prep function ------------------------------------------------------
+
+# Convenience function for prepping dataframe for use in the random forest
+# This removes all other kelp cover values
+rf_data_prep <- function(kelp_choice){
+  # Trim down data.frame
+  # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
+  df_1 <- data.frame(select(kelp_all, -c(Campaign:Quadrat.size.m2), depth))
+  df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
+  
+  # Create double of chosen kelp cover column
+  names(df_1)[names(df_1) == kelp_choice] <- "chosen_kelp"
+  
+  # Determine which kelp cover is being used
+  other_kelps <- c("kelp.cover", "Laminariales", "Agarum", "Alaria")
+  other_kelps <- other_kelps[other_kelps != kelp_choice]
+  
+  # The data.frame that will be fed to the model
+  # The substrate and depth values also score consistently in the bottom of importance so aren't used
+  # RWS: I put them back in for the moment...
+  df_2 <- select(df_1, chosen_kelp, depth, everything(), -c(other_kelps)) %>% 
+    mutate(depth = as.numeric(depth))
+}
+
+
 # Which variables are the most imprtant? ----------------------------------
 
 # This function runs many random forest models to determine which variables
@@ -113,8 +120,8 @@ top_variables <- function(lplyr_bit, kelp_choice){
   
   # Split data up for training and testing
   train <- sample(nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
-  train_set <- df_2[train,]
-  valid_set <- df_2[-train,]
+  train_set <- df_kelp_choice[train,]
+  valid_set <- df_kelp_choice[-train,]
   
   # Random forest model based on all quadrat data
   kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
@@ -124,9 +131,9 @@ top_variables <- function(lplyr_bit, kelp_choice){
 }
 # top_variables(kelp_choice = "kelp.cover")
 
-# We then run this 100 times to increase our certainty in the findings
+# We then run this 1000 times to increase our certainty in the findings
 top_variables_multi <- function(kelp_choice){
-  multi_kelp <- plyr::ldply(.data = 1:100, .fun = top_variables, .parallel = T, kelp_choice = kelp_choice)
+  multi_kelp <- plyr::ldply(.data = 1:1000, .fun = top_variables, .parallel = T, kelp_choice = kelp_choice)
   multi_kelp_importance <- multi_kelp %>% 
     group_by(var) %>% 
     summarise(sum_IncMSE = sum(X.IncMSE),
@@ -136,24 +143,31 @@ top_variables_multi <- function(kelp_choice){
 }
 
 # Find the top variables for the different kelp covers
-system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # xxx seconds on 3 cores
-system.time(top_var_kelpcover <- top_variables_multi("laminariales"))
-system.time(top_var_kelpcover <- top_variables_multi("kelp.cover"))
-system.time(top_var_kelpcover <- top_variables_multi("kelp.cover"))
+system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~35 seconds on 50 cores
+system.time(top_var_laminariales <- top_variables_multi("Laminariales")) # same
+system.time(top_var_agarum <- top_variables_multi("Agarum")) # same
+system.time(top_var_alaria <- top_variables_multi("Alaria")) # same
 
 
 # Random Forest function --------------------------------------------------
 
 # kelp_choice <- "Laminariales"
 # kelp_choice <- Laminariales
-random_kelp_forest <- function(kelp_choice){
+# column_choice <- top_var_laminariales
+random_kelp_forest_check <- function(kelp_choice, column_choice){
+  
+  # Extract only the kelp cover of choice
+  df_kelp_choice <- rf_data_prep(kelp_choice)
+  
+  # Chose only desired columns
+  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var)[1:30])
   
   # Split data up for training and testing
   # set.seed(666)
-  train <- sample(nrow(df_2), 0.7*nrow(df_2), replace = FALSE)
-  train_set <- df_2[train,]
+  train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
+  train_set <- df_var_choice[train,]
   # colnames(train_set)[1] <- "chosen_kelp"
-  valid_set <- df_2[-train,]
+  valid_set <- df_var_choice[-train,]
   # colnames(valid_set)[1] <- "chosen_kelp"
   
   # Random forest model based on all quadrat data
@@ -176,13 +190,14 @@ random_kelp_forest <- function(kelp_choice){
 }
 
 
-# Random Forest per family ------------------------------------------------
 
-random_kelp_forest("kelp.cover")
-random_kelp_forest("Laminariales")
-random_kelp_forest("Agarum")
-random_kelp_forest("Alaria")
-#
+# Random Forest per family check ------------------------------------------
+
+random_kelp_forest_check("kelp.cover", top_var_kelpcover)
+random_kelp_forest_check("Laminariales", top_var_laminariales)
+random_kelp_forest_check("Agarum", top_var_agarum)
+random_kelp_forest_check("Alaria", top_var_alaria)
+
 
 # More thorough Random Forest ---------------------------------------------
 
