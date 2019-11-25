@@ -14,7 +14,7 @@ library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
 library(skimr)       # Quickly get a sense of data
 library(randomForest)
 library(knitr)
-library(doParallel); doParallel::registerDoParallel(cores = 25)
+library(doParallel); doParallel::registerDoParallel(cores = 50)
 
 # Site clims
 load("data/study_site_clims.RData")
@@ -23,16 +23,20 @@ load("data/study_site_clims.RData")
 load("data/study_site_BO.RData")
 
 # Prep data.frames for combining
-study_site_means$month <- "mean"
-study_site_BO$month <- "mean"
+# study_site_means$month <- "mean" # Use these two lines if using clim values
+# study_site_BO$month <- "mean"
 study_site_BO$depth <- 0
 
 # Combine the data
-study_site_ALL <- rbind(study_site_means, study_site_clims) %>% 
-  left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth", "month")) %>% 
-  dplyr::select(Campaign, site, month, lon, lat, nav_lon, nav_lat, lon_BO, lat_BO, x, y,
+# study_site_ALL <- rbind(study_site_means, study_site_clims) %>% # Include monthly climatologies in modelling
+study_site_ALL <- study_site_means %>% # Use only overall means in modelling
+  # left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth", "month")) %>% # For clim use 
+  left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth")) %>% # For mean only use
+  # dplyr::select(Campaign, site, month, lon, lat, # Select month if using clim values 
+  dplyr::select(Campaign, site, lon, lat, 
+                nav_lon, nav_lat, lon_BO, lat_BO, x, y,
                 bathy, depth, everything())
-rm(study_site_means, study_site_clims, study_site_BO)
+# rm(study_site_means, study_site_clims, study_site_BO)
 
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
@@ -43,7 +47,9 @@ options(scipen = 9999)
 # Create wide data.frame with all of the abiotic variables matched to depth of site
 # Also includes substrate percentage variables
 kelp_all <- adf %>% 
-  dplyr::select(Campaign, site, depth, Quadrat, Quadrat.size.m2, Bedrock..:sand, 
+  # The substrate variables need to be removed as they can't be used in the final data
+  # to predict kelp cover presence because we don't know what they are everywhere
+  dplyr::select(Campaign, site, depth, Quadrat, Quadrat.size.m2, -c(Bedrock..:sand), 
                 kelp.cover, Laminariales, Agarum, Alaria) %>% 
   # Create mean kelp cover values per site
   # group_by(Campaign, site, depth) %>% 
@@ -59,11 +65,12 @@ kelp_all <- adf %>%
          voce = ifelse(depth.x == depth.y, voce, NA),
          avt = ifelse(depth.x == depth.y, avt, NA),
          wo = ifelse(depth.x == depth.y, wo, NA)) %>% 
-  dplyr::select(-c(nav_lon:depth.y)) %>% 
+  dplyr::select(-c(nav_lon:depth.y), -month) %>% 
   dplyr::rename(depth = depth.x) %>% 
   pivot_longer(cols = eken:BO2_icethickrange_ss, names_to = "model_var", values_to = "val") %>%
   na.omit() %>% 
-  pivot_wider(names_from = c(model_var, month), values_from = val)
+  # pivot_wider(names_from = c(model_var, month), values_from = val) # If useing clim values
+  pivot_wider(names_from = model_var, values_from = val) # Mean values only
 
 
 # Quick visuals -----------------------------------------------------------
@@ -83,7 +90,7 @@ cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>%
   filter(value != 1, abs(value) >= 0.75) %>% # Find high correlation results
   group_by(var2) %>% 
   summarise(var2_count = n()) %>% 
-  filter(var2_count >= 50) %>% 
+  filter(var2_count >= 20) %>% 
   ungroup()
 
 
@@ -105,8 +112,6 @@ rf_data_prep <- function(kelp_choice){
   other_kelps <- other_kelps[other_kelps != kelp_choice]
   
   # The data.frame that will be fed to the model
-  # The substrate and depth values also score consistently in the bottom of importance so aren't used
-  # RWS: I put them back in for the moment...
   df_2 <- select(df_1, chosen_kelp, depth, everything(), -c(other_kelps)) %>% 
     mutate(depth = as.numeric(depth))
 }
@@ -147,9 +152,9 @@ top_variables_multi <- function(kelp_choice){
 
 # Find the top variables for the different kelp covers
 system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~35 seconds on 50 cores
-system.time(top_var_laminariales <- top_variables_multi("Laminariales")) # same
-system.time(top_var_agarum <- top_variables_multi("Agarum")) # same
-system.time(top_var_alaria <- top_variables_multi("Alaria")) # same
+top_var_laminariales <- top_variables_multi("Laminariales")
+top_var_agarum <- top_variables_multi("Agarum")
+top_var_alaria <- top_variables_multi("Alaria")
 
 
 # Random Forest function --------------------------------------------------
@@ -251,12 +256,6 @@ random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
 
 # Select best random forest -----------------------------------------------
 
-# Convenience unpacking function
-unlist_rf <- function(x){
-  res <- data.frame(x[["accuracy"]]) #%>% 
-    # mutate()
-  }
-
 # Now we run the test on each kelp cover 1000 times to see what the spread is
 # in the accuracy of the random forests
 # This is caused by different random splitting of test/validation sets
@@ -284,7 +283,8 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   choice_model <- multi_test[[best_model$model_id]]$model
 }
 
-system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds
+doParallel::registerDoParallel(cores = 25) # RWS: The RAM was tied up so needed to reduce core use
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
 save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
 best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
 save(best_rf_laminariales, file = "data/best_rf_laminariales.RData")
@@ -307,7 +307,7 @@ load("data/best_rf_alaria.RData")
 # Arctic_clim <- load_Arctic_clim()
 
 # Predict the different family covers
-pred_kelpcover <- predict(best_rf_kelpcover, Arctic_data)
+pred_kelpcover <- predict(best_rf_kelpcover, Arctic_mean)
 
 
 # More thorough Random Forest ---------------------------------------------
