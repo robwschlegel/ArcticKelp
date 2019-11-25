@@ -34,6 +34,9 @@ study_site_ALL <- rbind(study_site_means, study_site_clims) %>%
                 bathy, depth, everything())
 rm(study_site_means, study_site_clims, study_site_BO)
 
+# Remove scientific notation from data.frame displays in RStudio
+options(scipen = 9999)
+
 
 # Data --------------------------------------------------------------------
 
@@ -190,13 +193,84 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
 }
 
 
-
 # Random Forest per family check ------------------------------------------
 
 random_kelp_forest_check("kelp.cover", top_var_kelpcover)
 random_kelp_forest_check("Laminariales", top_var_laminariales)
 random_kelp_forest_check("Agarum", top_var_agarum)
 random_kelp_forest_check("Alaria", top_var_alaria)
+
+
+# Many random forests -----------------------------------------------------
+
+# This function is designed to output the model created and it's predictive accuracy
+random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
+  
+  # Extract only the kelp cover of choice
+  df_kelp_choice <- rf_data_prep(kelp_choice)
+  
+  # Chose only desired columns
+  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var)[1:30])
+  
+  # Split data up for training and testing
+  train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
+  train_set <- df_var_choice[train,]
+  # colnames(train_set)[1] <- "chosen_kelp"
+  valid_set <- df_var_choice[-train,]
+  # colnames(valid_set)[1] <- "chosen_kelp"
+  
+  # Random forest model based on all quadrat data
+  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+                          importance = TRUE, na.action = na.omit)
+  
+  # Predicting on training and validation sets
+  pred_train <- predict(kelp_rf, train_set)
+  pred_valid <- predict(kelp_rf, valid_set)
+  
+  # Create data frame of accuracy results
+  train_accuracy <- data.frame(portion = "train",
+                               pred = round(pred_train, 2), 
+                               original = train_set$chosen_kelp) %>% 
+    mutate(accuracy = pred-original)
+  validate_accuracy <- data.frame(portion = "validate",
+                               pred = round(pred_valid, 2), 
+                               original = valid_set$chosen_kelp) %>% 
+    mutate(accuracy = pred-original)
+  res_accuracy <- rbind(train_accuracy, validate_accuracy)
+  
+  # Visualisation
+  # NB: The random forest generally underestimates kelp cover
+  # ggplot(res_accuracy, aes(x = original, y = pred)) +
+  #   geom_point(aes(colour = portion)) +
+  #   geom_smooth(method = "lm", aes(colour = portion))
+  
+  # Package the model up with the accuracy results and exit
+  res <- list(model = kelp_rf, accuracy = res_accuracy)
+}
+
+
+# Select best random forest -----------------------------------------------
+
+# Convenience unpacking function
+unlist_rf <- function(x){
+  res <- data.frame(x[["accuracy"]]) #%>% 
+    # mutate()
+  }
+
+# Now we run the test on each kelp cover 1000 times to see what the spread is
+# in the accuracy of the random forests
+# This is caused by different random splitting of test/validation sets
+# as well as the many possible routes that the random forest may then take
+random_kelp_forest_select <- function(kelp_choice, column_choice){
+  # system.time(
+    multi_test <- plyr::llply(.data = 1:1000, .fun = random_kelp_forest_test, .parallel = T, 
+                              kelp_choice = kelp_choice, column_choice = column_choice)
+    # ) # 56 seconds
+  model_accuracy <- lapply(multi_test, function(x) x$accuracy) %>% 
+    do.call(rbind.data.frame, .) %>% 
+    mutate(model_id = rep(1:1000, each = nrow(kelp_all)))
+}
+
 
 
 # More thorough Random Forest ---------------------------------------------
