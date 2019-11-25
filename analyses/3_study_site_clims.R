@@ -34,39 +34,46 @@ round_coords <- function(df){
   # These files are too large to host on GitHub
   # e-mail Robert (robert.schlegel@dal.ca) for him to send you the large files
 
-# if(!exists("Arctic_surface_clim")){
-#   load("data/Arctic_surface_clim.RData")
-#   Arctic_surface_clim <- round_coords(Arctic_surface_clim)
-# }
-# if(!exists("Arctic_ice_clim")){
-#   load("data/Arctic_ice_clim.RData")
-#   Arctic_ice_clim <- round_coords(Arctic_ice_clim)
-# }
-# if(!exists("Arctic_depth_T_clim")){
-#   load("data/Arctic_depth_T_clim.RData")
-#   Arctic_depth_T_clim <- round_coords(Arctic_depth_T_clim)
-#   }
-# if(!exists("Arctic_depth_U_clim")){
-#   load("data/Arctic_depth_U_clim.RData")
-#   Arctic_depth_U_clim <- round_coords(Arctic_depth_U_clim)
-# }
-# if(!exists("Arctic_depth_V_clim")){
-#   load("data/Arctic_depth_V_clim.RData")
-#   Arctic_depth_V_clim <- round_coords(Arctic_depth_V_clim)
-# }
-# if(!exists("Arctic_depth_W_clim")){
-#   load("data/Arctic_depth_W_clim.RData")
-#   Arctic_depth_W_clim <- round_coords(Arctic_depth_W_clim)
-# }
-# # Join everything
-# if(!exists("Arctic_clim")){
-#   Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_depth_U_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
-#     left_join(Arctic_depth_V_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
-#     left_join(Arctic_depth_W_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
-#     left_join(Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
-#     left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
-# }
+load_Arctic_clim <- function(){
+  # if(!exists("Arctic_surface_clim")){
+    load("data/Arctic_surface_clim.RData")
+    Arctic_surface_clim <- round_coords(Arctic_surface_clim)
+  # }
+  # if(!exists("Arctic_ice_clim")){
+    load("data/Arctic_ice_clim.RData")
+    Arctic_ice_clim <- round_coords(Arctic_ice_clim)
+  # }
+  # if(!exists("Arctic_depth_T_clim")){
+    load("data/Arctic_depth_T_clim.RData")
+    Arctic_depth_T_clim <- round_coords(Arctic_depth_T_clim)
+  # }
+  # if(!exists("Arctic_depth_U_clim")){
+    load("data/Arctic_depth_U_clim.RData")
+    Arctic_depth_U_clim <- round_coords(Arctic_depth_U_clim)
+  # }
+  # if(!exists("Arctic_depth_V_clim")){
+    load("data/Arctic_depth_V_clim.RData")
+    Arctic_depth_V_clim <- round_coords(Arctic_depth_V_clim)
+  # }
+  # if(!exists("Arctic_depth_W_clim")){
+    load("data/Arctic_depth_W_clim.RData")
+    Arctic_depth_W_clim <- round_coords(Arctic_depth_W_clim)
+  # }
+  # Join everything
+  # if(!exists("Arctic_clim")){
+    Arctic_clim <- left_join(Arctic_depth_T_clim, Arctic_depth_U_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
+      left_join(Arctic_depth_V_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
+      left_join(Arctic_depth_W_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
+      left_join(Arctic_surface_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month")) %>%
+      left_join(Arctic_ice_clim, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy", "month"))
+  # }
+  rm(Arctic_depth_T_clim, Arctic_depth_U_clim, Arctic_depth_V_clim, 
+     Arctic_depth_W_clim, Arctic_surface_clim, Arctic_ice_clim)
+  return(Arctic_clim)
+}
 
+# Load the clim data by running this function
+# sload_Arctic_clim()
 
 # Load overall mean files -------------------------------------------------
 

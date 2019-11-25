@@ -14,7 +14,7 @@ library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
 library(skimr)       # Quickly get a sense of data
 library(randomForest)
 library(knitr)
-library(doParallel); doParallel::registerDoParallel(cores = 50)
+library(doParallel); doParallel::registerDoParallel(cores = 25)
 
 # Site clims
 load("data/study_site_clims.RData")
@@ -266,11 +266,48 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
     multi_test <- plyr::llply(.data = 1:1000, .fun = random_kelp_forest_test, .parallel = T, 
                               kelp_choice = kelp_choice, column_choice = column_choice)
     # ) # 56 seconds
+  
+  # Extract the model accuracies
   model_accuracy <- lapply(multi_test, function(x) x$accuracy) %>% 
     do.call(rbind.data.frame, .) %>% 
     mutate(model_id = rep(1:1000, each = nrow(kelp_all)))
+  # RWS: A whole range of further analyses could be done with these values
+  
+  # Find which model had the best validation scores
+  accuracy_check <- model_accuracy %>% 
+    filter(portion == "validate") %>% 
+    group_by(model_id) %>% 
+    summarise(mean_acc = mean(abs(accuracy)))
+  
+  # Extract that model
+  best_model <- filter(accuracy_check, mean_acc == min(mean_acc))
+  choice_model <- multi_test[[best_model$model_id]]$model
 }
 
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds
+save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
+best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
+save(best_rf_laminariales, file = "data/best_rf_laminariales.RData")
+best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
+save(best_rf_agarum, file = "data/best_rf_agarum.RData")
+best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
+save(best_rf_alaria, file = "data/best_rf_alaria.RData")
+
+
+# Project kelp cover in the Arctic ----------------------------------------
+
+# Firs load the best random forest models produced above
+load("data/best_rf_kelpcover.RData")
+load("data/best_rf_laminariales.RData")
+load("data/best_rf_agarum.RData")
+load("data/best_rf_alaria.RData")
+
+# Load the Arctic data
+  # NB: This will only run on the serve that contains the BIO model data
+# Arctic_clim <- load_Arctic_clim()
+
+# Predict the different family covers
+pred_kelpcover <- predict(best_rf_kelpcover, Arctic_data)
 
 
 # More thorough Random Forest ---------------------------------------------
