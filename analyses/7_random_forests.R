@@ -13,7 +13,8 @@ source("analyses/4_kelp_cover.R")
 library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
 library(skimr)       # Quickly get a sense of data
 library(randomForest)
-# library(forestRK)
+library(knitr)
+library(doParallel); doParallel::registerDoParallel(cores = 3)
 
 # Site clims
 load("data/study_site_clims.RData")
@@ -62,6 +63,30 @@ kelp_all <- adf %>%
   pivot_wider(names_from = c(model_var, month), values_from = val)
 
 
+# Data prep function ------------------------------------------------------
+
+# Convenience function for prepping dataframe for use in the random forest
+# This removes all other kelp cover values
+rf_data_prep <- function(kelp_choice){
+  # Trim down data.frame
+  # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
+  df_1 <- data.frame(select(kelp_all, -c(Campaign:Quadrat.size.m2)))
+  df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
+  
+  # Create double of chosen kelp cover column
+  names(df_1)[names(df_1) == kelp_choice] <- "chosen_kelp"
+  
+  # Determine which kelp cover is being used
+  other_kelps <- c("kelp.cover", "Laminariales", "Agarum", "Alaria")
+  other_kelps <- other_kelps[other_kelps != kelp_choice]
+  
+  # The data.frame that will be fed to the model
+  # The substrate and depth values also score consistently in the bottom of importance so aren't used
+  # RWS: I put them back in for the moment...
+  df_2 <- select(df_1, chosen_kelp, everything(), -c(other_kelps)) 
+}
+
+
 # Which variables are highly correlated? ----------------------------------
 
 # Identify variables that correlate with 50 or more other variables at abs(0.75) or more
@@ -77,32 +102,54 @@ cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>%
   ungroup()
 
 
+# Which variables are the most imprtant? ----------------------------------
+
+# This function runs many random forest models to determine which variables
+# are consistantly the most important
+top_variables <- function(lplyr_bit, kelp_choice){
+  
+  # Extract only the kelp cover of choice
+  df_kelp_choice <- rf_data_prep(kelp_choice)
+  
+  # Split data up for training and testing
+  train <- sample(nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
+  train_set <- df_2[train,]
+  valid_set <- df_2[-train,]
+  
+  # Random forest model based on all quadrat data
+  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+                          importance = TRUE, na.action = na.omit)
+  res <- arrange(data.frame(var = row.names(kelp_rf$importance), 
+                            kelp_rf$importance), -X.IncMSE)[1:30,]
+}
+# top_variables(kelp_choice = "kelp.cover")
+
+# We then run this 100 times to increase our certainty in the findings
+top_variables_multi <- function(kelp_choice){
+  multi_kelp <- plyr::ldply(.data = 1:100, .fun = top_variables, .parallel = T, kelp_choice = kelp_choice)
+  multi_kelp_importance <- multi_kelp %>% 
+    group_by(var) %>% 
+    summarise(sum_IncMSE = sum(X.IncMSE),
+              count = n()) %>% 
+    ungroup() %>% 
+    arrange(-count, sum_IncMSE)
+}
+
+# Find the top variables for the different kelp covers
+system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # xxx seconds on 3 cores
+system.time(top_var_kelpcover <- top_variables_multi("laminariales"))
+system.time(top_var_kelpcover <- top_variables_multi("kelp.cover"))
+system.time(top_var_kelpcover <- top_variables_multi("kelp.cover"))
+
+
 # Random Forest function --------------------------------------------------
 
 # kelp_choice <- "Laminariales"
 # kelp_choice <- Laminariales
 random_kelp_forest <- function(kelp_choice){
   
-  # Trim down data.frame
-  # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-  df_1 <- select(kelp_all, -c(Campaign:Quadrat.size.m2)) %>% 
-    data.frame()
-  df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
-  
-  # Create double of chosen kelp cover column
-  # names(df_1)[names(df_1) == kelp_choice] <- "chosen_kelp"
-  
-  # Establish which kelp covers to remove
-  other_kelps <- c("kelp.cover", "Laminariales", "Agarum", "Alaria")
-  other_kelps <- other_kelps[other_kelps != {{kelp_choice}}]
-  
-  # The data.frame that will be fed to the model
-  # The substrate and depth values also score consistently in the bottom of importance so aren't used
-  # RWS: I put them back in for the moment...
-  df_2 <- select(df_1, {{kelp_choice}}, everything(), -c(other_kelps)) 
-  
   # Split data up for training and testing
-  set.seed(666)
+  # set.seed(666)
   train <- sample(nrow(df_2), 0.7*nrow(df_2), replace = FALSE)
   train_set <- df_2[train,]
   # colnames(train_set)[1] <- "chosen_kelp"
@@ -110,20 +157,22 @@ random_kelp_forest <- function(kelp_choice){
   # colnames(valid_set)[1] <- "chosen_kelp"
   
   # Random forest model based on all quadrat data
-  kelp_rf <- randomForest(noquote(eval(kelp_choice)) ~ ., data = train_set, 
-                          mtry = 6, ntree = 1000, importance = TRUE, na.action = na.omit)
+  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+                          importance = TRUE, na.action = na.omit)
   print(kelp_rf) # percent of variance explained
   varImpPlot(kelp_rf)
   
   # Predicting on training set
   pred_train <- predict(kelp_rf, train_set)
   print(paste0("Average accuracy of prediction on test data: ", 
-         round(mean(abs(pred_train - train_set$chosen_kelp)), 2),"%"))
+               round(mean(abs(pred_train - train_set$chosen_kelp)), 2),"%"))
   
   # Predicting on Validation set
   pred_valid <- predict(kelp_rf, valid_set)
   print(paste0("Average accuracy of prediction on validation data: ", 
-         round(mean(abs(pred_valid - valid_set$chosen_kelp)), 2),"%"))
+               round(mean(abs(pred_valid - valid_set$chosen_kelp)), 2),"%"))
+  # print(arrange(data.frame(var = row.names(kelp_rf$importance), 
+  #                          kelp_rf$importance), -X.IncMSE)[1:30,])
 }
 
 
@@ -133,7 +182,7 @@ random_kelp_forest("kelp.cover")
 random_kelp_forest("Laminariales")
 random_kelp_forest("Agarum")
 random_kelp_forest("Alaria")
-
+#
 
 # More thorough Random Forest ---------------------------------------------
 
@@ -234,13 +283,18 @@ table(pred_valid, valid_set$Campaign)
 mean(pred_valid == valid_set$Campaign)*100 # 100% accuracy...
 
 
-# A different random forest approach  -------------------------------------
+# A different prep method -------------------------------------------------
 
-#Train/Test Split
+# Create a category version of the data for use with other models
+kelp_all_factor <- kelp_all %>% 
+  mutate(kelp.cover = as.factor(as.character(round(kelp.cover, -1))))
+
+# Train/Test Split
 train_test_split <-
   rsample::initial_split(
-    data = telco,     
-    prop = 0.80   
+    data = kelp_all, # For continous response     
+    # data = kelp_all_factor, # For categorical response
+    prop = 0.70   
   ) 
 
 train_test_split
@@ -248,7 +302,87 @@ train_test_split
 train_tbl <- train_test_split %>% training() 
 test_tbl  <- train_test_split %>% testing() 
 
-rf_fun <- function(split, var, id, try, tree) {
+# Prepare
+recipe_simple <- function(dataset) {
+  recipe(kelp.cover ~ ., data = dataset) %>%
+    step_string2factor(all_nominal(), -all_outcomes()) %>%
+    prep(data = dataset)
+}
+
+# NB: In order to avoid Data Leakage 
+# (e.g: transferring information from the train set into the test set), 
+# data should be “prepped” using the train_tbl only.
+recipe_prepped <- recipe_simple(dataset = train_tbl)
+
+# Bake the recipe
+train_baked <- bake(recipe_prepped, new_data = train_tbl)
+test_baked  <- bake(recipe_prepped, new_data = test_tbl)
+
+
+# GLM ---------------------------------------------------------------------
+
+# RWS-NB: The GLM method is white hot garbage
+  # I've just left it in here for now to demonstrate how poorly it works
+
+logistic_glm <- logistic_reg(mode = "classification") %>%
+  # Change this to any number of things to change the model:
+  # glm, glmnet, stan, spark, and keras
+  set_engine("glm") %>%
+  fit(kelp.cover ~ ., data = train_baked)
+
+predictions_glm <- logistic_glm %>%
+  predict(new_data = test_baked) %>%
+  bind_cols(test_baked %>% select(kelp.cover))
+
+predictions_glm %>% head() %>% kable()
+
+predictions_glm %>%
+  conf_mat(kelp.cover, .pred_class) %>%
+  pluck(1) %>%
+  as_tibble() %>%
+  # Visualize with ggplot
+  ggplot(aes(Prediction, Truth, alpha = n)) +
+  geom_tile(show.legend = FALSE) +
+  geom_text(aes(label = n), colour = "white", alpha = 1, size = 8)
+
+# Accuracy
+predictions_glm %>%
+  metrics(kelp.cover, .pred_class) %>%
+  select(-.estimator) %>%
+  filter(.metric == "accuracy") %>%
+  kable()
+
+# Precision and Recall
+# Precision shows how sensitive models are to False Positives 
+# (i.e. predicting a customer is leaving when he-she is actually staying) 
+# whereas Recall looks at how sensitive models are to False Negatives 
+# (i.e. forecasting that a customer is staying whilst he-she is in fact leaving).
+tibble(
+  "precision" = 
+    precision(predictions_glm, kelp.cover, .pred_class) %>%
+    select(.estimate),
+  "recall" = 
+    recall(predictions_glm, kelp.cover, .pred_class) %>%
+    select(.estimate)
+) %>%
+  unnest(cols = c(precision, recall)) %>%
+  kable()
+
+# F1 Score
+# Another popular performance assessment metric is the F1 Score, 
+# which is the harmonic average of the precision and recall. 
+# An F1 score reaches its best value at 1 with perfect precision and recall.
+predictions_glm %>%
+  f_meas(kelp.cover, .pred_class) %>%
+  select(-.estimator) %>%
+  kable()
+
+
+# A different random forest approach --------------------------------------
+
+# NB: This method is not better than the original
+
+rf_fun <- function(split, id, try, tree) {
   
   analysis_set <- split %>% analysis()
   analysis_prepped <- analysis_set %>% recipe_simple()
@@ -256,14 +390,14 @@ rf_fun <- function(split, var, id, try, tree) {
   
   model_rf <-
     rand_forest(
-      mode = "classification",
+      mode = "regression",
       mtry = try,
       trees = tree
     ) %>%
     set_engine("ranger",
                importance = "impurity"
     ) %>%
-    fit(var ~ ., data = analysis_baked)
+    fit(kelp.cover ~ ., data = analysis_baked)
   
   assessment_set     <- split %>% assessment()
   assessment_prepped <- assessment_set %>% recipe_simple()
@@ -271,16 +405,25 @@ rf_fun <- function(split, var, id, try, tree) {
   
   tibble(
     "id" = id,
-    "truth" = assessment_baked$Churn,
+    "truth" = assessment_baked$kelp.cover,
     "prediction" = model_rf %>%
       predict(new_data = assessment_baked) %>%
       unlist()
   )
 }
 
+cross_val_tbl <- vfold_cv(train_tbl, v = 10)
+cross_val_tbl
+cross_val_tbl %>% pluck("splits", 1)
 
+# Accuracy
 pred_rf <- map2_df(
   .x = cross_val_tbl$splits,
   .y = cross_val_tbl$id,
-  ~ rf_fun(split = .x, id = .y, try = 3, tree = 200)
-)
+  ~ rf_fun(split = .x, id = .y, try = 3, tree = 200)) %>% 
+  mutate(accuracy = abs(truth-prediction)) %>% 
+  group_by(id) %>% 
+  summarise(accuracy = mean(accuracy))
+pred_rf
+
+
