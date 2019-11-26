@@ -291,7 +291,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   choice_model <- multi_test[[best_model$model_id]]$model
 }
 
-doParallel::registerDoParallel(cores = 25) # RWS: The RAM was tied up so needed to reduce core use
+doParallel::registerDoParallel(cores = 3) # RWS: The RAM was tied up so needed to reduce core use
 system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
 save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
 best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
@@ -304,7 +304,7 @@ save(best_rf_alaria, file = "data/best_rf_alaria.RData")
 
 # Project kelp cover in the Arctic ----------------------------------------
 
-# Firs load the best random forest models produced above
+# First load the best random forest models produced above
 load("data/best_rf_kelpcover.RData")
 load("data/best_rf_laminariales.RData")
 load("data/best_rf_agarum.RData")
