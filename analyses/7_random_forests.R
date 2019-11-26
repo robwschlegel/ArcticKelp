@@ -14,7 +14,7 @@ library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
 library(skimr)       # Quickly get a sense of data
 library(randomForest)
 library(knitr)
-library(doParallel); doParallel::registerDoParallel(cores = 50)
+library(doParallel); doParallel::registerDoParallel(cores = 3) # This will be between 4 - 8 on a laptop
 
 # Site clims
 load("data/study_site_clims.RData")
