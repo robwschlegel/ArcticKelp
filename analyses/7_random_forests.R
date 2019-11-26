@@ -65,7 +65,7 @@ kelp_all <- adf %>%
          voce = ifelse(depth.x == depth.y, voce, NA),
          avt = ifelse(depth.x == depth.y, avt, NA),
          wo = ifelse(depth.x == depth.y, wo, NA)) %>% 
-  dplyr::select(-c(nav_lon:depth.y), -month) %>% 
+  dplyr::select(-c(nav_lon:depth.y)) %>% 
   dplyr::rename(depth = depth.x) %>% 
   pivot_longer(cols = eken:BO2_icethickrange_ss, names_to = "model_var", values_to = "val") %>%
   na.omit() %>% 
@@ -75,8 +75,8 @@ kelp_all <- adf %>%
 
 # Quick visuals -----------------------------------------------------------
 
-ggplot(kelp_all, aes(x = lon, y = kelp.cover)) +
-  geom_point(aes(colour = as.factor(depth)))
+# ggplot(kelp_all, aes(x = lon, y = kelp.cover)) +
+#   geom_point(aes(colour = as.factor(depth)))
 
 
 # Which variables are highly correlated? ----------------------------------
@@ -151,10 +151,18 @@ top_variables_multi <- function(kelp_choice){
 }
 
 # Find the top variables for the different kelp covers
-system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~35 seconds on 50 cores
-top_var_laminariales <- top_variables_multi("Laminariales")
-top_var_agarum <- top_variables_multi("Agarum")
-top_var_alaria <- top_variables_multi("Alaria")
+# system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~35 seconds on 50 cores, ~543 on 3
+# save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
+load("data/top_var_kelpcover.RData")
+# top_var_laminariales <- top_variables_multi("Laminariales")
+# save(top_var_laminariales, file = "data/top_var_laminariales.RData")
+load("data/top_var_laminariales.RData")
+# top_var_agarum <- top_variables_multi("Agarum")
+# save(top_var_agarum, file = "data/top_var_agarum.RData")
+load("data/top_var_agarum.RData")
+# top_var_alaria <- top_variables_multi("Alaria")
+# save(top_var_alaria, file = "data/top_var_alaria.RData")
+load("data/top_var_alaria.RData")
 
 
 # Random Forest function --------------------------------------------------
