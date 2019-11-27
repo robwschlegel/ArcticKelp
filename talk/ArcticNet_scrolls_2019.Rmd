@@ -1,0 +1,62 @@
+---
+title: "**The relationship between Arctic kelps and their physical environment**"
+author: "Karen Filbee-Dexter ^1^, **Robert W. Schlegel** ^2,3^, Ladd E. Johnson^4^, CJ Mundy^5^, Kathleen MacGregor^6^, Philippe Archambault^7^"
+institute: "^1^Australia, ^2^Dalhousie, ^3^WHOI, ^4^Oher places"
+date: "December 5th, 2019"
+output:
+  html_document:
+    # code_folding: show
+    # css: acid.css
+    fig_caption: yes
+    fig_width: 2
+    fig_height: 2
+    highlight: default    
+    number_sections: yes
+    theme: yeti
+    toc: yes
+    toc_float: yes
+# fontsize: 10pt
+language: Australian
+css: acid.css
+# mainfont: PT Serif  
+# monofont: PT Mono
+csl: frontiers.csl
+# sansfont: PT Sans
+bibliography: ArcticKelp.bib
+# papersize: A4
+---
+
+![](photo/alaria_1.jpg)
+
+***
+
+# What is known? {.tabset}
+
+- Little is known of kelp in the Arctic
+
+```{r, echo=F, fig.align="center"}
+knitr::include_graphics("figure/kelp_question.png", dpi = 200)
+```
+
+---
+# What is known?
+
+- Trading in Alaria along Baffin Island coast
+
+```{r, echo=F, fig.align="center"}
+knitr::include_graphics("figure/alaria_trading.png", dpi = 300)
+```
+
+---
+# What is known?
+
+- Other examples?
+
+---
+# What is known?
+
+- There should be other Laminariales sp.
+
+```{r, echo=F, fig.align="center"}
+knitr::include_graphics("figure/where_kelp.png", dpi = 300)
+```
