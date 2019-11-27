@@ -98,10 +98,10 @@ cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>%
 
 # Convenience function for prepping dataframe for use in the random forest
 # This removes all other kelp cover values
-rf_data_prep <- function(kelp_choice){
+rf_data_prep <- function(kelp_choice, df = kelp_all){
   # Trim down data.frame
   # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-  df_1 <- data.frame(select(kelp_all, -c(Campaign:Quadrat.size.m2), depth))
+  df_1 <- data.frame(select(df, -c(Campaign:Quadrat.size.m2), depth))
   df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
   
   # Create double of chosen kelp cover column
@@ -291,7 +291,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   choice_model <- multi_test[[best_model$model_id]]$model
 }
 
-doParallel::registerDoParallel(cores = 3) # RWS: The RAM was tied up so needed to reduce core use
+doParallel::registerDoParallel(cores = 50)
 system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
 save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
 best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
@@ -311,11 +311,45 @@ load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
 
 # Load the Arctic data
-  # NB: This will only run on the serve that contains the BIO model data
-# Arctic_clim <- load_Arctic_clim()
+load("data/Arctic_BO.RData")
+
+# Prep the data for lazy joining # This removes all depth values... not ideal
+Arctic_mean_prep <- Arctic_mean %>% 
+  select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
+  na.omit() %>% 
+  dplyr::rename(lon = nav_lon, lat = nav_lat) %>% 
+  mutate(lon = round(lon, 1),
+         lat = round(lat, 1)) %>% 
+  group_by(lon, lat) %>% 
+  summarise_if(is.numeric, mean, na.rm = T) %>% 
+  ungroup()
+
+Arctic_BO_prep <- na.omit(Arctic_BO) %>% 
+  mutate(lon = round(lon, 1),
+         lat = round(lat, 1)) %>%
+  group_by(lon, lat) %>% 
+  summarise_if(is.numeric, mean, na.rm = T) %>% 
+  ungroup()
+
+# Join the data for being fed to the model
+Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat")) %>%
+  na.omit()
+  # select(-x, -y, -bathy, -c(cor_df$var2))
+
+# Prep packets per cover family
+Arctic_kelpcover <- select(Arctic_data, as.character(top_var_kelpcover$var)[1:30]) %>% 
+  mutate(chosen_kelp = 1)
 
 # Predict the different family covers
-pred_kelpcover <- predict(best_rf_kelpcover, Arctic_mean)
+pred_kelpcover <- data.frame(lon = Arctic_data$lon, 
+                             lat = Arctic_data$lat,
+                             pred_val = predict(best_rf_kelpcover, Arctic_kelpcover))
+
+# Visualise
+ggplot(pred_kelpcover, aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = pred_val)) +
+  coord_cartesian(expand = F) +
+  scale_fill_viridis_c()
 
 
 # More thorough Random Forest ---------------------------------------------
