@@ -336,20 +336,34 @@ Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat"))
   na.omit()
   # select(-x, -y, -bathy, -c(cor_df$var2))
 
-# Prep packets per cover family
-Arctic_kelpcover <- select(Arctic_data, as.character(top_var_kelpcover$var)[1:30]) %>% 
-  mutate(chosen_kelp = 1)
+# Convenience function for final step before prediction
+Arctic_cover_predict <- function(top_var_choice, model_choice){
+  # Prep packets per cover family
+  df <- select(Arctic_data, as.character(top_var_choice$var)[1:30]) %>% 
+    mutate(chosen_kelp = 1)
+  
+  # Predict the different family covers
+  pred_df <- data.frame(lon = Arctic_data$lon, lat = Arctic_data$lat,
+                        pred_val = predict(model_choice, df))
+}
 
-# Predict the different family covers
-pred_kelpcover <- data.frame(lon = Arctic_data$lon, 
-                             lat = Arctic_data$lat,
-                             pred_val = predict(best_rf_kelpcover, Arctic_kelpcover))
+# Visualise a family of cover
+cover_squiz <- function(df){
+  ggplot(df, aes(x = lon, y = lat)) +
+    geom_raster(aes(fill = pred_val)) +
+    coord_cartesian(expand = F) +
+    scale_fill_viridis_c()
+}
 
-# Visualise
-ggplot(pred_kelpcover, aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = pred_val)) +
-  coord_cartesian(expand = F) +
-  scale_fill_viridis_c()
+# Predictions
+pred_kelpcover <- Arctic_cover_predict(top_var_kelpcover, best_rf_kelpcover)
+cover_squiz(pred_kelpcover)
+pred_laminariales <- Arctic_cover_predict(top_var_laminariales, best_rf_laminariales)
+cover_squiz(pred_laminariales)
+pred_agarum <- Arctic_cover_predict(top_var_agarum, best_rf_agarum)
+cover_squiz(pred_agarum)
+pred_alaria <- Arctic_cover_predict(top_var_alaria, best_rf_alaria)
+cover_squiz(pred_alaria)
 
 
 # More thorough Random Forest ---------------------------------------------
