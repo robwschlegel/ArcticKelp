@@ -2,18 +2,44 @@
 # The purpose of this script is to house the code used for the random forest analyses
 # There is an analysis in script 5 and 6A as well, but my (RWS) thinking was to put everything
 # in one place moving forward in the sake of tidiness.
-# I (RWS) also found an additional method of performing a random forest in R that I
-# will test out here as well
 
 
-# Libraries ---------------------------------------------------------------
+# Setup -------------------------------------------------------------------
 
 # Load all data nad previous libraries
 source("analyses/4_kelp_cover.R")
 
 # Libraries for this script specifically
+library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
+library(skimr)       # Quickly get a sense of data
 library(randomForest)
-library(forestRK)
+library(knitr)
+library(doParallel); doParallel::registerDoParallel(cores = 3) # This will be between 4 - 8 on a laptop
+
+# Site clims
+load("data/study_site_clims.RData")
+
+# BO data
+load("data/study_site_BO.RData")
+
+# Prep data.frames for combining
+# study_site_means$month <- "mean" # Use these two lines if using clim values
+# study_site_BO$month <- "mean"
+study_site_BO$depth <- 0
+
+# Combine the data
+# study_site_ALL <- rbind(study_site_means, study_site_clims) %>% # Include monthly climatologies in modelling
+study_site_ALL <- study_site_means %>% # Use only overall means in modelling
+  # left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth", "month")) %>% # For clim use 
+  left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth")) %>% # For mean only use
+  # dplyr::select(Campaign, site, month, lon, lat, # Select month if using clim values 
+  dplyr::select(Campaign, site, lon, lat, 
+                nav_lon, nav_lat, lon_BO, lat_BO, x, y,
+                bathy, depth, everything())
+# rm(study_site_means, study_site_clims, study_site_BO)
+
+# Remove scientific notation from data.frame displays in RStudio
+options(scipen = 9999)
 
 
 # Data --------------------------------------------------------------------
@@ -21,39 +47,337 @@ library(forestRK)
 # Create wide data.frame with all of the abiotic variables matched to depth of site
 # Also includes substrate percentage variables
 kelp_all <- adf %>% 
-  dplyr::select(Campaign, site, depth, Quadrat, Quadrat.size.m2, Bedrock..:sand, 
+  # The substrate variables need to be removed as they can't be used in the final data
+  # to predict kelp cover presence because we don't know what they are everywhere
+  dplyr::select(Campaign, site, depth, Quadrat, Quadrat.size.m2, -c(Bedrock..:sand), 
                 kelp.cover, Laminariales, Agarum, Alaria) %>% 
-  left_join(study_site_means, by = c("Campaign", "site")) %>% 
-  dplyr::select(Campaign:Alaria, depth.y, eken:icethic_cat, lon, lat) %>%
+  # Create mean kelp cover values per site
+  # group_by(Campaign, site, depth) %>% 
+  # summarise_all(mean) %>% 
+  # ungroup() %>% 
+  # End mean site creation
+  left_join(study_site_ALL, by = c("Campaign", "site")) %>% 
+  # dplyr::select(Campaign:Alaria, depth.y, eken:icethic_cat, lon, lat) %>%
   mutate(eken = ifelse(depth.x == depth.y, eken, NA),  # A funny way of getting rid of non-target depth data
          soce = ifelse(depth.x == depth.y, soce, NA), 
-         toce = ifelse(depth.x == depth.y, toce, NA)) %>% 
-  dplyr::select(-depth.y) %>% 
+         toce = ifelse(depth.x == depth.y, toce, NA),
+         uoce = ifelse(depth.x == depth.y, uoce, NA),
+         voce = ifelse(depth.x == depth.y, voce, NA),
+         avt = ifelse(depth.x == depth.y, avt, NA),
+         wo = ifelse(depth.x == depth.y, wo, NA)) %>% 
+  dplyr::select(-c(nav_lon:depth.y)) %>% 
   dplyr::rename(depth = depth.x) %>% 
-  gather(key = "model_var", value = "val", -c(Campaign:Alaria, lon, lat)) %>%
+  pivot_longer(cols = eken:BO2_icethickrange_ss, names_to = "model_var", values_to = "val") %>%
   na.omit() %>% 
-  spread(model_var, val)
-
-# Filter down to only total kelp cover at depths 5, 10 and 15 m
-kelp_var <- kelp_all %>% 
-  dplyr::select(-Laminariales, -Agarum, -Alaria) #%>% 
-#  filter(depth %in% c(10, 15)) #%>% 
- # mutate(kelp.cover = round(kelp.cover, -1)) # Round kelp cover to the nearest 10% step
+  # pivot_wider(names_from = c(model_var, month), values_from = val) # If useing clim values
+  pivot_wider(names_from = model_var, values_from = val) # Mean values only
 
 
-# Random Forest -----------------------------------------------------------
+# Quick visuals -----------------------------------------------------------
+
+# ggplot(kelp_all, aes(x = lon, y = kelp.cover)) +
+#   geom_point(aes(colour = as.factor(depth)))
+
+
+# Which variables are highly correlated? ----------------------------------
+
+# Identify variables that correlate with 50 or more other variables at abs(0.75) or more
+cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>% 
+  data.frame() %>% 
+  mutate(var1 = row.names(.)) %>% 
+  pivot_longer(cols = -var1, names_to = "var2") %>% 
+  na.omit() %>% 
+  filter(value != 1, abs(value) >= 0.75) %>% # Find high correlation results
+  group_by(var2) %>% 
+  summarise(var2_count = n()) %>% 
+  filter(var2_count >= 20) %>% 
+  ungroup()
+
+
+# Data prep function ------------------------------------------------------
+
+# Convenience function for prepping dataframe for use in the random forest
+# This removes all other kelp cover values
+rf_data_prep <- function(kelp_choice, df = kelp_all){
+  # Trim down data.frame
+  # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
+  df_1 <- data.frame(select(df, -c(Campaign:Quadrat.size.m2), depth))
+  df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
+  
+  # Create double of chosen kelp cover column
+  names(df_1)[names(df_1) == kelp_choice] <- "chosen_kelp"
+  
+  # Determine which kelp cover is being used
+  other_kelps <- c("kelp.cover", "Laminariales", "Agarum", "Alaria")
+  other_kelps <- other_kelps[other_kelps != kelp_choice]
+  
+  # The data.frame that will be fed to the model
+  df_2 <- select(df_1, chosen_kelp, depth, everything(), -c(other_kelps)) %>% 
+    mutate(depth = as.numeric(depth))
+}
+
+
+# Which variables are the most imprtant? ----------------------------------
+
+# This function runs many random forest models to determine which variables
+# are consistantly the most important
+top_variables <- function(lplyr_bit, kelp_choice){
+  
+  # Extract only the kelp cover of choice
+  df_kelp_choice <- rf_data_prep(kelp_choice)
+  
+  # Split data up for training and testing
+  train <- sample(nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
+  train_set <- df_kelp_choice[train,]
+  valid_set <- df_kelp_choice[-train,]
+  
+  # Random forest model based on all quadrat data
+  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+                          importance = TRUE, na.action = na.omit)
+  res <- arrange(data.frame(var = row.names(kelp_rf$importance), 
+                            kelp_rf$importance), -X.IncMSE)[1:30,]
+}
+# top_variables(kelp_choice = "kelp.cover")
+
+# We then run this 1000 times to increase our certainty in the findings
+top_variables_multi <- function(kelp_choice){
+  multi_kelp <- plyr::ldply(.data = 1:1000, .fun = top_variables, .parallel = T, kelp_choice = kelp_choice)
+  multi_kelp_importance <- multi_kelp %>% 
+    group_by(var) %>% 
+    summarise(sum_IncMSE = sum(X.IncMSE),
+              count = n()) %>% 
+    ungroup() %>% 
+    arrange(-count, sum_IncMSE)
+}
+
+# Find the top variables for the different kelp covers
+# system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~35 seconds on 50 cores, ~543 on 3
+# save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
+load("data/top_var_kelpcover.RData")
+# top_var_laminariales <- top_variables_multi("Laminariales")
+# save(top_var_laminariales, file = "data/top_var_laminariales.RData")
+load("data/top_var_laminariales.RData")
+# top_var_agarum <- top_variables_multi("Agarum")
+# save(top_var_agarum, file = "data/top_var_agarum.RData")
+load("data/top_var_agarum.RData")
+# top_var_alaria <- top_variables_multi("Alaria")
+# save(top_var_alaria, file = "data/top_var_alaria.RData")
+load("data/top_var_alaria.RData")
+
+
+# Random Forest function --------------------------------------------------
+
+# kelp_choice <- "Laminariales"
+# kelp_choice <- Laminariales
+# column_choice <- top_var_laminariales
+random_kelp_forest_check <- function(kelp_choice, column_choice){
+  
+  # Extract only the kelp cover of choice
+  df_kelp_choice <- rf_data_prep(kelp_choice)
+  
+  # Chose only desired columns
+  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var)[1:30])
+  
+  # Split data up for training and testing
+  # set.seed(666)
+  train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
+  train_set <- df_var_choice[train,]
+  # colnames(train_set)[1] <- "chosen_kelp"
+  valid_set <- df_var_choice[-train,]
+  # colnames(valid_set)[1] <- "chosen_kelp"
+  
+  # Random forest model based on all quadrat data
+  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+                          importance = TRUE, na.action = na.omit)
+  print(kelp_rf) # percent of variance explained
+  varImpPlot(kelp_rf)
+  
+  # Predicting on training set
+  pred_train <- predict(kelp_rf, train_set)
+  print(paste0("Average accuracy of prediction on test data: ", 
+               round(mean(abs(pred_train - train_set$chosen_kelp)), 2),"%"))
+  
+  # Predicting on Validation set
+  pred_valid <- predict(kelp_rf, valid_set)
+  print(paste0("Average accuracy of prediction on validation data: ", 
+               round(mean(abs(pred_valid - valid_set$chosen_kelp)), 2),"%"))
+  # print(arrange(data.frame(var = row.names(kelp_rf$importance), 
+  #                          kelp_rf$importance), -X.IncMSE)[1:30,])
+}
+
+
+# Random Forest per family check ------------------------------------------
+
+random_kelp_forest_check("kelp.cover", top_var_kelpcover)
+random_kelp_forest_check("Laminariales", top_var_laminariales)
+random_kelp_forest_check("Agarum", top_var_agarum)
+random_kelp_forest_check("Alaria", top_var_alaria)
+
+
+# Many random forests -----------------------------------------------------
+
+# This function is designed to output the model created and it's predictive accuracy
+random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
+  
+  # Extract only the kelp cover of choice
+  df_kelp_choice <- rf_data_prep(kelp_choice)
+  
+  # Chose only desired columns
+  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var)[1:30])
+  
+  # Split data up for training and testing
+  train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
+  train_set <- df_var_choice[train,]
+  # colnames(train_set)[1] <- "chosen_kelp"
+  valid_set <- df_var_choice[-train,]
+  # colnames(valid_set)[1] <- "chosen_kelp"
+  
+  # Random forest model based on all quadrat data
+  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+                          importance = TRUE, na.action = na.omit)
+  
+  # Predicting on training and validation sets
+  pred_train <- predict(kelp_rf, train_set)
+  pred_valid <- predict(kelp_rf, valid_set)
+  
+  # Create data frame of accuracy results
+  train_accuracy <- data.frame(portion = "train",
+                               pred = round(pred_train, 2), 
+                               original = train_set$chosen_kelp) %>% 
+    mutate(accuracy = pred-original)
+  validate_accuracy <- data.frame(portion = "validate",
+                               pred = round(pred_valid, 2), 
+                               original = valid_set$chosen_kelp) %>% 
+    mutate(accuracy = pred-original)
+  res_accuracy <- rbind(train_accuracy, validate_accuracy)
+  
+  # Visualisation
+  # NB: The random forest generally underestimates kelp cover
+  # ggplot(res_accuracy, aes(x = original, y = pred)) +
+  #   geom_point(aes(colour = portion)) +
+  #   geom_smooth(method = "lm", aes(colour = portion))
+  
+  # Package the model up with the accuracy results and exit
+  res <- list(model = kelp_rf, accuracy = res_accuracy)
+}
+
+
+# Select best random forest -----------------------------------------------
+
+# Now we run the test on each kelp cover 1000 times to see what the spread is
+# in the accuracy of the random forests
+# This is caused by different random splitting of test/validation sets
+# as well as the many possible routes that the random forest may then take
+random_kelp_forest_select <- function(kelp_choice, column_choice){
+  # system.time(
+    multi_test <- plyr::llply(.data = 1:1000, .fun = random_kelp_forest_test, .parallel = T, 
+                              kelp_choice = kelp_choice, column_choice = column_choice)
+    # ) # 56 seconds
+  
+  # Extract the model accuracies
+  model_accuracy <- lapply(multi_test, function(x) x$accuracy) %>% 
+    do.call(rbind.data.frame, .) %>% 
+    mutate(model_id = rep(1:1000, each = nrow(kelp_all)))
+  # RWS: A whole range of further analyses could be done with these values
+  
+  # Find which model had the best validation scores
+  accuracy_check <- model_accuracy %>% 
+    filter(portion == "validate") %>% 
+    group_by(model_id) %>% 
+    summarise(mean_acc = mean(abs(accuracy)))
+  
+  # Extract that model
+  best_model <- filter(accuracy_check, mean_acc == min(mean_acc))
+  choice_model <- multi_test[[best_model$model_id]]$model
+}
+
+doParallel::registerDoParallel(cores = 50)
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
+save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
+best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
+save(best_rf_laminariales, file = "data/best_rf_laminariales.RData")
+best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
+save(best_rf_agarum, file = "data/best_rf_agarum.RData")
+best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
+save(best_rf_alaria, file = "data/best_rf_alaria.RData")
+
+
+# Project kelp cover in the Arctic ----------------------------------------
+
+# First load the best random forest models produced above
+load("data/best_rf_kelpcover.RData")
+load("data/best_rf_laminariales.RData")
+load("data/best_rf_agarum.RData")
+load("data/best_rf_alaria.RData")
+
+# Load the Arctic data
+load("data/Arctic_BO.RData")
+
+# Prep the data for lazy joining # This removes all depth values... not ideal
+Arctic_mean_prep <- Arctic_mean %>% 
+  select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
+  na.omit() %>% 
+  dplyr::rename(lon = nav_lon, lat = nav_lat) %>% 
+  mutate(lon = plyr::round_any(lon, 0.25),
+         lat = plyr::round_any(lat, 0.25)) %>% 
+  group_by(lon, lat) %>% 
+  summarise_if(is.numeric, mean, na.rm = T) %>% 
+  ungroup()
+
+Arctic_BO_prep <- na.omit(Arctic_BO) %>% 
+  mutate(lon = plyr::round_any(lon, 0.25),
+         lat = plyr::round_any(lat, 0.25)) %>% 
+  group_by(lon, lat) %>% 
+  summarise_if(is.numeric, mean, na.rm = T) %>% 
+  ungroup()
+
+# Join the data for being fed to the model
+Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat")) %>%
+  na.omit()
+  # select(-x, -y, -bathy, -c(cor_df$var2))
+
+# Convenience function for final step before prediction
+Arctic_cover_predict <- function(top_var_choice, model_choice){
+  # Prep packets per cover family
+  df <- select(Arctic_data, as.character(top_var_choice$var)[1:30]) %>% 
+    mutate(chosen_kelp = 1)
+  
+  # Predict the different family covers
+  pred_df <- data.frame(lon = Arctic_data$lon, lat = Arctic_data$lat,
+                        pred_val = predict(model_choice, df))
+}
+
+# Visualise a family of cover
+cover_squiz <- function(df){
+  ggplot(df, aes(x = lon, y = lat)) +
+    geom_raster(aes(fill = pred_val)) +
+    coord_cartesian(expand = F) +
+    scale_fill_viridis_c()
+}
+
+# Predictions
+pred_kelpcover <- Arctic_cover_predict(top_var_kelpcover, best_rf_kelpcover)
+cover_squiz(pred_kelpcover)
+pred_laminariales <- Arctic_cover_predict(top_var_laminariales, best_rf_laminariales)
+cover_squiz(pred_laminariales)
+pred_agarum <- Arctic_cover_predict(top_var_agarum, best_rf_agarum)
+cover_squiz(pred_agarum)
+pred_alaria <- Arctic_cover_predict(top_var_alaria, best_rf_alaria)
+cover_squiz(pred_alaria)
+
+
+# More thorough Random Forest ---------------------------------------------
 
 # The data.frame that will be fed to the model
 # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
 # The substrate and depth values also score consistently in the bottom of importance so aren't used
-data1 <- select(kelp_var, kelp.cover:toce, -lon) #%>% 
-  #mutate(kelp.cover = as.factor(kelp.cover)) #%>% 
-  # mutate(kelp.cover = factor(kelp.cover, levels = as.character(seq(0, 100, by = 10))))
+data1 <- select(kelp_all, kelp.cover, everything(),
+                -c(Campaign:Quadrat.size.m2), -Laminariales, -Agarum, -Alaria) 
 
-#what variables are highly correlated. 
-round(cor(data1),2)
+# Filter by columns that correlate highly with many others
+data1 <- data1[,!(colnames(data1) %in% cor_df$var2)]
 
-
+# Split data up for training and testing
 set.seed(666)
 train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
 train_set <- data1[train,]
@@ -69,219 +393,47 @@ rf_mtry_test <- function(mtry_num){
                               acc = round(mean(abs(pred_test - train_set$kelp.cover))))
   return(pred_accuracy)
 }
-lapply(1:9, rf_mtry_test) # It looks like an mtry >= 2 is best
+lapply(1:10, rf_mtry_test) # It looks like an mtry >=6 1 is best
 
 # Random forest model based on all quadrat data
-kelp_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = 2, ntree = 1000,
+kelp_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = 6, ntree = 1000,
                         importance = TRUE, na.action = na.omit)
 summary(kelp_rf)
-print(kelp_rf)
-#explains 50% pf variance
+print(kelp_rf) # explains 48% of variance
 
 round(importance(kelp_rf), 1)
 varImpPlot(kelp_rf)
-partialPlot(kelp_rf, train_set, lat)
-partialPlot(kelp_rf, train_set, iceconc_cat  )
-
+partialPlot(kelp_rf, train_set, lat) # RWS This doesn't run for me
+partialPlot(kelp_rf, train_set, iceconc_cat) # RWS This doesn't run for me
 
 # Predicting on training set
-pred_train <- predict(kelp_rf, train_set) # type = 'response' also works but returns the same results
+pred_train <- predict(kelp_rf, train_set)
 table(pred_train, train_set$kelp.cover)  
-mean(abs(pred_train - train_set$kelp.cover)) # 43% accuracy...
+mean(abs(pred_train - train_set$kelp.cover)) # within 18% accuracy, 10% with meaned sites
 
 # Predicting on Validation set
 pred_valid <- predict(kelp_rf, valid_set)
 table(pred_valid, valid_set$kelp.cover)  
-mean(abs(pred_valid - valid_set$kelp.cover)) # 29% accuracy...
+mean(abs(pred_valid - valid_set$kelp.cover)) # within 17% accuracy, 21% with meaned sites
 
 
-####KAREN STOPPING
-
-
-
-#laminariales
-data2 <- select(kelp_all, Laminariales:toce, -lon, -lat, -Alaria, -Agarum)
-train <- sample(nrow(data2), 0.7*nrow(data2), replace = FALSE)
-train_set <- data2[train,]
-valid_set <- data2[-train,]
-kelp_rf <- randomForest(Laminariales ~ ., data = train_set, mtry = 3, ntree = 1000,
-                        importance = TRUE, na.action = na.omit)
-summary(kelp_rf)
-print(kelp_rf)
-round(importance(kelp_rf), 1)
-varImpPlot(kelp_rf)
-
-
-# Predicting on training set
-pred_train <- predict(kelp_rf, train_set) # type = 'response' also works but returns the same results
-table(pred_train, train_set$Laminariales)  
-mean(abs(pred_train - train_set$Laminariales)) # 43% accuracy...
-
-# Predicting on Validation set
-pred_valid <- predict(kelp_rf, valid_set)
-table(pred_valid, valid_set$Laminariales)  
-mean(abs(pred_train - valid_set$Laminariales)) # 29% accuracy...
-
-
-# forestRK method ---------------------------------------------------------
-### I do not think we want to go categorical here. It makes no sense with the data
-
-## Prep data
-
-# Step 1: Remove all NA's and NaN's from the original dataset
-# The method prefers categorical/factor response variables
-data2 <- na.omit(data1) %>%  # This is the same data.frame a the previous model method
-  mutate(kelp.cover = as.factor(kelp.cover))# %>% 
-  # mutate(kelp.cover = factor(kelp.cover, levels = as.character(seq(0, 100, by = 10))))
-# levels(data2$kelp.cover)
-
-# Step 2: Seperate the dataset into a chunk that stores covariates of both 
-# training and test observations X and a vector y that stores class types of the 
-# training observations
-vec <- seq.int(1, nrow(data2), by = 3) # indices of the training observations
-X <- data2[ ,2:length(data2)]
-y <- data2[vec, 1]
-
-# Step 3: Numericize the data frame X by applying the x.organizer function
-# and split X into a training and a test set
-X1 <- x.organizer(X, encoding = "num") # Numeric Encoding applied
-
-## train and test set from the Numeric ncoding
-x.train1 <- X1[vec,]
-x.test1 <- X1[-vec,]
-
-# Step 4: Numericize the vector y by applying the y.organizer function
-y.train <- y.organizer(y)$y.new # a vector storing the numericized class type
-y.factor.levels <- y.organizer(y)$y.factor.levels
-
-## Run model
-
-set.seed(666)
-
-# Construct rkTree based on gini splitting
-tree.gini <- construct.treeRK(x.train1, y.train, min.num.obs.end.node.tree = 2, 
-                              entropy = FALSE)
-
-# Construct rkTree based on entropy splitting
-  ## default for entropy is TRUE
-  ## default for min.num.obs.end.node.tree is 5
-tree.entropy <- construct.treeRK(x.train1, y.train)
-
-## Visualise model
-
-# plotting the tree.gini rkTree obtained via construct.treeRK function
-draw.treeRK(tree.gini, y.factor.levels[c(-1)], font = "Times", node.colour = "white", 
-            text.colour = "dark blue", text.size = 0.6, tree.vertex.size = 30, 
-            tree.title = "Decision Tree", title.colour = "dark green")
-# ggsave("graph/forestRK_tree.png")
-
-## Model predictions
-
-# display numericized predicted class type for the first 5 observations (in the 
-# order of increasing original observation index number) from the test set with
-# Binary Encoding
-prediction.df <- pred.treeRK(X = x.test1, tree.gini)$prediction.df
-# prediction.df[1:5, dim(prediction.df)[2]]
-
-# display the list of hierarchical flag from the test set with Numeric Encoding
-pred.treeRK(X = x.test1, tree.entropy)$flag.pred
-
-## More models
-
-# Make a forestRK model based on the training data with Numeric Encoding and with Gini Index as the splitting criteria
-# normally nbags and samp.size would be much larger than 30 and 50
-forestRK.1 <- forestRK(x.train1, y.train, nbags = 30, samp.size = 50, entropy = FALSE)
-
-# Make a forestRK model based on the training data with Numeric Encoding and with Entropy as the splitting criteria
-# normally nbags and samp.size would be much larger than 30 and 50
-forestRK.2 <- forestRK(x.train1, y.train, nbags = 30, samp.size = 50)
-
-## Predictions
-
-## make predictions on the test set x.test1 based on the forestRK model constructed from
-# x.train1 and y.train (recall: these are the training data with Binary Encoding)
-# after using Gini Index as splitting criteria (entropy == FALSE)
-pred.forest.rk1 <- pred.forestRK(x.test = x.test1, x.training = x.train1, 
-                                 y.training = y.train, nbags = 100, 
-                                 samp.size = 100, y.factor.levels = y.factor.levels,
-                                 entropy = FALSE)
-
-# Make predictions on the test set x.test2 based on the forestRK model constructed from
-# x.train2 and y.train (recall: these are the training data with Numeric Encoding)
-# after using Entropy as splitting criteria (entropy == TRUE)
-pred.forest.rk2 <- pred.forestRK(x.test = x.test1, x.training = x.train2, 
-                                 y.training = y.train, nbags = 100, 
-                                 samp.size = 100, y.factor.levels = y.factor.levels, 
-                                 entropy = TRUE)
-
-## Extract individual trees
-
-# Get tree
-tree.index.ex <- c(1,3,8)
-
-# Extract information about the 1st, 3rd, and 8th tree in the forestRK.1
-get.tree <- get.tree.forestRK(forestRK.1, tree.index = tree.index.ex)
-
-# Display 8th tree in the forest (which is the third element of the vector 'tree.index.ex')
-get.tree[["8"]]
-
-# Get the list of variable used for splitting
-covariate.used.for.split.tree <- var.used.forestRK(forestRK.1, tree.index = c(4,5,6))
-
-# Get the list of names of covariates used for splitting to construct tree #6 in the forestRK.1
-covariate.used.for.split.tree[["6"]]
-
-## MDS plot 
-
-# Generate 2-dimensional MDS plot of the test observations colour coded by the 
-# predictions stored under the object pred.forest.rk1
-mds.plot.forestRK(pred.forest.rk1, plot.title = "Kelp cover predictions", xlab ="1st Coordinate", 
-                  ylab = "2nd Coordinate", colour.lab = "Predictions By The forestRK.1")
-
-
-## Importance of variables
-
-imp <- importance.forestRK(forestRK.1)
-
-# Gives the list of covariate names ordered from most important to least important
-covariate.names <- imp$importance.covariate.names 
-
-# Gives the list of average decrease in (weighted) node impurity across all trees in the forest
-# ordered from the highest to lowest in value.
-# That is, the first element of this vector pertains to the first covariate listed under
-# imp$importance.covariate.names 
-ave.decrease.criteria <- imp$average.decrease.in.criteria.vec
-
-## Generate importance plot of the forestRK.1 object
-p <- importance.plot.forestRK(imp, colour.used = "dark green", fill.colour = "dark green", label.size = 8)
-p
-ggsave("graph/forestRK_variable_importance.png", height = 5, width = 6)
-
-## Comparing performance
-
-# Overall prediction accuracy (in percentage) when training data was modified with numeric Encoding
-# and the Entropy was used as splitting criteria.
-y.test <- data2[-vec, 1] # this is an actual class type of test observations
-mean(pred.forest.rk1$pred.for.obs.forest.rk == as.vector(y.test))*100 # 6% accuracy...
-
-
-# A different approach ----------------------------------------------------
+# Random Forest: Campaign -------------------------------------------------
 
 # The results from the forestRK method above are worse than the classic random forest
 
 # Going through everything I am starting to suspect that the difference in sampling 
 # methodology between the campaigns may be an important factor
-# So in this third method we will use the standard random forest method and see
+# So in this section I use the standard random forest method and see
 # how well we can predict which campaign a data point comes from
 # We'll do this both with and without lon lat
 
-# data3 <- select(kelp_var, Campaign, lon:toce) # With lon/lat
-data3 <- select(kelp_var, Campaign, eken:toce) # Without lon/lat
-data3$Campaign <- as.factor(data3$Campaign)
+dataC <- select(kelp_all, Campaign, lon, eken_Annual, soce_Annual, toce_Annual) # With lon/lat
+# dataC <- select(kelp_all, Campaign, eken_Annual, soce_Annual, toce_Annual) # Without lon/lat
+dataC$Campaign <- as.factor(dataC$Campaign)
 set.seed(666)
-train <- sample(nrow(data1), 0.7*nrow(data3), replace = FALSE)
-train_set <- data3[train,]
-valid_set <- data3[-train,]
+train <- sample(nrow(data1), 0.7*nrow(dataC), replace = FALSE)
+train_set <- dataC[train,]
+valid_set <- dataC[-train,]
 
 # Test function to see what the best `mtry` value is
 rf_mtry_test <- function(mtry_num){
@@ -293,11 +445,11 @@ rf_mtry_test <- function(mtry_num){
                               acc = round(mean(pred_test == train_set$Campaign)*100))
   return(pred_accuracy)
 }
-lapply(1:9, rf_mtry_test) # It's always 100 percent accurate...
+lapply(1:4, rf_mtry_test) # It's always 100 percent accurate...
 
 # Random forest model based on all quadrat data
 kelp_rf <- randomForest(Campaign ~ ., data = train_set, importance = TRUE,
-                        proximity = TRUE)
+                        proximity = TRUE, mtry = 2)
 summary(kelp_rf)
 round(importance(kelp_rf), 2)
 varImpPlot(kelp_rf)
@@ -311,4 +463,149 @@ mean(pred_train == train_set$Campaign)*100 # 100% accuracy...
 pred_valid <- predict(kelp_rf, valid_set, type = "class")
 table(pred_valid, valid_set$Campaign)  
 mean(pred_valid == valid_set$Campaign)*100 # 100% accuracy...
+
+
+# A different prep method -------------------------------------------------
+
+# Create a category version of the data for use with other models
+kelp_all_factor <- kelp_all %>% 
+  mutate(kelp.cover = as.factor(as.character(round(kelp.cover, -1))))
+
+# Train/Test Split
+train_test_split <-
+  rsample::initial_split(
+    data = kelp_all, # For continous response     
+    # data = kelp_all_factor, # For categorical response
+    prop = 0.70   
+  ) 
+
+train_test_split
+
+train_tbl <- train_test_split %>% training() 
+test_tbl  <- train_test_split %>% testing() 
+
+# Prepare
+recipe_simple <- function(dataset) {
+  recipe(kelp.cover ~ ., data = dataset) %>%
+    step_string2factor(all_nominal(), -all_outcomes()) %>%
+    prep(data = dataset)
+}
+
+# NB: In order to avoid Data Leakage 
+# (e.g: transferring information from the train set into the test set), 
+# data should be “prepped” using the train_tbl only.
+recipe_prepped <- recipe_simple(dataset = train_tbl)
+
+# Bake the recipe
+train_baked <- bake(recipe_prepped, new_data = train_tbl)
+test_baked  <- bake(recipe_prepped, new_data = test_tbl)
+
+
+# GLM ---------------------------------------------------------------------
+
+# RWS-NB: The GLM method is white hot garbage
+  # I've just left it in here for now to demonstrate how poorly it works
+
+logistic_glm <- logistic_reg(mode = "classification") %>%
+  # Change this to any number of things to change the model:
+  # glm, glmnet, stan, spark, and keras
+  set_engine("glm") %>%
+  fit(kelp.cover ~ ., data = train_baked)
+
+predictions_glm <- logistic_glm %>%
+  predict(new_data = test_baked) %>%
+  bind_cols(test_baked %>% select(kelp.cover))
+
+predictions_glm %>% head() %>% kable()
+
+predictions_glm %>%
+  conf_mat(kelp.cover, .pred_class) %>%
+  pluck(1) %>%
+  as_tibble() %>%
+  # Visualize with ggplot
+  ggplot(aes(Prediction, Truth, alpha = n)) +
+  geom_tile(show.legend = FALSE) +
+  geom_text(aes(label = n), colour = "white", alpha = 1, size = 8)
+
+# Accuracy
+predictions_glm %>%
+  metrics(kelp.cover, .pred_class) %>%
+  select(-.estimator) %>%
+  filter(.metric == "accuracy") %>%
+  kable()
+
+# Precision and Recall
+# Precision shows how sensitive models are to False Positives 
+# (i.e. predicting a customer is leaving when he-she is actually staying) 
+# whereas Recall looks at how sensitive models are to False Negatives 
+# (i.e. forecasting that a customer is staying whilst he-she is in fact leaving).
+tibble(
+  "precision" = 
+    precision(predictions_glm, kelp.cover, .pred_class) %>%
+    select(.estimate),
+  "recall" = 
+    recall(predictions_glm, kelp.cover, .pred_class) %>%
+    select(.estimate)
+) %>%
+  unnest(cols = c(precision, recall)) %>%
+  kable()
+
+# F1 Score
+# Another popular performance assessment metric is the F1 Score, 
+# which is the harmonic average of the precision and recall. 
+# An F1 score reaches its best value at 1 with perfect precision and recall.
+predictions_glm %>%
+  f_meas(kelp.cover, .pred_class) %>%
+  select(-.estimator) %>%
+  kable()
+
+
+# A different random forest approach --------------------------------------
+
+# NB: This method is not better than the original
+
+rf_fun <- function(split, id, try, tree) {
+  
+  analysis_set <- split %>% analysis()
+  analysis_prepped <- analysis_set %>% recipe_simple()
+  analysis_baked <- analysis_prepped %>% bake(new_data = analysis_set)
+  
+  model_rf <-
+    rand_forest(
+      mode = "regression",
+      mtry = try,
+      trees = tree
+    ) %>%
+    set_engine("ranger",
+               importance = "impurity"
+    ) %>%
+    fit(kelp.cover ~ ., data = analysis_baked)
+  
+  assessment_set     <- split %>% assessment()
+  assessment_prepped <- assessment_set %>% recipe_simple()
+  assessment_baked   <- assessment_prepped %>% bake(new_data = assessment_set)
+  
+  tibble(
+    "id" = id,
+    "truth" = assessment_baked$kelp.cover,
+    "prediction" = model_rf %>%
+      predict(new_data = assessment_baked) %>%
+      unlist()
+  )
+}
+
+cross_val_tbl <- vfold_cv(train_tbl, v = 10)
+cross_val_tbl
+cross_val_tbl %>% pluck("splits", 1)
+
+# Accuracy
+pred_rf <- map2_df(
+  .x = cross_val_tbl$splits,
+  .y = cross_val_tbl$id,
+  ~ rf_fun(split = .x, id = .y, try = 3, tree = 200)) %>% 
+  mutate(accuracy = abs(truth-prediction)) %>% 
+  group_by(id) %>% 
+  summarise(accuracy = mean(accuracy))
+pred_rf
+
 

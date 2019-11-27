@@ -1,0 +1,67 @@
+name,ndims,units,longname
+avt,4,m2/s,vertical eddy diffusivity
+Bathymetry,3,,unknown
+deptht_bounds,2,,deptht_bounds
+depthu_bounds,2,,depthu_bounds
+depthv_bounds,2,,depthv_bounds
+depthw_bounds,2,,depthw_bounds
+e3t,4,m,T-cell thickness
+e3u,4,m,U-cell thickness
+e3v,4,m,V-cell thickness
+eken,4,m2/s2,kinetic energy
+emp_ice,3,kg/m2/s,Evap minus Precip over ice
+emp_oce,3,kg/m2/s,Evap minus Precip over ocean
+fmmflx,3,kg/m2/s,Water flux due to freezing/melting
+hfxbom,3,W/m2,heat fluxes causing bottom ice melt
+hfxsum,3,W/m2,heat fluxes causing surface ice melt
+iceconc_cat,4,%,Ice concentration for categories
+icest,3,degree_C,ice surface temperature
+icethic_cat,4,m,Ice thickness for categories
+icevolu,3,m,ice volume
+idive,3,1e-8s-1,divergence
+iicefrac,3,1,Ice fraction
+iicethic,3,m,Ice thickness (cell average)
+ishear,3,1e-8s-1,shear
+isnowtic,3,m,Snow thickness (cell average)
+micet,3,degree_C,Mean ice temperature
+mldkz5,3,m,Turbocline depth (Kz = 5e-4)
+mldr10_1,3,m,Mixed Layer Depth (dsigma = 0.01 wrt 10m)
+nav_lat,2,degrees_north,Latitude
+nav_lon,2,degrees_east,Longitude
+qemp_ice,3,W/m2,Downward Heat Flux from E-P over ice
+qemp_oce,3,W/m2,Downward Heat Flux from E-P over open ocean
+qla_oce,3,W/m2,Latent Downward Heat Flux over open ocean
+qns,3,W/m2,non solar Downward Heat Flux
+qns_ice,3,W/m2,non-solar heat flux at ice surface: sum over categories
+qns_oce,3,W/m2,non-solar heat flux at ocean surface
+qsb_oce,3,W/m2,Sensible Downward Heat Flux over open ocean
+qsr_ice,3,W/m2,solar heat flux at ice surface: sum over categories
+qsr_oce,3,W/m2,solar heat flux at ocean surface
+qt,3,W/m2,Net Downward Heat Flux
+qt_ice,3,W/m2,total heat flux at ice surface: sum over categories
+qt_oce,3,W/m2,total flux at ocean surface
+qtr_ice,3,W/m2,solar heat flux transmitted through ice: sum over categories
+runoffs,3,kg/m2/s,Water Flux into Sea Water From Rivers
+sfx,3,0.001*kg/m2/day,salt flux total
+sfxbri,3,0.001*kg/m2/day,brine salt flux
+soce,4,0.001,Sea Water Salinity
+ssh,3,m,sea surface height
+sss,3,0.001,Sea Surface Salinity
+sst,3,degree_C,Sea Surface Temperature
+taum,3,N/m2,wind stress module
+time_centered,1,seconds since 1900-01-01 00:00:00,Time axis
+time_centered_bounds,2,,time_centered_bounds
+time_counter_bounds,2,,time_counter_bounds
+toce,4,degree_C,Sea Water Potential Temperature
+uice_ipa,3,m/s,Ice velocity along i-axis at I-point (ice presence average)
+uoce,4,m/s,Sea Water X Velocity
+utau,3,N/m2,Surface Downward X Stress
+utau_ice,3,N/m2,Wind stress along i-axis over the ice at i-point
+vfxdyn,3,m/day,daily  dynamic ice prod.
+vfxice,3,m/day,ice melt/growth
+vfxthin,3,m/day,daily thermo ice prod. for thin ice(<20cm) + open water
+vice_ipa,3,m/s,Ice velocity along j-axis at I-point (ice presence average)
+voce,4,m/s,Sea Water Y Velocity
+vtau,3,N/m2,Surface Downward Y Stress
+vtau_ice,3,N/m2,Wind stress along j-axis over the ice at i-point
+wo,4,m/s,ocean vertical velocity
