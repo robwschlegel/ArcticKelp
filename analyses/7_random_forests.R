@@ -46,6 +46,7 @@ options(scipen = 9999)
 
 # Create wide data.frame with all of the abiotic variables matched to depth of site
 # Also includes substrate percentage variables
+# Rather just use the surface values for NAPA
 kelp_all <- adf %>% 
   # The substrate variables need to be removed as they can't be used in the final data
   # to predict kelp cover presence because we don't know what they are everywhere
@@ -310,6 +311,12 @@ load("data/best_rf_laminariales.RData")
 load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
 
+# Load top variable choices
+load("data/top_var_kelpcover.RData")
+load("data/top_var_laminariales.RData")
+load("data/top_var_agarum.RData")
+load("data/top_var_alaria.RData")
+
 # Load the Arctic data
 load("data/Arctic_BO.RData")
 
@@ -364,7 +371,7 @@ pred_agarum <- Arctic_cover_predict(top_var_agarum, best_rf_agarum)
 cover_squiz(pred_agarum)
 pred_alaria <- Arctic_cover_predict(top_var_alaria, best_rf_alaria)
 cover_squiz(pred_alaria)
-
+#
 
 # More thorough Random Forest ---------------------------------------------
 
