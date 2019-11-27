@@ -318,15 +318,15 @@ Arctic_mean_prep <- Arctic_mean %>%
   select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
   na.omit() %>% 
   dplyr::rename(lon = nav_lon, lat = nav_lat) %>% 
-  mutate(lon = round(lon, 1),
-         lat = round(lat, 1)) %>% 
+  mutate(lon = plyr::round_any(lon, 0.25),
+         lat = plyr::round_any(lat, 0.25)) %>% 
   group_by(lon, lat) %>% 
   summarise_if(is.numeric, mean, na.rm = T) %>% 
   ungroup()
 
 Arctic_BO_prep <- na.omit(Arctic_BO) %>% 
-  mutate(lon = round(lon, 1),
-         lat = round(lat, 1)) %>%
+  mutate(lon = plyr::round_any(lon, 0.25),
+         lat = plyr::round_any(lat, 0.25)) %>% 
   group_by(lon, lat) %>% 
   summarise_if(is.numeric, mean, na.rm = T) %>% 
   ungroup()
