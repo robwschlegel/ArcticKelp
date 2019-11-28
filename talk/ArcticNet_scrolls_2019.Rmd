@@ -1,7 +1,7 @@
 ---
 title: "**The relationship between Arctic kelps and their physical environment**"
 author: "Karen Filbee-Dexter ^1^, **Robert W. Schlegel** ^2,3^, Ladd E. Johnson^4^, CJ Mundy^5^, Kathleen MacGregor^6^, Philippe Archambault^7^"
-institute: "^1^Australia, ^2^Dalhousie, ^3^WHOI, ^4^Oher places"
+# institute: "^1^Australia, ^2^Dalhousie, ^3^WHOI, ^4^Oher places"
 date: "December 5th, 2019"
 output:
   html_document:
@@ -30,33 +30,135 @@ bibliography: ArcticKelp.bib
 
 ***
 
-# What is known? {.tabset}
+# What is known of Arctic kelps? {.tabset}
+
+## Known
 
 - Little is known of kelp in the Arctic
 
 ```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/kelp_question.png", dpi = 200)
+knitr::include_graphics("figure/kelp_question.png")
 ```
 
----
-# What is known?
+***
+
+## Past
 
 - Trading in Alaria along Baffin Island coast
 
 ```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/alaria_trading.png", dpi = 300)
+knitr::include_graphics("figure/alaria_trading.png")
 ```
 
----
-# What is known?
+***
 
-- Other examples?
-
----
-# What is known?
+## Present
 
 - There should be other Laminariales sp.
 
 ```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/where_kelp.png", dpi = 300)
+knitr::include_graphics("figure/where_kelp.png")
 ```
+
+***
+
+## Other
+
+- RWS: Other examples?
+
+***
+
+# Where are kelp in the Arctic and what drives their distribution?
+
+- There must be kelp in the Arctic
+- We don't know what the drivers of their distributions are
+- The Arctic is changing quickly so we should figure this out ASAP
+
+***
+
+# ArcticKelp project {.tabset}
+
+## Campaigns
+
+<!-- - Several different campaigns -->
+
+```{r, echo=F, fig.align="center"}
+knitr::include_graphics("figure/study_site_campaign.png")
+```
+
+***
+
+## Obs
+
+<!-- - Increasing ground truth obs -->
+<!-- - Many sites visited -->
+
+```{r, echo=F, fig.align="center"}
+knitr::include_graphics("figure/study_site_labels.png")
+```
+
+***
+
+## Mean cover
+
+![](figure/study_site_mean_cover.png)
+
+***
+
+# Environmental conditions {.tabset}
+
+## Abiotic data
+
+- NAPA (3-Oceans) model
+  - Model outputs supplied by the Bedford Institute of Oceanography (BIO) ![](figure/BIO_logo.jpg)
+  - Based on the NEMO community ocean model ![](figure/NEMO_logo.png)
+- Daily surface resolution
+- Five day (pentad) resolution at 75 depth layers
+- Tri-polar grid
+  - 10 to 20 km resolution
+![](figure/NAPA_resolution_graph.png)
+
+***
+
+## Biotic data
+
+- Bio-ORACLE
+  - RWS: Still need to flesh this out
+@Tyberghein2012
+@Assis2018b
+
+***
+
+# Modelling distribution {.tabset}
+
+## Random Forest
+
+- Which variables are important?
+- What is the accuracy of the model?
+- What is the range in accuracy?
+- What is the distribution of inaccuracy?
+
+***
+
+# Results
+
+Show general kelp cover
+Drop Alaria if necessary
+
+## Map
+
+## Coastal stretch
+
+## Error around predictions
+Where in the errors are the distribution
+
+***
+
+# Acknowledgements
+
+This research was undertaken thanks in part to funding from the Canada First Research Excellence Fund, through the Ocean Frontier Institute.
+![](figure/ofi_logo.jpg)
+
+***
+
+# References
