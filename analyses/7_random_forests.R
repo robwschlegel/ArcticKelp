@@ -35,7 +35,8 @@ study_site_ALL <- study_site_means %>% # Use only overall means in modelling
   # dplyr::select(Campaign, site, month, lon, lat, # Select month if using clim values 
   dplyr::select(Campaign, site, lon, lat, 
                 nav_lon, nav_lat, lon_BO, lat_BO, x, y,
-                bathy, depth, everything())
+                bathy, depth, everything()) %>% 
+  filter(depth == 0) # Filter out all NAPA model depth data, this keeps the BIO depth data
 # rm(study_site_means, study_site_clims, study_site_BO)
 
 # Remove scientific notation from data.frame displays in RStudio
@@ -57,21 +58,11 @@ kelp_all <- adf %>%
   # summarise_all(mean) %>% 
   # ungroup() %>% 
   # End mean site creation
-  left_join(study_site_ALL, by = c("Campaign", "site")) %>% 
-  # dplyr::select(Campaign:Alaria, depth.y, eken:icethic_cat, lon, lat) %>%
-  mutate(eken = ifelse(depth.x == depth.y, eken, NA),  # A funny way of getting rid of non-target depth data
-         soce = ifelse(depth.x == depth.y, soce, NA), 
-         toce = ifelse(depth.x == depth.y, toce, NA),
-         uoce = ifelse(depth.x == depth.y, uoce, NA),
-         voce = ifelse(depth.x == depth.y, voce, NA),
-         avt = ifelse(depth.x == depth.y, avt, NA),
-         wo = ifelse(depth.x == depth.y, wo, NA)) %>% 
-  dplyr::select(-c(nav_lon:depth.y)) %>% 
-  dplyr::rename(depth = depth.x) %>% 
-  pivot_longer(cols = eken:BO2_icethickrange_ss, names_to = "model_var", values_to = "val") %>%
-  na.omit() %>% 
-  # pivot_wider(names_from = c(model_var, month), values_from = val) # If useing clim values
-  pivot_wider(names_from = model_var, values_from = val) # Mean values only
+  left_join(study_site_ALL, by = c("Campaign", "site")) %>%
+  select(-qla_oce, -qsb_oce) %>% 
+  dplyr::select(-c(nav_lon:depth.y)) %>%
+  dplyr::rename(depth = depth.x) %>%
+  na.omit()
 
 
 # Quick visuals -----------------------------------------------------------
@@ -292,15 +283,15 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   choice_model <- multi_test[[best_model$model_id]]$model
 }
 
-doParallel::registerDoParallel(cores = 50)
-system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
-save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
-best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
-save(best_rf_laminariales, file = "data/best_rf_laminariales.RData")
-best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
-save(best_rf_agarum, file = "data/best_rf_agarum.RData")
-best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
-save(best_rf_alaria, file = "data/best_rf_alaria.RData")
+# doParallel::registerDoParallel(cores = 50)
+# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
+# save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
+# best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
+# save(best_rf_laminariales, file = "data/best_rf_laminariales.RData")
+# best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
+# save(best_rf_agarum, file = "data/best_rf_agarum.RData")
+# best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
+# save(best_rf_alaria, file = "data/best_rf_alaria.RData")
 
 
 # Project kelp cover in the Arctic ----------------------------------------
