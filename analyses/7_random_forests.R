@@ -14,7 +14,7 @@ library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
 library(skimr)       # Quickly get a sense of data
 library(randomForest)
 library(knitr)
-library(doParallel); doParallel::registerDoParallel(cores = 3) # This will be between 4 - 8 on a laptop
+library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
 # Site clims
 load("data/study_site_clims.RData")
@@ -281,17 +281,19 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   # Extract that model
   best_model <- filter(accuracy_check, mean_acc == min(mean_acc))
   choice_model <- multi_test[[best_model$model_id]]$model
+  res <- list(choice_model = choice_model,
+              model_accuracy = model_accuracy)
 }
 
 # doParallel::registerDoParallel(cores = 50)
 # system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
-# save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
+# save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 # best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
-# save(best_rf_laminariales, file = "data/best_rf_laminariales.RData")
+# save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
 # best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
-# save(best_rf_agarum, file = "data/best_rf_agarum.RData")
+# save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
 # best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
-# save(best_rf_alaria, file = "data/best_rf_alaria.RData")
+# save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 
 
 # Project kelp cover in the Arctic ----------------------------------------
@@ -331,7 +333,11 @@ Arctic_BO_prep <- na.omit(Arctic_BO) %>%
 
 # Join the data for being fed to the model
 Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat")) %>%
-  na.omit()
+  # na.omit() %>% 
+  select(-depth, -x, -y) %>% 
+  dplyr::rename(depth = bathy) %>% 
+  ungroup() %>% 
+  tidyr::fill(lon:vtau_ice, .direction = "downup")
   # select(-x, -y, -bathy, -c(cor_df$var2))
 
 # Convenience function for final step before prediction
@@ -342,12 +348,13 @@ Arctic_cover_predict <- function(top_var_choice, model_choice){
   
   # Predict the different family covers
   pred_df <- data.frame(lon = Arctic_data$lon, lat = Arctic_data$lat,
+                        depth = Arctic_data$depth,
                         pred_val = predict(model_choice, df))
 }
 
 # Visualise a family of cover
 cover_squiz <- function(df){
-  ggplot(df, aes(x = lon, y = lat)) +
+  ggplot(filter(df, depth <= 300), aes(x = lon, y = lat)) +
     geom_raster(aes(fill = pred_val)) +
     coord_cartesian(expand = F) +
     scale_fill_viridis_c()
