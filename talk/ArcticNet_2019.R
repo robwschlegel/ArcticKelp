@@ -108,34 +108,35 @@ Arctic_BO_prep <- na.omit(Arctic_BO) %>%
 
 # Join the data for being fed to the model
 Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat")) %>%
-  na.omit()
-# select(-x, -y, -bathy, -c(cor_df$var2))
+  # na.omit() %>% 
+  select(-depth, -x, -y) %>% 
+  dplyr::rename(depth = bathy) %>% 
+  ungroup() %>% 
+  tidyr::fill(lon:vtau_ice, .direction = "downup")
 
 # Convenience function for final step before prediction
-Arctic_cover_predict <- function(top_var_choice, model_choice){
-  # Prep packets per cover family
-  df <- select(Arctic_data, as.character(top_var_choice$var)[1:30]) %>% 
-    mutate(chosen_kelp = 1)
-  
-  # Predict the different family covers
+Arctic_cover_predict <- function(model_choice){
   pred_df <- data.frame(lon = Arctic_data$lon, lat = Arctic_data$lat,
-                        pred_val = predict(model_choice, df))
+                        depth = Arctic_data$depth,
+                        pred_val = predict(model_choice, Arctic_data))
 }
 
 # Visualise a family of cover
 cover_squiz <- function(df){
-  ggplot(df, aes(x = lon, y = lat)) +
-    geom_raster(aes(fill = pred_val)) +
-    coord_cartesian(expand = F) +
+  Arctic_map +
+    geom_raster(data = filter(df, depth <= 200), 
+                aes(x = lon, y = lat, fill = pred_val)) +
     scale_fill_viridis_c()
 }
 
 # Predictions
-pred_kelpcover <- Arctic_cover_predict(top_var_kelpcover, best_rf_kelpcover)
+pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
 cover_squiz(pred_kelpcover)
-pred_laminariales <- Arctic_cover_predict(top_var_laminariales, best_rf_laminariales)
+pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
 cover_squiz(pred_laminariales)
-pred_agarum <- Arctic_cover_predict(top_var_agarum, best_rf_agarum)
+pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
 cover_squiz(pred_agarum)
-pred_alaria <- Arctic_cover_predict(top_var_alaria, best_rf_alaria)
+pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
 cover_squiz(pred_alaria)
+#
+

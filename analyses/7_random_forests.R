@@ -43,6 +43,15 @@ study_site_ALL <- study_site_means %>% # Use only overall means in modelling
 options(scipen = 9999)
 
 
+# The base map to use for everything else
+Arctic_map <- ggplot() +
+  borders(fill = "grey70", colour = "black") +
+  coord_cartesian(expand = F,
+                  xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                  ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+  labs(x = NULL, y = NULL)
+
+
 # Data --------------------------------------------------------------------
 
 # Create wide data.frame with all of the abiotic variables matched to depth of site
@@ -296,6 +305,74 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
 # save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 
 
+# Analyse model accuracy --------------------------------------------------
+
+# First load the best random forest models produced above
+load("data/best_rf_kelpcover.RData")
+load("data/best_rf_laminariales.RData")
+load("data/best_rf_agarum.RData")
+load("data/best_rf_alaria.RData")
+
+# Find the distributions of accuracy from 0 - 100%
+test <- best_rf_kelpcover$model_accuracy #%>% 
+  # filter(model_id == 1000)
+
+# Quick visuals
+ggplot(filter(test, portion == "validate"), aes(x = accuracy)) +
+  geom_histogram()
+
+ggplot(filter(test, portion == "validate"), aes(x = original, y = pred)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+ggplot(filter(test, portion == "validate"), aes(x = as.factor(original), y = pred)) +
+  geom_boxplot()
+
+
+# 90 CI around predictions per step
+conf_acc <- best_rf_kelpcover$model_accuracy %>% 
+  filter(portion == "validate") %>% 
+  group_by(original) %>% 
+  summarise(q05 = quantile(accuracy, 0.05),
+            q25 = quantile(accuracy, 0.25),
+            q50 = median(accuracy),
+            mean = mean(accuracy),
+            q75 = quantile(accuracy, 0.75),
+            q95 = quantile(accuracy, 0.95)) %>% 
+  ungroup()
+
+conf_best <- best_rf_kelpcover$model_accuracy %>% 
+  filter(portion == "validate") %>% 
+  group_by(model_id) %>% 
+  summarise(mean_acc = mean(abs(accuracy))) %>% 
+  ungroup() %>% 
+  filter(mean_acc == min(mean_acc))
+conf_best <- best_rf_kelpcover$model_accuracy %>% 
+  filter(model_id == conf_best$model_id[1],
+         portion == "validate") %>% 
+  group_by(original) %>% 
+  summarise(mean_acc = mean(accuracy)) %>% 
+  ungroup()
+
+# VIsualise
+# Create figure
+ggplot(conf_acc, aes(x = original, y = mean)) +
+  # ) line intercept
+  geom_hline(yintercept = 0, size = 2, colour = "red") +
+  # 90 CI crossbars
+  geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
+                fatten = 0, fill = "grey70", colour = NA, width = 1) +
+  # IQR Crossbars
+  geom_crossbar(aes(ymin = q25, ymax = q75),
+                fatten = 0, fill = "grey50", width = 1) +
+  # Median segments
+  geom_crossbar(aes(ymin = q50, ymax = q50),
+                fatten = 0, fill = NA, colour = "black", width = 1) +
+  geom_point(data = conf_best, aes(y = mean_acc), colour = "purple") +
+  geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), colour = "purple") +
+  labs(y = "Range in accuracy of predictions", x = "Original value (% cover)")
+
+
 # Project kelp cover in the Arctic ----------------------------------------
 
 # First load the best random forest models produced above
@@ -338,38 +415,33 @@ Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat"))
   dplyr::rename(depth = bathy) %>% 
   ungroup() %>% 
   tidyr::fill(lon:vtau_ice, .direction = "downup")
-  # select(-x, -y, -bathy, -c(cor_df$var2))
 
 # Convenience function for final step before prediction
-Arctic_cover_predict <- function(top_var_choice, model_choice){
-  # Prep packets per cover family
-  df <- select(Arctic_data, as.character(top_var_choice$var)[1:30]) %>% 
-    mutate(chosen_kelp = 1)
-  
-  # Predict the different family covers
+Arctic_cover_predict <- function(model_choice){
   pred_df <- data.frame(lon = Arctic_data$lon, lat = Arctic_data$lat,
                         depth = Arctic_data$depth,
-                        pred_val = predict(model_choice, df))
+                        pred_val = predict(model_choice, Arctic_data))
 }
 
 # Visualise a family of cover
 cover_squiz <- function(df){
-  ggplot(filter(df, depth <= 300), aes(x = lon, y = lat)) +
-    geom_raster(aes(fill = pred_val)) +
-    coord_cartesian(expand = F) +
+  Arctic_map +
+    geom_raster(data = filter(df, depth <= 200), 
+                aes(x = lon, y = lat, fill = pred_val)) +
     scale_fill_viridis_c()
 }
 
 # Predictions
-pred_kelpcover <- Arctic_cover_predict(top_var_kelpcover, best_rf_kelpcover)
+pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
 cover_squiz(pred_kelpcover)
-pred_laminariales <- Arctic_cover_predict(top_var_laminariales, best_rf_laminariales)
+pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
 cover_squiz(pred_laminariales)
-pred_agarum <- Arctic_cover_predict(top_var_agarum, best_rf_agarum)
+pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
 cover_squiz(pred_agarum)
-pred_alaria <- Arctic_cover_predict(top_var_alaria, best_rf_alaria)
+pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
 cover_squiz(pred_alaria)
 #
+
 
 # More thorough Random Forest ---------------------------------------------
 
