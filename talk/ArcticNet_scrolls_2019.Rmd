@@ -1,5 +1,5 @@
 ---
-title: "**The relationship between Arctic kelps and their physical environment**"
+title: "**The relationship between Arctic kelps and their environment**"
 author: "Karen Filbee-Dexter, **Robert W. Schlegel**, Ladd E. Johnson, CJ Mundy, Kathleen MacGregor, Philippe Archambault"
 # institute: "^1^Australia, ^2^Dalhousie, ^3^WHOI, ^4^Oher places"
 date: "December 5th, 2019"
@@ -50,7 +50,7 @@ bibliography: ArcticKelp.bib
 
 ## Present
 
-- There should be other Laminariales sp.
+- There should be other Laminariales sp. ... but where?
 
 ![](figure/where_kelp.png)
 
@@ -65,9 +65,15 @@ bibliography: ArcticKelp.bib
 # ArcticKelp project {.tabset}
 
 - There must be kelp in the Arctic
+- RWS: Bullet about what ArcticKelp seeks toa ccomplish
 - We don't know what the drivers of their distributions are
 - The Arctic is changing quickly so we should figure this out ASAP
--  Where are kelp in the Arctic and what drives their distribution?
+- Where are kelp in the Arctic and what drives their distribution?
+- Does this differ for different functional groups?
+  - Total kelp cover
+  - Laminariales (Laminaria sp. + Sacharina sp.)
+  - Agarum
+  - Alaria
 
 ## Campaigns
 
@@ -97,14 +103,18 @@ bibliography: ArcticKelp.bib
 ## Abiotic data
 
 - NAPA (3-Oceans) model
-  - Model outputs supplied by the Bedford Institute of Oceanography (BIO) 
-  ![](figure/BIO_logo.jpg){ width=20% }
-  - Based on the NEMO community ocean model 
-  ![](figure/NEMO_logo.png){ width=20% }
-  - Daily surface resolution; 1998 to 2015
+  - Model outputs supplied by the Bedford Institute of Oceanography (BIO)  
+  ![](figure/BIO_logo.jpg){ width=20% }  
+  - Based on the NEMO community ocean model  
+  ![](figure/NEMO_logo.png){ width=20% }  
+  [@Madec2015]  
+  - Ice from the LIM3 model  
+  ![](figure/LIM_logo.png){ width=20% }  
+  [@Vancoppenolle2009; @Rousset2015]  
+  - Daily surface resolution: 1998 to 2015
   - Five day (pentad) resolution at 75 depth layers
   - Tri-polar grid
-    - 10 to 20 km resolution
+    - 10 to 20 km resolution  
 ![](figure/NAPA_resolution_graph.png){ width=40% }
 
 ***
@@ -112,63 +122,117 @@ bibliography: ArcticKelp.bib
 ## Biotic data
 
 - Bio-ORACLE
-  - Collection of many different datasets
-  - Most variables constrained to a 25km resolution
-@Tyberghein2012  
-@Assis2018b  
+  - 18 total geophysical, biotic and environmental variables
+  - Surface and benthic coverage; min, mean, max, and range for most
+  - Collection from many different datasets
+  - 5 arcdegree spatial resolution (~9.2 km at the equator)
+
+[@Tyberghein2012; @Assis2018b]  
 
 ***
 
 # Modelling distribution {.tabset}
 
-- A random forest model was used
 - Which variables are important?
 - What is the accuracy of the model?
 - What is the range in accuracy?
 - What is the distribution of inaccuracy?
 
-## Variables
+## Methods
+
+- Highly correlated variables were removed
+- A random forest model was used
+- After many iterations the best variables were found
+- These were used for many iterations to find the best model
+
+## Variables {.tabset}
+
+### Total kelp
 
 ```{r, echo=FALSE}
 load("data/top_full_kelpcover.RData")
 knitr::kable(x = top_full_kelpcover, format = "html")
 ```
 
+***
+
+### Laminariales
+
+```{r, echo=FALSE}
+load("data/top_full_laminariales.RData")
+knitr::kable(x = top_full_laminariales, format = "html")
+```
+
+***
+
+### Agarum
+
+```{r, echo=FALSE}
+load("data/top_full_agarum.RData")
+knitr::kable(x = top_full_agarum, format = "html")
+```
+
+***
+
+### Alaria
+
+```{r, echo=FALSE}
+load("data/top_full_alaria.RData")
+knitr::kable(x = top_full_alaria, format = "html")
+```
+
+***
 
 ## Confidence {.tabset}
 
 ### Total cover
+
 ![](figure/conf_kelpcover.png)
 
+***
+
 ### Laminariales
+
 ![](figure/conf_laminariales.png)
 
+***
+
 ### Agarum
+
 ![](figure/conf_agarum.png)
 
-### Alaria
-![](figure/conf_alaria.png)
+***
 
+### Alaria
+
+![](figure/conf_alaria.png)
 
 ***
 
 # Results {.tabset}
 
-KFB: Show general kelp cover
-KFB: Drop Alaria if necessary
-
 - Note that the colour scales are not the same between figures
 
 ## Total cover
+
 ![](figure/prediction_kelpcover.png)
 
+***
+
 ## Laminariales
+
 ![](figure/prediction_laminariales.png)
 
+***
+
 ## Agarum
+
 ![](figure/prediction_agarum.png)
 
+***
+
 ## Alaria
+
 ![](figure/prediction_alaria.png)
 
 <!-- ## Coastal stretch -->
@@ -181,7 +245,7 @@ KFB: Drop Alaria if necessary
 
 Dr. Youyu Lu and Dr. Xianmin Hu for NAPA model access
 
-This research was undertaken thanks in part to funding from the Canada First Research Excellence Fund, through the Ocean Frontier Institute.
+This research was undertaken thanks in part to funding from the Canada First Research Excellence Fund, through the Ocean Frontier Institute.  
 ![](figure/ofi_logo.jpg)
 
 ***
