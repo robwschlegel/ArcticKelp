@@ -42,7 +42,6 @@ study_site_ALL <- study_site_means %>% # Use only overall means in modelling
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
 
-
 # The base map to use for everything else
 Arctic_map <- ggplot() +
   borders(fill = "grey70", colour = "black") +

@@ -7,10 +7,15 @@
 
 source("analyses/4_kelp_cover.R")
 
+# Other libraries
+library(randomForest)
+library(sdmpredictors)
+
 # The base map to use for everything else
 Arctic_map <- ggplot() +
   borders(fill = "grey70", colour = "black") +
-  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+  coord_cartesian(expand = F,
+                  xlim = c(bbox_arctic[1], bbox_arctic[2]),
                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
   labs(x = NULL, y = NULL)
 
@@ -21,6 +26,7 @@ alaria_trading_points <- data.frame(lon = c(-67.491047),
                                    lat = c(66.552445))
 
 adf_summary_coords <- left_join(adf_summary, study_sites, by = c("Campaign", "site"))
+
 
 # What is known of Arctic Kelp? -------------------------------------------
 
@@ -70,6 +76,7 @@ study_site_mean_cover <- Arctic_map +
         legend.spacing.y = unit(0, "mm"))
 study_site_mean_cover
 ggsave(study_site_mean_cover, filename = "talk/figure/study_site_mean_cover.png", width = 6, height = 6)
+
 
 # Project kelp cover in the Arctic ----------------------------------------
 
@@ -122,21 +129,155 @@ Arctic_cover_predict <- function(model_choice){
 }
 
 # Visualise a family of cover
-cover_squiz <- function(df){
+cover_squiz <- function(df, legend_title){
   Arctic_map +
     geom_raster(data = filter(df, depth <= 200), 
                 aes(x = lon, y = lat, fill = pred_val)) +
-    scale_fill_viridis_c()
+    scale_fill_viridis_c(legend_title) +
+    theme(strip.background = element_rect(colour = "white", fill = "white"),
+          legend.position = c(0.289, 0.08),
+          legend.direction = "horizontal",
+          legend.spacing.y = unit(0, "mm"))
 }
 
 # Predictions
 pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
-cover_squiz(pred_kelpcover)
+cover_squiz(pred_kelpcover, "Total cover (%)")
+ggsave("talk/figure/prediction_kelpcover.png", width = 6, height = 6)
 pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
-cover_squiz(pred_laminariales)
+cover_squiz(pred_laminariales, "Laminariales cover (%)")
+ggsave("talk/figure/prediction_laminariales.png", width = 6, height = 6)
 pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
-cover_squiz(pred_agarum)
+cover_squiz(pred_agarum, "Agarum cover (%)")
+ggsave("talk/figure/prediction_agarum.png", width = 6, height = 6)
 pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
-cover_squiz(pred_alaria)
-#
+cover_squiz(pred_alaria, "Alaria cover (%)")
+ggsave("talk/figure/prediction_alaria.png", width = 6, height = 6)
 
+
+# Important variables -----------------------------------------------------
+
+# Load top variable choices
+load("data/top_var_kelpcover.RData")
+load("data/top_var_laminariales.RData")
+load("data/top_var_agarum.RData")
+load("data/top_var_alaria.RData")
+
+# Load long names of variables
+model_info <- read_csv("metadata/model_info.csv") %>% 
+  dplyr::select(-ndims) %>% 
+  dplyr::rename(var = name)
+
+# Load BIO names
+BO_layers <- list_layers(datasets = "Bio-ORACLE") %>% 
+  dplyr::select(layer_code, units, name) %>% 
+  dplyr::rename(longname = name, var = layer_code)
+
+# Combine
+all_layers <- rbind(model_info, BO_layers)
+
+# Get the cleaned up top ten variables
+top_full_kelpcover <- top_var_kelpcover %>% 
+  left_join(all_layers, by = "var") %>% 
+  mutate(longname = case_when(var == "depth" ~ "Depth",
+                              var == "lon" ~ "Longitude",
+                              var == "lat" ~ "Latitude",
+                              TRUE ~ longname),
+         units = case_when(var == "depth" ~ "m",
+                           var == "lon" ~ "degree",
+                           var == "lat" ~ "degree",
+                           var == "BO2_phosphatemean_bdmin" ~ "mol/m",
+                           var == "BO2_dissoxmean_bdmin" ~ "mol/m",
+                           TRUE ~ units)) %>% 
+  # ungroup() %>% 
+  dplyr::select(longname, units, count) %>% 
+  dplyr::rename(`Data layer` = longname, Units = units, Count = count) %>% 
+  slice(1:10)
+save(top_full_kelpcover, file = "talk/data/top_full_kelpcover.RData")
+
+
+# Analyse model accuracy --------------------------------------------------
+
+# First load the best random forest models produced above
+load("data/best_rf_kelpcover.RData")
+load("data/best_rf_laminariales.RData")
+load("data/best_rf_agarum.RData")
+load("data/best_rf_alaria.RData")
+
+## Quick visuals
+# Histogram of accuracy of predictions
+ggplot(filter(best_rf_kelpcover$model_accuracy, portion == "validate"), aes(x = accuracy)) +
+  geom_histogram()
+# Scatterplot of accuracy with a linear model overalid
+ggplot(filter(best_rf_kelpcover$model_accuracy, portion == "validate"), aes(x = original, y = pred)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+# Boxplots of accuracy
+ggplot(filter(best_rf_kelpcover$model_accuracy, portion == "validate"), aes(x = as.factor(original), y = pred)) +
+  geom_boxplot()
+
+# Function for creating figure showing confidence intervals of prediction accuracy
+conf_plot <- function(df, plot_title){
+  # 90 CI around predictions per step
+  conf_acc <- df %>% 
+    filter(portion == "validate") %>% 
+    group_by(original) %>% 
+    summarise(q05 = quantile(accuracy, 0.05),
+              q25 = quantile(accuracy, 0.25),
+              q50 = median(accuracy),
+              mean = mean(accuracy),
+              q75 = quantile(accuracy, 0.75),
+              q95 = quantile(accuracy, 0.95)) %>% 
+    ungroup()
+  
+  conf_mean <- df %>% 
+    filter(portion == "validate") %>% 
+    group_by(model_id) %>% 
+    summarise(mean_acc = mean(abs(accuracy)),
+              sd_acc = sd(abs(accuracy))) %>% 
+    ungroup()
+
+  conf_mean_label <- conf_mean %>% 
+    summarise(mean_acc = round(mean(abs(mean_acc))),
+              sd_acc = round(mean(abs(sd_acc))))
+  
+  conf_best_label <- conf_mean %>% 
+    filter(mean_acc == min(mean_acc)) %>% 
+    mutate(mean_acc = round(abs(mean_acc)),
+           sd_acc = round(sd_acc))
+  
+  conf_best <- df %>% 
+    filter(model_id == conf_best_label$model_id,
+           portion == "validate") %>% 
+    group_by(original) %>% 
+    summarise(mean_acc = mean(accuracy),
+              sd_acc = sd(accuracy)) %>% 
+    ungroup()
+  
+  # Visualise
+  ggplot(conf_acc, aes(x = original, y = mean)) +
+    geom_hline(yintercept = 0, size = 2, colour = "red") +
+    geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
+                  fatten = 0, fill = "grey70", colour = NA, width = 1) +
+    geom_crossbar(aes(ymin = q25, ymax = q75),
+                  fatten = 0, fill = "grey50", width = 1) +
+    geom_crossbar(aes(ymin = q50, ymax = q50),
+                  fatten = 0, fill = NA, colour = "black", width = 1) +
+    geom_point(data = conf_best, aes(y = mean_acc), colour = "purple") +
+    geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), colour = "purple") +
+    geom_label(data = conf_mean_label, aes(x = 75, y = 70, label = paste0("Mean accuracy: ",mean_acc,"±",sd_acc))) +
+    geom_label(data = conf_best_label, colour = "purple",
+               aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc))) +
+    scale_y_continuous(limits = c(-100, 100)) +
+    labs(y = "Range in accuracy of predictions", x = "Original value (% cover)", title = plot_title)
+}
+
+# Create the plots
+conf_plot(best_rf_kelpcover$model_accuracy, "Total cover confidence")
+ggsave("talk/figure/conf_kelpcover.png", width = 6, height = 6)
+conf_plot(best_rf_laminariales$model_accuracy, "Laminariales cover confidence")
+ggsave("talk/figure/conf_laminariales.png", width = 6, height = 6)
+conf_plot(best_rf_agarum$model_accuracy, "Agarum cover confidence")
+ggsave("talk/figure/conf_agarum.png", width = 6, height = 6)
+conf_plot(best_rf_alaria$model_accuracy, "Alaria cover confidence")
+ggsave("talk/figure/conf_alaria.png", width = 6, height = 6)

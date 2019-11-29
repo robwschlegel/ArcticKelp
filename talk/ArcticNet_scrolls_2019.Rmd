@@ -1,6 +1,6 @@
 ---
 title: "**The relationship between Arctic kelps and their physical environment**"
-author: "Karen Filbee-Dexter ^1^, **Robert W. Schlegel** ^2,3^, Ladd E. Johnson^4^, CJ Mundy^5^, Kathleen MacGregor^6^, Philippe Archambault^7^"
+author: "Karen Filbee-Dexter, **Robert W. Schlegel**, Ladd E. Johnson, CJ Mundy, Kathleen MacGregor, Philippe Archambault"
 # institute: "^1^Australia, ^2^Dalhousie, ^3^WHOI, ^4^Oher places"
 date: "December 5th, 2019"
 output:
@@ -36,9 +36,7 @@ bibliography: ArcticKelp.bib
 
 - Little is known of kelp in the Arctic
 
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/kelp_question.png")
-```
+![](figure/kelp_question.png)
 
 ***
 
@@ -46,9 +44,7 @@ knitr::include_graphics("figure/kelp_question.png")
 
 - Trading in Alaria along Baffin Island coast
 
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/alaria_trading.png")
-```
+![](figure/alaria_trading.png)
 
 ***
 
@@ -56,9 +52,7 @@ knitr::include_graphics("figure/alaria_trading.png")
 
 - There should be other Laminariales sp.
 
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/where_kelp.png")
-```
+![](figure/where_kelp.png)
 
 ***
 
@@ -68,34 +62,27 @@ knitr::include_graphics("figure/where_kelp.png")
 
 ***
 
-# Where are kelp in the Arctic and what drives their distribution?
+# ArcticKelp project {.tabset}
 
 - There must be kelp in the Arctic
 - We don't know what the drivers of their distributions are
 - The Arctic is changing quickly so we should figure this out ASAP
-
-***
-
-# ArcticKelp project {.tabset}
+-  Where are kelp in the Arctic and what drives their distribution?
 
 ## Campaigns
 
 <!-- - Several different campaigns -->
 
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/study_site_campaign.png")
-```
+![](figure/study_site_campaign.png)
 
 ***
 
-## Obs
+## Sites
 
 <!-- - Increasing ground truth obs -->
 <!-- - Many sites visited -->
 
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/study_site_labels.png")
-```
+![](figure/study_site_labels.png)
 
 ***
 
@@ -110,51 +97,89 @@ knitr::include_graphics("figure/study_site_labels.png")
 ## Abiotic data
 
 - NAPA (3-Oceans) model
-  - Model outputs supplied by the Bedford Institute of Oceanography (BIO) ![](figure/BIO_logo.jpg)
-  - Based on the NEMO community ocean model ![](figure/NEMO_logo.png)
-- Daily surface resolution
-- Five day (pentad) resolution at 75 depth layers
-- Tri-polar grid
-  - 10 to 20 km resolution
-![](figure/NAPA_resolution_graph.png)
+  - Model outputs supplied by the Bedford Institute of Oceanography (BIO) 
+  ![](figure/BIO_logo.jpg){ width=20% }
+  - Based on the NEMO community ocean model 
+  ![](figure/NEMO_logo.png){ width=20% }
+  - Daily surface resolution; 1998 to 2015
+  - Five day (pentad) resolution at 75 depth layers
+  - Tri-polar grid
+    - 10 to 20 km resolution
+![](figure/NAPA_resolution_graph.png){ width=40% }
 
 ***
 
 ## Biotic data
 
 - Bio-ORACLE
-  - RWS: Still need to flesh this out
-@Tyberghein2012
-@Assis2018b
+  - Collection of many different datasets
+  - Most variables constrained to a 25km resolution
+@Tyberghein2012  
+@Assis2018b  
 
 ***
 
 # Modelling distribution {.tabset}
 
-## Random Forest
-
+- A random forest model was used
 - Which variables are important?
 - What is the accuracy of the model?
 - What is the range in accuracy?
 - What is the distribution of inaccuracy?
 
+## Variables
+
+```{r, echo=FALSE}
+load("data/top_full_kelpcover.RData")
+knitr::kable(x = top_full_kelpcover, format = "html")
+```
+
+
+## Confidence {.tabset}
+
+### Total cover
+![](figure/conf_kelpcover.png)
+
+### Laminariales
+![](figure/conf_laminariales.png)
+
+### Agarum
+![](figure/conf_agarum.png)
+
+### Alaria
+![](figure/conf_alaria.png)
+
+
 ***
 
-# Results
+# Results {.tabset}
 
-Show general kelp cover
-Drop Alaria if necessary
+KFB: Show general kelp cover
+KFB: Drop Alaria if necessary
 
-## Map
+- Note that the colour scales are not the same between figures
 
-## Coastal stretch
+## Total cover
+![](figure/prediction_kelpcover.png)
 
-## Error around predictions
-Where in the errors are the distribution
+## Laminariales
+![](figure/prediction_laminariales.png)
+
+## Agarum
+![](figure/prediction_agarum.png)
+
+## Alaria
+![](figure/prediction_alaria.png)
+
+<!-- ## Coastal stretch -->
+<!-- The thinking here was to show all of the coastal pixels as a histogram or something like that -->
+<!-- Perhaps a histogram of depth <50 would be useful -->
 
 ***
 
 # Acknowledgements
+
+Dr. Youyu Lu and Dr. Xianmin Hu for NAPA model access
 
 This research was undertaken thanks in part to funding from the Canada First Research Excellence Fund, through the Ocean Frontier Institute.
 ![](figure/ofi_logo.jpg)
