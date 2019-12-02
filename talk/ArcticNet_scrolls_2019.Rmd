@@ -32,44 +32,39 @@ bibliography: ArcticKelp.bib
 
 # What is known of Arctic kelps? {.tabset}
 
-## Known
+## Present
 
-- Little is known of kelp in the Arctic
+- Evidence suggests that many Arctic coasts should support seaweed
+- In Canada, kelp has been reported and documented along Arctic and subarctic coastlines  
+- However, baseline measures of the extent of kelp communities are missing in much of the region   
 
 ![](figure/kelp_question.png)
 
 ***
 
-## Past
+## Future
 
-- Trading in Alaria along Baffin Island coast
-
-![](figure/alaria_trading.png)
-
-***
-
-## Present
-
-- There should be other Laminariales sp. ... but where?
+-  Rapid environmental changes such as declining sea ice, increased ocean temperatures and freshwater inputs are occurring along these coasts 
+- Research suggests northern expansion of kelp forests with climate change
+- Therefore the relationships between environmental factors and the presence of kelp forests in the Canadian arctic are critical to understand 
 
 ![](figure/where_kelp.png)
 
 ***
 
-## Other
-
-- RWS: Other examples?
-
-***
-
 # ArcticKelp project {.tabset}
 
-- There must be kelp in the Arctic
-- RWS: Bullet about what ArcticKelp seeks toa ccomplish
-- We don't know what the drivers of their distributions are
-- The Arctic is changing quickly so we should figure this out ASAP
+<!-- SIMEP 2019: Saw that there is not as much soft-surface sediment as thought. Kelp forests there are as impressive as Ecklonia maxima. -->
+<!-- PICKeR: Eclipse Sound 2019 was mostly Agarum dominated. -->
+<!-- The amount of kelp cover in the Arctic is exceptionally higher than expected. -->
+<!-- The Arctic is currently thought to be very nuttient deprived. How will the eroding of Arctic coastlinesa affect this? -->
+
 - Where are kelp in the Arctic and what drives their distribution?
-- Does this differ for different functional groups?
+- The Arctic is changing quickly so we should figure this out ASAP
+- Kelp abundance records (percent cover by species) were obtained from ArcticKelp project
+- This dive research conducted throughout the Canadian Arctic in 2019 
+- These _in situ_ collected data will help us to know what the drivers kelp distributions are
+- Do these drivers differ for different functional groups?
   - Total kelp cover
   - Laminariales (Laminaria sp. + Sacharina sp.)
   - Agarum
@@ -93,7 +88,7 @@ bibliography: ArcticKelp.bib
 ***
 
 ## Mean cover
-
+<!-- May also be good to show species and/or kelp cover range -->
 ![](figure/study_site_mean_cover.png)
 
 ***
@@ -122,9 +117,11 @@ bibliography: ArcticKelp.bib
 ## Biotic data
 
 - Bio-ORACLE
-  - 18 total geophysical, biotic and environmental variables
-  - Surface and benthic coverage; min, mean, max, and range for most
+  - 18 total geophysical, biotic, and environmental variables
   - Collection from many different datasets
+  - Surface and benthic coverage
+  - Data from 2000 - 2014 for most
+  - Single values per pixel; min, mean, max, and range for most
   - 5 arcdegree spatial resolution (~9.2 km at the equator)
 
 [@Tyberghein2012; @Assis2018b]  
@@ -133,6 +130,7 @@ bibliography: ArcticKelp.bib
 
 # Modelling distribution {.tabset}
 
+- Where in the Arctic are kelps, and what is their coverage % ?
 - Which variables are important?
 - What is the accuracy of the model?
 - What is the range in accuracy?
@@ -143,7 +141,7 @@ bibliography: ArcticKelp.bib
 - Highly correlated variables were removed
 - A random forest model was used
 - After many iterations the best variables were found
-- These were used for many iterations to find the best model
+- These best variables were used over many iterations again to find the best models
 
 ## Variables {.tabset}
 
@@ -238,6 +236,12 @@ knitr::kable(x = top_full_alaria, format = "html")
 <!-- ## Coastal stretch -->
 <!-- The thinking here was to show all of the coastal pixels as a histogram or something like that -->
 <!-- Perhaps a histogram of depth <50 would be useful -->
+
+***
+# Further work
+
+- Better screening of variables used in model
+- Increase resolution of data
 
 ***
 

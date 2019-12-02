@@ -22,8 +22,8 @@ Arctic_map <- ggplot() +
 
 # Data --------------------------------------------------------------------
 
-alaria_trading_points <- data.frame(lon = c(-67.491047),
-                                   lat = c(66.552445))
+# alaria_trading_points <- data.frame(lon = c(-67.491047),
+#                                    lat = c(66.552445))
 
 adf_summary_coords <- left_join(adf_summary, study_sites, by = c("Campaign", "site"))
 
@@ -35,10 +35,10 @@ kelp_question <- Arctic_map +
 kelp_question
 ggsave(kelp_question, filename = "talk/figure/kelp_question.png", height = 6, width = 6)
 
-alaria_trading <- Arctic_map +
-  geom_point(data = alaria_trading_points, aes(x = lon, y = lat), colour = "brown", size = 10)
-alaria_trading
-ggsave(alaria_trading, filename = "talk/figure/alaria_trading.png", height = 6, width = 6)
+# alaria_trading <- Arctic_map +
+#   geom_point(data = alaria_trading_points, aes(x = lon, y = lat), colour = "brown", size = 10)
+# alaria_trading
+# ggsave(alaria_trading, filename = "talk/figure/alaria_trading.png", height = 6, width = 6)
 
 where_kelp <- Arctic_map +
   geom_label(aes(x = -80, y = 60, label = "?"), size = 40, alpha = 0.6, colour = "green") +
@@ -274,27 +274,31 @@ Arctic_cover_predict <- function(model_choice){
 }
 
 # Visualise a family of cover
-cover_squiz <- function(df, legend_title){
+cover_squiz <- function(df, legend_title, x_nudge){
   Arctic_map +
-    geom_raster(data = filter(df, depth <= 200), 
+    geom_tile(data = filter(df, depth <= 100), 
                 aes(x = lon, y = lat, fill = pred_val)) +
     scale_fill_viridis_c(legend_title) +
     theme(strip.background = element_rect(colour = "white", fill = "white"),
-          legend.position = c(0.289, 0.08),
+          # legend.position = "topright",
+          legend.position = c(x_nudge, 0.96),
+          # legend.justification = c(0.9, 0.9),
+          # legend.position = c(0, 0),
           legend.direction = "horizontal",
           legend.spacing.y = unit(0, "mm"))
 }
 
 # Predictions
 pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
-cover_squiz(pred_kelpcover, "Total cover (%)")
+cover_squiz(pred_kelpcover, "Total cover (%)", 0.785)
 ggsave("talk/figure/prediction_kelpcover.png", width = 6, height = 6)
 pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
-cover_squiz(pred_laminariales, "Laminariales cover (%)")
+cover_squiz(pred_laminariales, "Laminariales cover (%)", 0.745)
 ggsave("talk/figure/prediction_laminariales.png", width = 6, height = 6)
 pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
-cover_squiz(pred_agarum, "Agarum cover (%)")
+cover_squiz(pred_agarum, "Agarum cover (%)", 0.77)
 ggsave("talk/figure/prediction_agarum.png", width = 6, height = 6)
 pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
-cover_squiz(pred_alaria, "Alaria cover (%)")
+cover_squiz(pred_alaria, "Alaria cover (%)", 0.78)
 ggsave("talk/figure/prediction_alaria.png", width = 6, height = 6)
+
