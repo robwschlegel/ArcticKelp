@@ -67,13 +67,14 @@ study_site_labels <- Arctic_map +
 study_site_labels
 ggsave(study_site_labels, filename = "talk/figure/study_site_labels.png", height = fig_height, width = fig_width)
 
-study_site_mean_cover <- filter(adf_summary_coords, family == "kelp.cover") %>% 
-  group_by(lon, lat) %>% 
-  summarise(mean_cover = mean(mean_cover)) %>% 
-  ggplot() +
-  # Arctic_map +
-  # geom_point(data = filter(adf_summary_coords, family == "kelp.cover"), 
-  geom_point(aes(x = lon, y = lat, colour = mean_cover), size = 4) +
+adf_summary_mean_coords <- filter(adf_summary_coords, family == "kelp.cover") %>% 
+  group_by(lon, lat) %>%
+  summarise(mean_cover = mean(mean_cover),
+            range_cover = max(mean_cover)-min(mean_cover))
+
+study_site_mean_cover <-  Arctic_map +
+  geom_point(data = adf_summary_mean_coords,
+             aes(x = lon, y = lat, colour = mean_cover), size = 4) +
   scale_colour_viridis_c() +
   scale_shape_manual(values = c(17, 16, 15, 18)) +
   labs(colour = "Mean cover (%)", shape = "Depth (m)") +
@@ -82,7 +83,7 @@ study_site_mean_cover <- filter(adf_summary_coords, family == "kelp.cover") %>%
         legend.position = c(0.75, 0.96),
         legend.direction = "horizontal",
         legend.spacing.y = unit(0, "mm"))
-sstudy_site_mean_cover
+study_site_mean_cover
 ggsave(study_site_mean_cover, filename = "talk/figure/study_site_mean_cover.png", height = fig_height, width = fig_width)
 
 

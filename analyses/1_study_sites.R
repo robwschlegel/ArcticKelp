@@ -31,22 +31,22 @@ bbox_arctic <- c(-90, -50, 50, 80)
 
 # Visualise ---------------------------------------------------------------
 
- ggplot(data = study_sites, aes(x = lon, y = lat)) +
-   borders(fill = "grey70", colour = "black") +
-   geom_point(colour = "red", size=4) +
-  # geom_label_repel(aes(label = site)) +
-   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
-   labs(x = NULL, y = NULL)
- # ggsave("graph/study_area_points.png", width = 9, height = 7)
- 
- ggplot(data = study_sites, aes(x = lon, y = lat)) +
-   borders(fill = "grey70", colour = "black") +
-   geom_point(colour = "red", size=4) +
-   geom_label_repel(aes(label = site)) +
-   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
-   labs(x = NULL, y = NULL)
- # ggsave("graph/study_area_pointswlabels.png", width = 9, height = 7)
+# ggplot(data = study_sites, aes(x = lon, y = lat)) +
+#   borders(fill = "grey70", colour = "black") +
+#   geom_point(colour = "red", size=4) +
+#  # geom_label_repel(aes(label = site)) +
+#   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+#                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+#   labs(x = NULL, y = NULL)
+# ggsave("graph/study_area_points.png", width = 9, height = 7)
+
+# ggplot(data = study_sites, aes(x = lon, y = lat)) +
+#   borders(fill = "grey70", colour = "black") +
+#   geom_point(colour = "red", size=4) +
+#   geom_label_repel(aes(label = site)) +
+#   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+#                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+#   labs(x = NULL, y = NULL)
+# ggsave("graph/study_area_pointswlabels.png", width = 9, height = 7)
 
  

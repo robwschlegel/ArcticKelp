@@ -442,6 +442,11 @@ cover_squiz(pred_alaria)
 #
 
 
+# Substrate random forest -------------------------------------------------
+
+
+
+
 # More thorough Random Forest ---------------------------------------------
 
 # The data.frame that will be fed to the model

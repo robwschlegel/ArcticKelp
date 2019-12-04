@@ -348,7 +348,7 @@ overall_means <- function(df, depth = F){
 # save(Arctic_depth_W_mean, file = "data/Arctic_depth_W_mean.RData") # 7.9 MB
 
 
-# Download Bio-Oracle data ------------------------------------------------
+# Download Bio-ORACLE data ------------------------------------------------
 
 # Explore datasets in the package
 list_datasets()
@@ -405,3 +405,8 @@ bathy_df <- as.data.frame(bathy, xy = T)
 # Visualise
 # ggplot(Arctic_BO, aes(x = lon, y = lat)) +
 #   geom_tile(aes(fill = BO2_icecovermean_ss))
+
+
+# Download future Bio-ORACLE data -----------------------------------------
+
+sdmpredictors::get_future_layers()
