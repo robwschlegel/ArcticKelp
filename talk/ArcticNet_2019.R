@@ -20,8 +20,8 @@ Arctic_map <- ggplot() +
   labs(x = NULL, y = NULL)
 
 # Presentation standard figure width/height
-fig_width <- 6
-fig_height <- 6
+fig_width <- 5
+fig_height <- 5
 
 
 # Data --------------------------------------------------------------------
@@ -56,8 +56,11 @@ ggsave(kelp_question, filename = "talk/figure/kelp_question.png", height = fig_h
 
 study_site_campaign <- Arctic_map +
   geom_point(data = study_sites, aes(x = lon, y = lat, colour = Campaign), size = 4) +
+  guides(colour = guide_legend(nrow = 2, byrow = TRUE)) +
   theme(strip.background = element_rect(colour = "white", fill = "white"),
-        legend.position = c(0.2, 0.1))
+        legend.position = c(0.56, 0.96),
+        legend.direction = "horizontal",
+        legend.spacing.y = unit(0, "mm"))
 study_site_campaign
 ggsave(study_site_campaign, filename = "talk/figure/study_site_campaign.png", height = fig_height, width = fig_width)
 
@@ -86,6 +89,17 @@ study_site_mean_cover <-  Arctic_map +
 study_site_mean_cover
 ggsave(study_site_mean_cover, filename = "talk/figure/study_site_mean_cover.png", height = fig_height, width = fig_width)
 
+# Other variables
+Arctic_mean_pixel <- Arctic_mean %>% 
+  # mutate(nav_lon)
+  group_by(nav_lon, nav_lat) %>% 
+  summarise_all(mean, na.rm = T)
+
+Arctic_map +
+# ggplot() +
+  geom_point(data = Arctic_mean_pixel, aes(colour = iicefrac, x = nav_lon, y = nav_lat)) +
+  scale_colour_viridis_c()
+
 
 # Important variables -----------------------------------------------------
 
@@ -94,6 +108,16 @@ load("data/top_var_kelpcover.RData")
 load("data/top_var_laminariales.RData")
 load("data/top_var_agarum.RData")
 load("data/top_var_alaria.RData")
+
+# Need to load for max cover value
+load("data/best_rf_kelpcover.RData")
+load("data/best_rf_laminariales.RData")
+load("data/best_rf_agarum.RData")
+load("data/best_rf_alaria.RData")
+
+test <- best_rf_laminariales$model_accuracy %>% 
+  filter(model_id == "1") %>% 
+  summarise(mean = round(mean(original)))
 
 # Load long names of variables
 model_info <- read_csv("metadata/model_info.csv") %>% 
@@ -109,34 +133,28 @@ BO_layers <- list_layers(datasets = "Bio-ORACLE") %>%
 all_layers <- rbind(model_info, BO_layers)
 
 # Covenience function to get the cleaned up top ten variables
-top_10_var <- function(df){
+top_3_bottom <- function(df, df2){
+  mean_cov <- df2$model_accuracy %>% 
+    filter(model_id == "1") %>% 
+    summarise(mean = round(mean(original))) %>% 
+    as.numeric()
   res <- df %>% 
     left_join(all_layers, by = "var") %>% 
-    arrange(-sum_IncMSE) %>% 
     mutate(longname = case_when(var == "depth" ~ "Depth",
                                 var == "lon" ~ "Longitude",
                                 var == "lat" ~ "Latitude",
                                 var == "idive" ~ "Ice divergence",
                                 TRUE ~ longname),
-           units = case_when(var == "depth" ~ "m",
-                             var == "lon" ~ "degree",
-                             var == "lat" ~ "degree",
-                             units == "\xbemol/m\x9f" ~ "mol/m",
-                             units == "\xbemol/m_/s" ~ "mol/m/s",
-                             units == "g/m\x9f/day" ~ "g/m/day",
-                             units == "mg/m\x9f" ~ "mg/m",
-                             units == "degrees Celcius" ~ "°C",
-                             units == "degree_C" ~ "°C",
-                             units == "Einstein/m_/day" ~ "Einstein/m/day",
-                             TRUE ~ units),
-           mean_IncMSE = round(sum_IncMSE/1000)) %>% 
-    dplyr::select(longname, units, mean_IncMSE) %>% 
-    dplyr::rename(`Data layer` = longname, Units = units, `MSE change` = mean_IncMSE) %>% 
-    slice(1:10)
+           mean_IncMSE = round(sum_IncMSE/1000),
+           imprtnc = mean_IncMSE/mean_cov) %>% 
+    arrange(-imprtnc) #%>% 
+    # dplyr::select(longname, imprtnc) %>% 
+    # dplyr::rename(`Data layer` = longname, `Importance` = imprtnc)
+  top_bottom <- rbind(head(res, 3), tail(res, 3))
 }
 
 # Find the top ten
-top_full_kelpcover <- top_10_var(top_var_kelpcover)
+top_full_kelpcover <- top_3_bottom(top_var_kelpcover, best_rf_kelpcover)
 save(top_full_kelpcover, file = "talk/data/top_full_kelpcover.RData")
 top_full_laminariales <- top_10_var(top_var_laminariales)
 save(top_full_laminariales, file = "talk/data/top_full_laminariales.RData")

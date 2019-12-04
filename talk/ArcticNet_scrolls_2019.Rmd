@@ -26,7 +26,7 @@ bibliography: ArcticKelp.bib
 # papersize: A4
 ---
 
-![](photo/alaria_1.jpg)
+![](photo/alaria_1.jpg){ width=90%}
 
 ***
 

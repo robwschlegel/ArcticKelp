@@ -36,7 +36,8 @@ round_coords <- function(df){
 
 load_Arctic_clim <- function(){
     load("data/Arctic_surface_clim.RData")
-    Arctic_surface_clim <- round_coords(Arctic_surface_clim)
+    Arctic_surface_clim <- round_coords(Arctic_surface_clim) %>% 
+      dplyr::select(-emp_ice) # Rather use the emp_ice from the ice data
     load("data/Arctic_ice_clim.RData")
     Arctic_ice_clim <- round_coords(Arctic_ice_clim)
     load("data/Arctic_depth_T_clim.RData")
@@ -62,15 +63,18 @@ load_Arctic_clim <- function(){
 }
 
 # Load the clim data by running this function
-# sload_Arctic_clim()
+# load_Arctic_clim()
 
 # Load overall mean files -------------------------------------------------
 
 load_Arctic_mean <- function(){
   load("data/Arctic_surface_mean.RData")
-  Arctic_surface_mean <- round_coords(Arctic_surface_mean)
+  Arctic_surface_mean <- round_coords(Arctic_surface_mean) %>% 
+    dplyr::select(-emp_ice) %>%  # Rather use the emp_ice from the ice data
+    dplyr::select(-qla_oce, -qsb_oce) # These two variables are empty
   load("data/Arctic_ice_mean.RData")
-  Arctic_ice_mean <- round_coords(Arctic_ice_mean)
+  Arctic_ice_mean <- round_coords(Arctic_ice_mean) %>% 
+    dplyr::select(-emp_oce, -qemp_oce) # Rather use the emp_oce and qemp_oce from the sea data
   load("data/Arctic_depth_T_mean.RData")
   Arctic_depth_T_mean <- round_coords(Arctic_depth_T_mean)
   load("data/Arctic_depth_U_mean.RData")

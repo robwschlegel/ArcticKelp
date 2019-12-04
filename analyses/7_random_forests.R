@@ -17,7 +17,8 @@ library(knitr)
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
 # Site clims
-load("data/study_site_clims.RData")
+  # NB: These need to be updated
+# load("data/study_site_clims.RData")
 
 # BO data
 load("data/study_site_BO.RData")
