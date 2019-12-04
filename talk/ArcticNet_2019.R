@@ -19,6 +19,10 @@ Arctic_map <- ggplot() +
                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
   labs(x = NULL, y = NULL)
 
+# Presentation standard figure width/height
+fig_width <- 6
+fig_height <- 6
+
 
 # Data --------------------------------------------------------------------
 
@@ -33,19 +37,19 @@ adf_summary_coords <- left_join(adf_summary, study_sites, by = c("Campaign", "si
 kelp_question <- Arctic_map +
   geom_label(aes(x = -70, y = 65, label = "?"), size = 60, alpha = 0.6)
 kelp_question
-ggsave(kelp_question, filename = "talk/figure/kelp_question.png", height = 6, width = 6)
+ggsave(kelp_question, filename = "talk/figure/kelp_question.png", height = fig_height, width = fig_width)
 
 # alaria_trading <- Arctic_map +
 #   geom_point(data = alaria_trading_points, aes(x = lon, y = lat), colour = "brown", size = 10)
 # alaria_trading
-# ggsave(alaria_trading, filename = "talk/figure/alaria_trading.png", height = 6, width = 6)
+# ggsave(alaria_trading, filename = "talk/figure/alaria_trading.png", height = fig_height, width = fig_width)
 
-where_kelp <- Arctic_map +
-  geom_label(aes(x = -80, y = 60, label = "?"), size = 40, alpha = 0.6, colour = "green") +
-  geom_label(aes(x = -78, y = 70, label = "?"), size = 40, alpha = 0.6, colour = "brown") +
-  geom_label(aes(x = -60, y = 73, label = "?"), size = 40, alpha = 0.6, colour = "blue")
-where_kelp
-ggsave(where_kelp, filename = "talk/figure/where_kelp.png", height = 6, width = 6)
+# where_kelp <- Arctic_map +
+#   geom_label(aes(x = -80, y = 60, label = "?"), size = 40, alpha = 0.6, colour = "green") +
+#   geom_label(aes(x = -78, y = 70, label = "?"), size = 40, alpha = 0.6, colour = "brown") +
+#   geom_label(aes(x = -60, y = 73, label = "?"), size = 40, alpha = 0.6, colour = "blue")
+# where_kelp
+# ggsave(where_kelp, filename = "talk/figure/where_kelp.png", height = fig_height, width = fig_width)
 
 
 # ArcticKelp --------------------------------------------------------------
@@ -55,27 +59,31 @@ study_site_campaign <- Arctic_map +
   theme(strip.background = element_rect(colour = "white", fill = "white"),
         legend.position = c(0.2, 0.1))
 study_site_campaign
-ggsave(study_site_campaign, filename = "talk/figure/study_site_campaign.png", width = 6, height = 6)
+ggsave(study_site_campaign, filename = "talk/figure/study_site_campaign.png", height = fig_height, width = fig_width)
 
 study_site_labels <- Arctic_map +
   geom_point(data = study_sites, aes(x = lon, y = lat), colour = "red", size = 4) +
   geom_label_repel(data = study_sites, aes(x = lon, y = lat, label = site), alpha = 0.8)
 study_site_labels
-ggsave(study_site_labels, filename = "talk/figure/study_site_labels.png", width = 6, height = 6)
+ggsave(study_site_labels, filename = "talk/figure/study_site_labels.png", height = fig_height, width = fig_width)
 
-study_site_mean_cover <- Arctic_map +
-  geom_point(data = filter(adf_summary_coords, family == "kelp.cover"), 
-             aes(x = lon, y = lat, colour = mean_cover, shape = as.factor(depth)), size = 4) +
+study_site_mean_cover <- filter(adf_summary_coords, family == "kelp.cover") %>% 
+  group_by(lon, lat) %>% 
+  summarise(mean_cover = mean(mean_cover)) %>% 
+  ggplot() +
+  # Arctic_map +
+  # geom_point(data = filter(adf_summary_coords, family == "kelp.cover"), 
+  geom_point(aes(x = lon, y = lat, colour = mean_cover), size = 4) +
   scale_colour_viridis_c() +
   scale_shape_manual(values = c(17, 16, 15, 18)) +
   labs(colour = "Mean cover (%)", shape = "Depth (m)") +
   guides(color = guide_colourbar(order = 1)) +
   theme(strip.background = element_rect(colour = "white", fill = "white"),
-        legend.position = c(0.289, 0.08),
+        legend.position = c(0.75, 0.96),
         legend.direction = "horizontal",
         legend.spacing.y = unit(0, "mm"))
-study_site_mean_cover
-ggsave(study_site_mean_cover, filename = "talk/figure/study_site_mean_cover.png", width = 6, height = 6)
+sstudy_site_mean_cover
+ggsave(study_site_mean_cover, filename = "talk/figure/study_site_mean_cover.png", height = fig_height, width = fig_width)
 
 
 # Important variables -----------------------------------------------------
@@ -103,7 +111,7 @@ all_layers <- rbind(model_info, BO_layers)
 top_10_var <- function(df){
   res <- df %>% 
     left_join(all_layers, by = "var") %>% 
-    arrange(-count, -sum_IncMSE) %>% 
+    arrange(-sum_IncMSE) %>% 
     mutate(longname = case_when(var == "depth" ~ "Depth",
                                 var == "lon" ~ "Longitude",
                                 var == "lat" ~ "Latitude",
@@ -119,9 +127,10 @@ top_10_var <- function(df){
                              units == "degrees Celcius" ~ "°C",
                              units == "degree_C" ~ "°C",
                              units == "Einstein/m_/day" ~ "Einstein/m/day",
-                             TRUE ~ units)) %>% 
-    dplyr::select(longname, units, count) %>% 
-    dplyr::rename(`Data layer` = longname, Units = units, Count = count) %>% 
+                             TRUE ~ units),
+           mean_IncMSE = round(sum_IncMSE/1000)) %>% 
+    dplyr::select(longname, units, mean_IncMSE) %>% 
+    dplyr::rename(`Data layer` = longname, Units = units, `MSE change` = mean_IncMSE) %>% 
     slice(1:10)
 }
 
@@ -220,13 +229,13 @@ conf_plot <- function(df, plot_title){
 
 # Create the plots
 conf_plot(best_rf_kelpcover$model_accuracy, "Total cover confidence")
-ggsave("talk/figure/conf_kelpcover.png", width = 6, height = 6)
+ggsave("talk/figure/conf_kelpcover.png", height = fig_height, width = fig_width)
 conf_plot(best_rf_laminariales$model_accuracy, "Laminariales cover confidence")
-ggsave("talk/figure/conf_laminariales.png", width = 6, height = 6)
+ggsave("talk/figure/conf_laminariales.png", height = fig_height, width = fig_width)
 conf_plot(best_rf_agarum$model_accuracy, "Agarum cover confidence")
-ggsave("talk/figure/conf_agarum.png", width = 6, height = 6)
+ggsave("talk/figure/conf_agarum.png", height = fig_height, width = fig_width)
 conf_plot(best_rf_alaria$model_accuracy, "Alaria cover confidence")
-ggsave("talk/figure/conf_alaria.png", width = 6, height = 6)
+ggsave("talk/figure/conf_alaria.png", height = fig_height, width = fig_width)
 
 
 # Project kelp cover in the Arctic ----------------------------------------
@@ -276,7 +285,7 @@ Arctic_cover_predict <- function(model_choice){
 # Visualise a family of cover
 cover_squiz <- function(df, legend_title, x_nudge){
   Arctic_map +
-    geom_tile(data = filter(df, depth <= 100), 
+    geom_tile(data = filter(df, depth <= 50), 
                 aes(x = lon, y = lat, fill = pred_val)) +
     scale_fill_viridis_c(legend_title) +
     theme(strip.background = element_rect(colour = "white", fill = "white"),

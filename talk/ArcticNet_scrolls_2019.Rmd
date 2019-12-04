@@ -48,7 +48,7 @@ bibliography: ArcticKelp.bib
 - Research suggests northern expansion of kelp forests with climate change
 - Therefore the relationships between environmental factors and the presence of kelp forests in the Canadian arctic are critical to understand 
 
-![](figure/where_kelp.png)
+![](figure/biomass measures for Canadian arctic.png)
 
 ***
 
@@ -62,8 +62,9 @@ bibliography: ArcticKelp.bib
 - Where are kelp in the Arctic and what drives their distribution?
 - The Arctic is changing quickly so we should figure this out ASAP
 - Kelp abundance records (percent cover by species) were obtained from ArcticKelp project
-- This dive research conducted throughout the Canadian Arctic in 2019 
-- These _in situ_ collected data will help us to know what the drivers kelp distributions are
+- This dive research conducted throughout the Canadian Arctic in 2014 - 2019 
+    - 5 - 20 m photograph quadrats
+<!-- - These _in situ_ collected data will help us to know what the drivers kelp distributions are -->
 - Do these drivers differ for different functional groups?
   - Total kelp cover
   - Laminariales (Laminaria sp. + Sacharina sp.)
@@ -76,14 +77,14 @@ bibliography: ArcticKelp.bib
 
 ![](figure/study_site_campaign.png)
 
-***
+<!-- *** -->
 
-## Sites
+<!-- ## Sites -->
 
 <!-- - Increasing ground truth obs -->
 <!-- - Many sites visited -->
 
-![](figure/study_site_labels.png)
+<!-- ![](figure/study_site_labels.png) -->
 
 ***
 
@@ -130,7 +131,7 @@ bibliography: ArcticKelp.bib
 
 # Modelling distribution {.tabset}
 
-- Where in the Arctic are kelps, and what is their coverage % ?
+- Using existing models, can we predict the % coverage of kelp?
 - Which variables are important?
 - What is the accuracy of the model?
 - What is the range in accuracy?
@@ -144,6 +145,8 @@ bibliography: ArcticKelp.bib
 - These best variables were used over many iterations again to find the best models
 
 ## Variables {.tabset}
+
+<!-- Show top five and bottom five. Show the average Inc MSE/1000 -->
 
 ### Total kelp
 
