@@ -17,7 +17,8 @@ library(knitr)
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
 # Site clims
-load("data/study_site_clims.RData")
+  # NB: These need to be updated
+# load("data/study_site_clims.RData")
 
 # BO data
 load("data/study_site_BO.RData")
@@ -41,7 +42,6 @@ study_site_ALL <- study_site_means %>% # Use only overall means in modelling
 
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
-
 
 # The base map to use for everything else
 Arctic_map <- ggplot() +
@@ -68,9 +68,9 @@ kelp_all <- adf %>%
   # ungroup() %>% 
   # End mean site creation
   left_join(study_site_ALL, by = c("Campaign", "site")) %>%
-  select(-qla_oce, -qsb_oce) %>% 
   dplyr::select(-c(nav_lon:depth.y)) %>%
   dplyr::rename(depth = depth.x) %>%
+  dplyr::select(-depth) %>% # Removing depth for the moment
   na.omit()
 
 
@@ -83,7 +83,7 @@ kelp_all <- adf %>%
 # Which variables are highly correlated? ----------------------------------
 
 # Identify variables that correlate with 50 or more other variables at abs(0.75) or more
-cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>% 
+cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>% 
   data.frame() %>% 
   mutate(var1 = row.names(.)) %>% 
   pivot_longer(cols = -var1, names_to = "var2") %>% 
@@ -102,7 +102,7 @@ cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>%
 rf_data_prep <- function(kelp_choice, df = kelp_all){
   # Trim down data.frame
   # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-  df_1 <- data.frame(select(df, -c(Campaign:Quadrat.size.m2), depth))
+  df_1 <- data.frame(dplyr::select(df, -c(Campaign:Quadrat.size.m2)))#, depth))
   df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
   
   # Create double of chosen kelp cover column
@@ -113,8 +113,8 @@ rf_data_prep <- function(kelp_choice, df = kelp_all){
   other_kelps <- other_kelps[other_kelps != kelp_choice]
   
   # The data.frame that will be fed to the model
-  df_2 <- select(df_1, chosen_kelp, depth, everything(), -c(other_kelps)) %>% 
-    mutate(depth = as.numeric(depth))
+  df_2 <- dplyr::select(df_1, chosen_kelp, everything(), -c(other_kelps)) #, depth) %>% 
+    # mutate(depth = as.numeric(depth))
 }
 
 
@@ -135,8 +135,12 @@ top_variables <- function(lplyr_bit, kelp_choice){
   # Random forest model based on all quadrat data
   kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
                           importance = TRUE, na.action = na.omit)
-  res <- arrange(data.frame(var = row.names(kelp_rf$importance), 
-                            kelp_rf$importance), -X.IncMSE)[1:30,]
+  res <- data.frame(var = row.names(kelp_rf$importance), 
+                            kelp_rf$importance, 
+                            mean_MSE = mean(kelp_rf$mse, na.rm = T)) %>% 
+    arrange(-X.IncMSE) %>% 
+    slice(1:30) %>% 
+    mutate_if(is.numeric, round, 2)
 }
 # top_variables(kelp_choice = "kelp.cover")
 
@@ -148,7 +152,7 @@ top_variables_multi <- function(kelp_choice){
     summarise(sum_IncMSE = sum(X.IncMSE),
               count = n()) %>% 
     ungroup() %>% 
-    arrange(-count, sum_IncMSE)
+    arrange(-sum_IncMSE, -count)
 }
 
 # Find the top variables for the different kelp covers
@@ -441,6 +445,11 @@ cover_squiz(pred_agarum)
 pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
 cover_squiz(pred_alaria)
 #
+
+
+# Substrate random forest -------------------------------------------------
+
+
 
 
 # More thorough Random Forest ---------------------------------------------

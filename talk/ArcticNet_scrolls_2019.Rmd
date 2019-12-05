@@ -1,6 +1,6 @@
 ---
-title: "**The relationship between Arctic kelps and their physical environment**"
-author: "Karen Filbee-Dexter ^1^, **Robert W. Schlegel** ^2,3^, Ladd E. Johnson^4^, CJ Mundy^5^, Kathleen MacGregor^6^, Philippe Archambault^7^"
+title: "**The relationship between Arctic kelps and their environment**"
+author: "Karen Filbee-Dexter, **Robert W. Schlegel**, Ladd E. Johnson, CJ Mundy, Kathleen MacGregor, Philippe Archambault"
 # institute: "^1^Australia, ^2^Dalhousie, ^3^WHOI, ^4^Oher places"
 date: "December 5th, 2019"
 output:
@@ -26,81 +26,70 @@ bibliography: ArcticKelp.bib
 # papersize: A4
 ---
 
-![](photo/alaria_1.jpg)
+![](photo/alaria_1.jpg){ width=90%}
 
 ***
 
 # What is known of Arctic kelps? {.tabset}
 
-## Known
-
-- Little is known of kelp in the Arctic
-
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/kelp_question.png")
-```
-
-***
-
-## Past
-
-- Trading in Alaria along Baffin Island coast
-
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/alaria_trading.png")
-```
-
-***
-
 ## Present
 
-- There should be other Laminariales sp.
+- Evidence suggests that many Arctic coasts should support seaweed
+- In Canada, kelp has been reported and documented along Arctic and subarctic coastlines  
+- However, baseline measures of the extent of kelp communities are missing in much of the region   
 
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/where_kelp.png")
-```
-
-***
-
-## Other
-
-- RWS: Other examples?
+![](figure/kelp_question.png)
 
 ***
 
-# Where are kelp in the Arctic and what drives their distribution?
+## Future
 
-- There must be kelp in the Arctic
-- We don't know what the drivers of their distributions are
-- The Arctic is changing quickly so we should figure this out ASAP
+-  Rapid environmental changes such as declining sea ice, increased ocean temperatures and freshwater inputs are occurring along these coasts 
+- Research suggests northern expansion of kelp forests with climate change
+- Therefore the relationships between environmental factors and the presence of kelp forests in the Canadian arctic are critical to understand 
+
+![](figure/biomass measures for Canadian arctic.png)
 
 ***
 
 # ArcticKelp project {.tabset}
 
+<!-- SIMEP 2019: Saw that there is not as much soft-surface sediment as thought. Kelp forests there are as impressive as Ecklonia maxima. -->
+<!-- PICKeR: Eclipse Sound 2019 was mostly Agarum dominated. -->
+<!-- The amount of kelp cover in the Arctic is exceptionally higher than expected. -->
+<!-- The Arctic is currently thought to be very nuttient deprived. How will the eroding of Arctic coastlinesa affect this? -->
+
+- Where are kelp in the Arctic and what drives their distribution?
+- The Arctic is changing quickly so we should figure this out ASAP
+- Kelp abundance records (percent cover by species) were obtained from ArcticKelp project
+- This dive research conducted throughout the Canadian Arctic in 2014 - 2019 
+    - 5 - 20 m photograph quadrats
+<!-- - These _in situ_ collected data will help us to know what the drivers kelp distributions are -->
+- Do these drivers differ for different functional groups?
+  - Total kelp cover
+  - Laminariales (Laminaria sp. + Sacharina sp.)
+  - Agarum
+  - Alaria
+
 ## Campaigns
 
 <!-- - Several different campaigns -->
 
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/study_site_campaign.png")
-```
+![](figure/study_site_campaign.png)
 
-***
+<!-- *** -->
 
-## Obs
+<!-- ## Sites -->
 
 <!-- - Increasing ground truth obs -->
 <!-- - Many sites visited -->
 
-```{r, echo=F, fig.align="center"}
-knitr::include_graphics("figure/study_site_labels.png")
-```
+<!-- ![](figure/study_site_labels.png) -->
 
 ***
 
 ## Mean cover
-
+<!-- May also be good to show species and/or kelp cover range -->
 ![](figure/study_site_mean_cover.png)
 
 ***
@@ -110,53 +99,160 @@ knitr::include_graphics("figure/study_site_labels.png")
 ## Abiotic data
 
 - NAPA (3-Oceans) model
-  - Model outputs supplied by the Bedford Institute of Oceanography (BIO) ![](figure/BIO_logo.jpg)
-  - Based on the NEMO community ocean model ![](figure/NEMO_logo.png)
-- Daily surface resolution
-- Five day (pentad) resolution at 75 depth layers
-- Tri-polar grid
-  - 10 to 20 km resolution
-![](figure/NAPA_resolution_graph.png)
+  - Model outputs supplied by the Bedford Institute of Oceanography (BIO)  
+  ![](figure/BIO_logo.jpg){ width=20% }  
+  - Based on the NEMO community ocean model  
+  ![](figure/NEMO_logo.png){ width=20% }  
+  [@Madec2015]  
+  - Ice from the LIM3 model  
+  ![](figure/LIM_logo.png){ width=20% }  
+  [@Vancoppenolle2009; @Rousset2015]  
+  - Daily surface resolution: 1998 to 2015
+  - Five day (pentad) resolution at 75 depth layers
+  - Tri-polar grid
+    - 10 to 20 km resolution  
+![](figure/NAPA_resolution_graph.png){ width=40% }
 
 ***
 
 ## Biotic data
 
 - Bio-ORACLE
-  - RWS: Still need to flesh this out
-@Tyberghein2012
-@Assis2018b
+  - 18 total geophysical, biotic, and environmental variables
+  - Collection from many different datasets
+  - Surface and benthic coverage
+  - Data from 2000 - 2014 for most
+  - Single values per pixel; min, mean, max, and range for most
+  - 5 arcdegree spatial resolution (~9.2 km at the equator)
+
+[@Tyberghein2012; @Assis2018b]  
 
 ***
 
 # Modelling distribution {.tabset}
 
-## Random Forest
-
+- Using existing models, can we predict the % coverage of kelp?
 - Which variables are important?
 - What is the accuracy of the model?
 - What is the range in accuracy?
 - What is the distribution of inaccuracy?
 
+## Methods
+
+- Highly correlated variables were removed
+- A random forest model was used
+- After many iterations the best variables were found
+- These best variables were used over many iterations again to find the best models
+
+## Variables {.tabset}
+
+<!-- Show top five and bottom five. Show the average Inc MSE/1000 -->
+
+### Total kelp
+
+```{r, echo=FALSE}
+load("data/top_full_kelpcover.RData")
+knitr::kable(x = top_full_kelpcover, format = "html")
+```
+
 ***
 
-# Results
+### Laminariales
 
-Show general kelp cover
-Drop Alaria if necessary
+```{r, echo=FALSE}
+load("data/top_full_laminariales.RData")
+knitr::kable(x = top_full_laminariales, format = "html")
+```
 
-## Map
+***
 
-## Coastal stretch
+### Agarum
 
-## Error around predictions
-Where in the errors are the distribution
+```{r, echo=FALSE}
+load("data/top_full_agarum.RData")
+knitr::kable(x = top_full_agarum, format = "html")
+```
+
+***
+
+### Alaria
+
+```{r, echo=FALSE}
+load("data/top_full_alaria.RData")
+knitr::kable(x = top_full_alaria, format = "html")
+```
+
+***
+
+## Confidence {.tabset}
+
+### Total cover
+
+![](figure/conf_kelpcover.png)
+
+***
+
+### Laminariales
+
+![](figure/conf_laminariales.png)
+
+***
+
+### Agarum
+
+![](figure/conf_agarum.png)
+
+***
+
+### Alaria
+
+![](figure/conf_alaria.png)
+
+***
+
+# Results {.tabset}
+
+- Note that the colour scales are not the same between figures
+
+## Total cover
+
+![](figure/prediction_kelpcover.png)
+
+***
+
+## Laminariales
+
+![](figure/prediction_laminariales.png)
+
+***
+
+## Agarum
+
+![](figure/prediction_agarum.png)
+
+***
+
+## Alaria
+
+![](figure/prediction_alaria.png)
+
+<!-- ## Coastal stretch -->
+<!-- The thinking here was to show all of the coastal pixels as a histogram or something like that -->
+<!-- Perhaps a histogram of depth <50 would be useful -->
+
+***
+# Further work
+
+- Better screening of variables used in model
+- Increase resolution of data
 
 ***
 
 # Acknowledgements
 
-This research was undertaken thanks in part to funding from the Canada First Research Excellence Fund, through the Ocean Frontier Institute.
+Dr. Youyu Lu and Dr. Xianmin Hu for NAPA model access
+
+This research was undertaken thanks in part to funding from the Canada First Research Excellence Fund, through the Ocean Frontier Institute.  
 ![](figure/ofi_logo.jpg)
 
 ***

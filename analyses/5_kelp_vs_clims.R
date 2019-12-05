@@ -59,30 +59,54 @@ scatter_means <- kelp_means %>%
 # ggsave("graph/scatter_clim_mean.png", scatter_clim_mean, height = 4, width = 16)
 
 
+# Visuals -----------------------------------------------------------------
+
+# Barplots of phys var with dots showing kelp cover %
+# Labels above these with number of obs at each bar
+# RWS: Not working...
+# hist_cover_plot <- function(var){
+#   ggplot(kelp_wide, aes_string(x = var)) +
+#     geom_histogram() +
+#     geom_point(aes(colour = kelp.cover), y = 0, size = 4) +
+#     scale_colour_viridis_c()
+# }
+# hist_cover_plot("iicefrac")
+
+ggplot(data = kelp_wide, aes(x = iceconc_cat/0.2)) +
+  geom_histogram() +
+  geom_point(aes(colour = kelp.cover), y = 0, size = 4) +
+  scale_colour_viridis_c()
+
+
 # Multivariate analyses ---------------------------------------------------
 
 # Need to consider percent sand and rock when looking at patterns
 sand_rock <- adf %>% 
-  select(Campaign, site, depth, sand, rock, Shell) %>% 
-  mutate(Shell = replace_na(Shell, 0)) %>% 
+  dplyr::select(Campaign, site, depth, sand, rock) %>% 
+  # mutate(Shell = replace_na(Shell, 0)) %>% 
   group_by(Campaign, site, depth) %>% 
-  summarise_all(mean, na.rm = T) 
+  summarise_all(mean, na.rm = T) #%>% 
+  # select(-Shell) # RWS: This is too infrequent to be useful
 
 # Create data.frame that makes vegan happy
 kelp_wide <- kelp_means %>% 
-  spread(key = model_var, value = val) %>% 
-  spread(key = family, value = mean_cover) %>% 
-  ungroup() %>% 
-  left_join(sand_rock, by = c("Campaign", "site", "depth"))
+  # group_by(Campaign, site, depth, family, mean_cover) %>% 
+  pivot_wider(names_from = model_var, values_from = val, values_fn = list(val = mean)) %>% 
+  pivot_wider(names_from = family, values_from = mean_cover, values_fn = list(val = mean)) %>% 
+  # spread(key = model_var, value = val) %>% 
+  # spread(key = family, value = mean_cover) %>% 
+  # ungroup() %>% 
+  left_join(sand_rock, by = c("Campaign", "site", "depth")) %>% 
+  ungroup()
 
 # The reduced version that doesn't know about depth etc.
 kelp_wide_blind <- kelp_wide %>% 
   # select(eken:toce, Bedrock..:Shell)
-  select(eken:toce)
+  dplyr::select(eken:toce)
 
 # The "environmental" variables
 kelp_wide_env <- kelp_wide %>% 
-  select(Campaign, depth, kelp.cover:Shell)
+  dplyr::select(Campaign, depth, kelp.cover:rock)
 
 # Run the MDS
 kelp_MDS <- metaMDS(decostand(kelp_wide_blind, method = "standardize"),
@@ -101,7 +125,7 @@ mds_df <- data.frame(site = kelp_wide$site, kelp_wide_env, kelp_MDS$points)
 # Test correlations
 cor(x = kelp_wide$kelp.cover, y = kelp_wide$sand)
 cor(x = kelp_wide$kelp.cover, y = kelp_wide$rock)
-cor(x = kelp_wide$kelp.cover, y = kelp_wide$Shell)
+# cor(x = kelp_wide$kelp.cover, y = kelp_wide$Shell)
 
 # The ordiplot
 ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
@@ -112,8 +136,8 @@ ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
   geom_segment(data = ord_fit_df, aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2),
                arrow = arrow(angle = 40, length = unit(0.2, "cm"), type = "open"), 
                alpha = 1, colour = "black", size = 0.5) +
-  geom_point(aes(size = kelp.cover, shape = Campaign, colour = as.factor(depth))) +
-  scale_colour_brewer(name = "Depth (m)", palette = "Dark2") +
+  geom_point(aes(size = kelp.cover, colour = as.factor(Campaign))) +
+  scale_colour_brewer(name = "Campaign", palette = "Dark2") +
   # scale_fill_brewer(name = "Campaign", palette = "Dark2") +
   scale_size_continuous(name = "Kelp cover (total %)", breaks = c(0, 25, 50, 75, 100)) +
   guides(colour = guide_legend(order = 1),
