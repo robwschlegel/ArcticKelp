@@ -140,7 +140,7 @@ top_variables <- function(lplyr_bit, kelp_choice){
                             mean_MSE = mean(kelp_rf$mse, na.rm = T)) %>% 
     arrange(-X.IncMSE) %>% 
     slice(1:30) %>% 
-    mutate_if(is.numeric, round, 2)
+    mutate_if(is.numeric, round, 0)
 }
 # top_variables(kelp_choice = "kelp.cover")
 
@@ -149,14 +149,15 @@ top_variables_multi <- function(kelp_choice){
   multi_kelp <- plyr::ldply(.data = 1:1000, .fun = top_variables, .parallel = T, kelp_choice = kelp_choice)
   multi_kelp_importance <- multi_kelp %>% 
     group_by(var) %>% 
-    summarise(sum_IncMSE = sum(X.IncMSE),
+    summarise(mean_MSE = round(mean(mean_MSE, na.rm = T)),
+              sum_IncMSE = sum(X.IncMSE),
               count = n()) %>% 
     ungroup() %>% 
     arrange(-sum_IncMSE, -count)
 }
 
 # Find the top variables for the different kelp covers
-# system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~35 seconds on 50 cores, ~543 on 3
+# system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~19 seconds on 50 cores, ~543 on 3
 # save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
 load("data/top_var_kelpcover.RData")
 # top_var_laminariales <- top_variables_multi("Laminariales")
@@ -289,17 +290,19 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   accuracy_check <- model_accuracy %>% 
     filter(portion == "validate") %>% 
     group_by(model_id) %>% 
-    summarise(mean_acc = mean(abs(accuracy)))
+    summarise(mean_acc = mean(abs(accuracy)),
+              r_acc = round(cor(x = original, y = pred), 2))
   
   # Extract that model
-  best_model <- filter(accuracy_check, mean_acc == min(mean_acc))
+  best_model <- arrange(accuracy_check, -r_acc, mean_acc) %>% 
+    slice(1)
   choice_model <- multi_test[[best_model$model_id]]$model
   res <- list(choice_model = choice_model,
               model_accuracy = model_accuracy)
 }
 
 # doParallel::registerDoParallel(cores = 50)
-# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
+# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~38 seconds with 50 cores
 # save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 # best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
 # save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
@@ -331,7 +334,6 @@ ggplot(filter(test, portion == "validate"), aes(x = original, y = pred)) +
 
 ggplot(filter(test, portion == "validate"), aes(x = as.factor(original), y = pred)) +
   geom_boxplot()
-
 
 # 90 CI around predictions per step
 conf_acc <- best_rf_kelpcover$model_accuracy %>% 
