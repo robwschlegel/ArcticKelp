@@ -61,9 +61,9 @@ doMC::registerDoMC(cores = 50)
 
 # Combine and clean-up
 # info_ALL <- rbind(info_grid, info_surface, info_ice, info_depth_T, info_depth_U, info_depth_V, info_depth_W) %>%
-#   dplyr::select(name, ndims, units, longname) %>%
-#   unique() %>% 
-#   arrange(name)
+  # dplyr::select(name, ndims, units, longname) %>%
+  # unique() %>%
+  # arrange(name)
 
 # Save
 # write_csv(info_ALL, "metadata/model_info.csv")

@@ -95,8 +95,11 @@ load_Arctic_mean <- function(){
 Arctic_mean <- load_Arctic_mean()
 
 # Load BO data
-load("data/Arctic_BO.RData")
-Arctic_BO$BO_index <- 1:nrow(Arctic_BO)
+  # NB: This is a bit large to host on GitHub (27.7 MB)
+# if(!exists("Arctic_BO")){
+#   load("data/Arctic_BO.RData")
+# }
+# Arctic_BO$BO_index <- 1:nrow(Arctic_BO)
 
 
 # Find nearest neighbours -------------------------------------------------
@@ -157,20 +160,24 @@ save(study_site_means_long, file = "data/study_site_means_long.RData")
 
 # Study site BO data ------------------------------------------------------
 
+# NB: The following code chunks require Arctic_BO.RData
+# This is not hosted on GitHub as it is 27.7 MB
+# E-mail robert.schlegel@dal.ca for the file
+
 # Find the nearest BO points to each site
-study_site_BO <- study_sites %>%
-  mutate(BO_index = as.vector(knnx.index(as.matrix(Arctic_BO[,c("lon", "lat")]),
-                                         as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>%
-  left_join(Arctic_BO, by = "BO_index") %>%
-  dplyr::select(-BO_index, -Date, -Notes) %>%
-  dplyr::rename(lon = lon.x, lat = lat.x, lon_BO = lon.y, lat_BO = lat.y)
-save(study_site_BO, file = "data/study_site_BO.RData")
+# study_site_BO <- study_sites %>% 
+#   mutate(BO_index = as.vector(knnx.index(as.matrix(Arctic_BO[,c("lon", "lat")]),
+#                                          as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>% 
+#   left_join(Arctic_BO, by = "BO_index") %>% 
+#   dplyr::select(-BO_index, -Date, -Notes) %>% 
+#   dplyr::rename(lon = lon.x, lat = lat.x, lon_BO = lon.y, lat_BO = lat.y)
+# save(study_site_BO, file = "data/study_site_BO.RData")
 
 # Melt for plotting purposes
-study_site_BO_long <- study_site_BO %>%
-  gather("var", "val", -c(site:lat_BO)) %>%
-  na.omit()
-save(study_site_BO_long, file = "data/study_site_BO_long.RData")
+# study_site_BO_long <- study_site_BO %>%
+#   gather("var", "val", -c(site:lat_BO)) %>%
+#   na.omit()
+# save(study_site_BO_long, file = "data/study_site_BO_long.RData")
 
 
 # Visualise ---------------------------------------------------------------
