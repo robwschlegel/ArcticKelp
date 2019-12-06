@@ -64,11 +64,11 @@ study_site_campaign <- Arctic_map +
 study_site_campaign
 ggsave(study_site_campaign, filename = "talk/figure/study_site_campaign.png", height = fig_height, width = fig_width)
 
-study_site_labels <- Arctic_map +
-  geom_point(data = study_sites, aes(x = lon, y = lat), colour = "red", size = 4) +
-  geom_label_repel(data = study_sites, aes(x = lon, y = lat, label = site), alpha = 0.8)
-study_site_labels
-ggsave(study_site_labels, filename = "talk/figure/study_site_labels.png", height = fig_height, width = fig_width)
+# study_site_labels <- Arctic_map +
+#   geom_point(data = study_sites, aes(x = lon, y = lat), colour = "red", size = 4) +
+#   geom_label_repel(data = study_sites, aes(x = lon, y = lat, label = site), alpha = 0.8)
+# study_site_labels
+# ggsave(study_site_labels, filename = "talk/figure/study_site_labels.png", height = fig_height, width = fig_width)
 
 adf_summary_mean_coords <- filter(adf_summary_coords, family == "kelp.cover") %>% 
   group_by(lon, lat) %>%
@@ -133,11 +133,11 @@ BO_layers <- list_layers(datasets = "Bio-ORACLE") %>%
 all_layers <- rbind(model_info, BO_layers)
 
 # Covenience function to get the cleaned up top ten variables
-top_3_bottom <- function(df, df2){
-  mean_cov <- df2$model_accuracy %>% 
-    filter(model_id == "1") %>% 
-    summarise(mean = round(mean(original))) %>% 
-    as.numeric()
+top_3_bottom <- function(df){
+  # mean_cov <- df2$model_accuracy %>% 
+  #   filter(model_id == "1") %>% 
+  #   summarise(mean = round(mean(original))) %>% 
+  #   as.numeric()
   res <- df %>% 
     left_join(all_layers, by = "var") %>% 
     mutate(longname = case_when(var == "depth" ~ "Depth",
@@ -145,22 +145,21 @@ top_3_bottom <- function(df, df2){
                                 var == "lat" ~ "Latitude",
                                 var == "idive" ~ "Ice divergence",
                                 TRUE ~ longname),
-           mean_IncMSE = round(sum_IncMSE/1000),
-           imprtnc = mean_IncMSE/mean_cov) %>% 
-    arrange(-imprtnc) #%>% 
-    # dplyr::select(longname, imprtnc) %>% 
-    # dplyr::rename(`Data layer` = longname, `Importance` = imprtnc)
+           mean_IncMSE = round(sum_IncMSE/1000)) %>% 
+    # arrange(-mean_IncMSE) #%>% 
+    dplyr::select(longname, mean_IncMSE) %>%
+    dplyr::rename(`Data layer` = longname, `% Inc. MSE` = mean_IncMSE)
   top_bottom <- rbind(head(res, 3), tail(res, 3))
 }
 
 # Find the top ten
-top_full_kelpcover <- top_3_bottom(top_var_kelpcover, best_rf_kelpcover)
+top_full_kelpcover <- top_3_bottom(top_var_kelpcover)
 save(top_full_kelpcover, file = "talk/data/top_full_kelpcover.RData")
-top_full_laminariales <- top_10_var(top_var_laminariales)
+top_full_laminariales <- top_3_bottom(top_var_laminariales)
 save(top_full_laminariales, file = "talk/data/top_full_laminariales.RData")
-top_full_agarum <- top_10_var(top_var_agarum)
+top_full_agarum <- top_3_bottom(top_var_agarum)
 save(top_full_agarum, file = "talk/data/top_full_agarum.RData")
-top_full_alaria <- top_10_var(top_var_alaria)
+top_full_alaria <- top_3_bottom(top_var_alaria)
 save(top_full_alaria, file = "talk/data/top_full_alaria.RData")
 
 
@@ -191,6 +190,7 @@ conf_plot <- function(df, plot_title){
   conf_acc <- df %>% 
     filter(portion == "validate") %>% 
     group_by(original) %>% 
+    mutate(accuracy = round(accuracy)) %>% 
     summarise(q05 = quantile(accuracy, 0.05),
               q25 = quantile(accuracy, 0.25),
               q50 = median(accuracy),
@@ -202,6 +202,7 @@ conf_plot <- function(df, plot_title){
   conf_mean <- df %>% 
     filter(portion == "validate") %>% 
     group_by(model_id) %>% 
+    mutate(accuracy = round(accuracy)) %>% 
     summarise(mean_acc = mean(abs(accuracy)),
               sd_acc = sd(abs(accuracy)),
               r_acc = cor(x = original, y = pred)) %>% 
@@ -236,10 +237,10 @@ conf_plot <- function(df, plot_title){
     geom_crossbar(aes(ymin = q50, ymax = q50),
                   fatten = 0, fill = NA, colour = "black", width = 1) +
     geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
-                 colour = "purple", size = 1.5) +
-    geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 4) +
+                 colour = "purple", size = 1.2, alpha = 0.8) +
+    geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
     geom_label(data = conf_mean_label, 
-               aes(x = 75, y = 70, label = paste0("Mean accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
+               aes(x = 75, y = 75, label = paste0("Mean accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
     geom_label(data = conf_best_label, colour = "purple",
                aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
     scale_y_continuous(limits = c(-100, 100)) +
@@ -270,7 +271,7 @@ load("data/Arctic_BO.RData")
 
 # Prep the data for lazy joining
 Arctic_mean_prep <- Arctic_mean %>% 
-  dplyr::select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
+  # dplyr::select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
   na.omit() %>% 
   dplyr::rename(lon = nav_lon, lat = nav_lat) %>% 
   mutate(lon = plyr::round_any(lon, 0.25),

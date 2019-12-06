@@ -43,3 +43,7 @@ body {
   margin-left: 0;
   line-height: 30px;
 }
+/* Whole document: */
+body{
+  font-size: 12pt;
+}
