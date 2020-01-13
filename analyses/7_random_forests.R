@@ -14,10 +14,11 @@ library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
 library(skimr)       # Quickly get a sense of data
 library(randomForest)
 library(knitr)
-library(doParallel); doParallel::registerDoParallel(cores = 3) # This will be between 4 - 8 on a laptop
+library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
 # Site clims
-load("data/study_site_clims.RData")
+  # NB: These need to be updated
+# load("data/study_site_clims.RData")
 
 # BO data
 load("data/study_site_BO.RData")
@@ -35,17 +36,27 @@ study_site_ALL <- study_site_means %>% # Use only overall means in modelling
   # dplyr::select(Campaign, site, month, lon, lat, # Select month if using clim values 
   dplyr::select(Campaign, site, lon, lat, 
                 nav_lon, nav_lat, lon_BO, lat_BO, x, y,
-                bathy, depth, everything())
+                bathy, depth, everything()) %>% 
+  filter(depth == 0) # Filter out all NAPA model depth data, this keeps the BIO depth data
 # rm(study_site_means, study_site_clims, study_site_BO)
 
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
+
+# The base map to use for everything else
+Arctic_map <- ggplot() +
+  borders(fill = "grey70", colour = "black") +
+  coord_cartesian(expand = F,
+                  xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                  ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+  labs(x = NULL, y = NULL)
 
 
 # Data --------------------------------------------------------------------
 
 # Create wide data.frame with all of the abiotic variables matched to depth of site
 # Also includes substrate percentage variables
+# Rather just use the surface values for NAPA
 kelp_all <- adf %>% 
   # The substrate variables need to be removed as they can't be used in the final data
   # to predict kelp cover presence because we don't know what they are everywhere
@@ -56,21 +67,11 @@ kelp_all <- adf %>%
   # summarise_all(mean) %>% 
   # ungroup() %>% 
   # End mean site creation
-  left_join(study_site_ALL, by = c("Campaign", "site")) %>% 
-  # dplyr::select(Campaign:Alaria, depth.y, eken:icethic_cat, lon, lat) %>%
-  mutate(eken = ifelse(depth.x == depth.y, eken, NA),  # A funny way of getting rid of non-target depth data
-         soce = ifelse(depth.x == depth.y, soce, NA), 
-         toce = ifelse(depth.x == depth.y, toce, NA),
-         uoce = ifelse(depth.x == depth.y, uoce, NA),
-         voce = ifelse(depth.x == depth.y, voce, NA),
-         avt = ifelse(depth.x == depth.y, avt, NA),
-         wo = ifelse(depth.x == depth.y, wo, NA)) %>% 
-  dplyr::select(-c(nav_lon:depth.y)) %>% 
-  dplyr::rename(depth = depth.x) %>% 
-  pivot_longer(cols = eken:BO2_icethickrange_ss, names_to = "model_var", values_to = "val") %>%
-  na.omit() %>% 
-  # pivot_wider(names_from = c(model_var, month), values_from = val) # If useing clim values
-  pivot_wider(names_from = model_var, values_from = val) # Mean values only
+  left_join(study_site_ALL, by = c("Campaign", "site")) %>%
+  dplyr::select(-c(nav_lon:depth.y)) %>%
+  dplyr::rename(depth = depth.x) %>%
+  dplyr::select(-depth) %>% # Removing depth for the moment
+  na.omit()
 
 
 # Quick visuals -----------------------------------------------------------
@@ -82,7 +83,7 @@ kelp_all <- adf %>%
 # Which variables are highly correlated? ----------------------------------
 
 # Identify variables that correlate with 50 or more other variables at abs(0.75) or more
-cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>% 
+cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>% 
   data.frame() %>% 
   mutate(var1 = row.names(.)) %>% 
   pivot_longer(cols = -var1, names_to = "var2") %>% 
@@ -98,10 +99,10 @@ cor_df <- round(cor(select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>%
 
 # Convenience function for prepping dataframe for use in the random forest
 # This removes all other kelp cover values
-rf_data_prep <- function(kelp_choice){
+rf_data_prep <- function(kelp_choice, df = kelp_all){
   # Trim down data.frame
   # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-  df_1 <- data.frame(select(kelp_all, -c(Campaign:Quadrat.size.m2), depth))
+  df_1 <- data.frame(dplyr::select(df, -c(Campaign:Quadrat.size.m2)))#, depth))
   df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
   
   # Create double of chosen kelp cover column
@@ -112,8 +113,8 @@ rf_data_prep <- function(kelp_choice){
   other_kelps <- other_kelps[other_kelps != kelp_choice]
   
   # The data.frame that will be fed to the model
-  df_2 <- select(df_1, chosen_kelp, depth, everything(), -c(other_kelps)) %>% 
-    mutate(depth = as.numeric(depth))
+  df_2 <- dplyr::select(df_1, chosen_kelp, everything(), -c(other_kelps)) #, depth) %>% 
+    # mutate(depth = as.numeric(depth))
 }
 
 
@@ -134,8 +135,12 @@ top_variables <- function(lplyr_bit, kelp_choice){
   # Random forest model based on all quadrat data
   kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
                           importance = TRUE, na.action = na.omit)
-  res <- arrange(data.frame(var = row.names(kelp_rf$importance), 
-                            kelp_rf$importance), -X.IncMSE)[1:30,]
+  res <- data.frame(var = row.names(kelp_rf$importance), 
+                            kelp_rf$importance, 
+                            mean_MSE = mean(kelp_rf$mse, na.rm = T)) %>% 
+    arrange(-X.IncMSE) %>% 
+    slice(1:30) %>% 
+    mutate_if(is.numeric, round, 0)
 }
 # top_variables(kelp_choice = "kelp.cover")
 
@@ -144,14 +149,15 @@ top_variables_multi <- function(kelp_choice){
   multi_kelp <- plyr::ldply(.data = 1:1000, .fun = top_variables, .parallel = T, kelp_choice = kelp_choice)
   multi_kelp_importance <- multi_kelp %>% 
     group_by(var) %>% 
-    summarise(sum_IncMSE = sum(X.IncMSE),
+    summarise(mean_MSE = round(mean(mean_MSE, na.rm = T)),
+              sum_IncMSE = sum(X.IncMSE),
               count = n()) %>% 
     ungroup() %>% 
-    arrange(-count, sum_IncMSE)
+    arrange(-sum_IncMSE, -count)
 }
 
 # Find the top variables for the different kelp covers
-# system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~35 seconds on 50 cores, ~543 on 3
+# system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~19 seconds on 50 cores, ~543 on 3
 # save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
 load("data/top_var_kelpcover.RData")
 # top_var_laminariales <- top_variables_multi("Laminariales")
@@ -284,22 +290,93 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   accuracy_check <- model_accuracy %>% 
     filter(portion == "validate") %>% 
     group_by(model_id) %>% 
-    summarise(mean_acc = mean(abs(accuracy)))
+    summarise(mean_acc = mean(abs(accuracy)),
+              r_acc = round(cor(x = original, y = pred), 2))
   
   # Extract that model
-  best_model <- filter(accuracy_check, mean_acc == min(mean_acc))
+  best_model <- arrange(accuracy_check, -r_acc, mean_acc) %>% 
+    slice(1)
   choice_model <- multi_test[[best_model$model_id]]$model
+  res <- list(choice_model = choice_model,
+              model_accuracy = model_accuracy)
 }
 
-doParallel::registerDoParallel(cores = 3) # RWS: The RAM was tied up so needed to reduce core use
-system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~58 seconds with 50 cores
-save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData")
-best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
-save(best_rf_laminariales, file = "data/best_rf_laminariales.RData")
-best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
-save(best_rf_agarum, file = "data/best_rf_agarum.RData")
-best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
-save(best_rf_alaria, file = "data/best_rf_alaria.RData")
+# doParallel::registerDoParallel(cores = 50)
+# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~38 seconds with 50 cores
+# save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
+# best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
+# save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
+# best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
+# save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
+# best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
+# save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
+
+
+# Analyse model accuracy --------------------------------------------------
+
+# First load the best random forest models produced above
+load("data/best_rf_kelpcover.RData")
+load("data/best_rf_laminariales.RData")
+load("data/best_rf_agarum.RData")
+load("data/best_rf_alaria.RData")
+
+# Find the distributions of accuracy from 0 - 100%
+test <- best_rf_kelpcover$model_accuracy #%>% 
+  # filter(model_id == 1000)
+
+# Quick visuals
+ggplot(filter(test, portion == "validate"), aes(x = accuracy)) +
+  geom_histogram()
+
+ggplot(filter(test, portion == "validate"), aes(x = original, y = pred)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+ggplot(filter(test, portion == "validate"), aes(x = as.factor(original), y = pred)) +
+  geom_boxplot()
+
+# 90 CI around predictions per step
+conf_acc <- best_rf_kelpcover$model_accuracy %>% 
+  filter(portion == "validate") %>% 
+  group_by(original) %>% 
+  summarise(q05 = quantile(accuracy, 0.05),
+            q25 = quantile(accuracy, 0.25),
+            q50 = median(accuracy),
+            mean = mean(accuracy),
+            q75 = quantile(accuracy, 0.75),
+            q95 = quantile(accuracy, 0.95)) %>% 
+  ungroup()
+
+conf_best <- best_rf_kelpcover$model_accuracy %>% 
+  filter(portion == "validate") %>% 
+  group_by(model_id) %>% 
+  summarise(mean_acc = mean(abs(accuracy))) %>% 
+  ungroup() %>% 
+  filter(mean_acc == min(mean_acc))
+conf_best <- best_rf_kelpcover$model_accuracy %>% 
+  filter(model_id == conf_best$model_id[1],
+         portion == "validate") %>% 
+  group_by(original) %>% 
+  summarise(mean_acc = mean(accuracy)) %>% 
+  ungroup()
+
+# VIsualise
+# Create figure
+ggplot(conf_acc, aes(x = original, y = mean)) +
+  # ) line intercept
+  geom_hline(yintercept = 0, size = 2, colour = "red") +
+  # 90 CI crossbars
+  geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
+                fatten = 0, fill = "grey70", colour = NA, width = 1) +
+  # IQR Crossbars
+  geom_crossbar(aes(ymin = q25, ymax = q75),
+                fatten = 0, fill = "grey50", width = 1) +
+  # Median segments
+  geom_crossbar(aes(ymin = q50, ymax = q50),
+                fatten = 0, fill = NA, colour = "black", width = 1) +
+  geom_point(data = conf_best, aes(y = mean_acc), colour = "purple") +
+  geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), colour = "purple") +
+  labs(y = "Range in accuracy of predictions", x = "Original value (% cover)")
 
 
 # Project kelp cover in the Arctic ----------------------------------------
@@ -310,12 +387,71 @@ load("data/best_rf_laminariales.RData")
 load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
 
-# Load the Arctic data
-  # NB: This will only run on the serve that contains the BIO model data
-# Arctic_clim <- load_Arctic_clim()
+# Load top variable choices
+load("data/top_var_kelpcover.RData")
+load("data/top_var_laminariales.RData")
+load("data/top_var_agarum.RData")
+load("data/top_var_alaria.RData")
 
-# Predict the different family covers
-pred_kelpcover <- predict(best_rf_kelpcover, Arctic_mean)
+# Load the Arctic data
+load("data/Arctic_BO.RData")
+
+# Prep the data for lazy joining # This removes all depth values... not ideal
+Arctic_mean_prep <- Arctic_mean %>% 
+  select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
+  na.omit() %>% 
+  dplyr::rename(lon = nav_lon, lat = nav_lat) %>% 
+  mutate(lon = plyr::round_any(lon, 0.25),
+         lat = plyr::round_any(lat, 0.25)) %>% 
+  group_by(lon, lat) %>% 
+  summarise_if(is.numeric, mean, na.rm = T) %>% 
+  ungroup()
+
+Arctic_BO_prep <- na.omit(Arctic_BO) %>% 
+  mutate(lon = plyr::round_any(lon, 0.25),
+         lat = plyr::round_any(lat, 0.25)) %>% 
+  group_by(lon, lat) %>% 
+  summarise_if(is.numeric, mean, na.rm = T) %>% 
+  ungroup()
+
+# Join the data for being fed to the model
+Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat")) %>%
+  # na.omit() %>% 
+  select(-depth, -x, -y) %>% 
+  dplyr::rename(depth = bathy) %>% 
+  ungroup() %>% 
+  tidyr::fill(lon:vtau_ice, .direction = "downup")
+
+# Convenience function for final step before prediction
+Arctic_cover_predict <- function(model_choice){
+  pred_df <- data.frame(lon = Arctic_data$lon, lat = Arctic_data$lat,
+                        depth = Arctic_data$depth,
+                        pred_val = predict(model_choice, Arctic_data))
+}
+
+# Visualise a family of cover
+cover_squiz <- function(df){
+  Arctic_map +
+    geom_raster(data = filter(df, depth <= 200), 
+                aes(x = lon, y = lat, fill = pred_val)) +
+    scale_fill_viridis_c()
+}
+
+# Predictions
+pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
+cover_squiz(pred_kelpcover)
+pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
+cover_squiz(pred_laminariales)
+pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
+cover_squiz(pred_agarum)
+pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
+cover_squiz(pred_alaria)
+#
+
+
+# Substrate random forest -------------------------------------------------
+
+
 
 
 # More thorough Random Forest ---------------------------------------------
