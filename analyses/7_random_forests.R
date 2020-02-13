@@ -8,6 +8,8 @@
 # Flatter areas will have more capacity for higher biomass
 
 
+# An open water period would be a useful measurement to consider
+
 # Setup -------------------------------------------------------------------
 
 # Load all data nad previous libraries
