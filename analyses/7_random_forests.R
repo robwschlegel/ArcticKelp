@@ -6,8 +6,6 @@
 ## To DO
 # Somehow calculate the slope of the bottom by finding depth and distance to shore
 # Flatter areas will have more capacity for higher biomass
-
-
 # An open water period would be a useful measurement to consider
 
 # Setup -------------------------------------------------------------------
