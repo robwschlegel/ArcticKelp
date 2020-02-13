@@ -3,6 +3,10 @@
 # There is an analysis in script 5 and 6A as well, but my (RWS) thinking was to put everything
 # in one place moving forward in the sake of tidiness.
 
+## To DO
+# Somehow calculate the slope of the bottom by finding depth and distance to shore
+# Flatter areas will have more capacity for higher biomass
+
 
 # Setup -------------------------------------------------------------------
 
