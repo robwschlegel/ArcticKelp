@@ -21,7 +21,7 @@ unique(adf_summary$site)[!(unique(adf_summary$site) %in% unique(study_site_means
 # Study site names not in kelp data
 unique(study_site_means$site)[!(unique(study_site_means$site) %in% unique(adf_summary$site))]
 
- # Change site names to match kelp data
+# Change site names to match kelp data
 # study_site_clims <- study_site_clims %>% 
 #   mutate(site = str_replace(site, "Durban Habour", "Durban Harbour"),
 #          site = str_replace(site, "S. of Qik", "S. of Qikitarjuak"),

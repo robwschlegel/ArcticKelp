@@ -35,7 +35,7 @@ library(stringr)
 library(data.table)
 
 # Set cores
-doMC::registerDoMC(cores = 50)
+doParallel::registerDoParallel(cores = 50)
 
 
 # NAPA NetCDF information -------------------------------------------------
