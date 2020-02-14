@@ -324,7 +324,7 @@ load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
 
 # Find the distributions of accuracy from 0 - 100%
-test <- best_rf_kelpcover$model_accuracy #%>% 
+test <- best_rf_kelpcover$model_accuracy #%>%
   # filter(model_id == 1000)
 
 # Quick visuals
@@ -350,17 +350,17 @@ conf_acc <- best_rf_kelpcover$model_accuracy %>%
             q95 = quantile(accuracy, 0.95)) %>% 
   ungroup()
 
-conf_best <- best_rf_kelpcover$model_accuracy %>% 
-  filter(portion == "validate") %>% 
-  group_by(model_id) %>% 
-  summarise(mean_acc = mean(abs(accuracy))) %>% 
-  ungroup() %>% 
+conf_best <- best_rf_kelpcover$model_accuracy %>%
+  filter(portion == "validate") %>%
+  group_by(model_id) %>%
+  summarise(mean_acc = mean(abs(accuracy))) %>%
+  ungroup() %>%
   filter(mean_acc == min(mean_acc))
-conf_best <- best_rf_kelpcover$model_accuracy %>% 
+conf_best <- best_rf_kelpcover$model_accuracy %>%
   filter(model_id == conf_best$model_id[1],
-         portion == "validate") %>% 
-  group_by(original) %>% 
-  summarise(mean_acc = mean(accuracy)) %>% 
+         portion == "validate") %>%
+  group_by(original) %>%
+  summarise(mean_acc = mean(accuracy)) %>%
   ungroup()
 
 # VIsualise
@@ -401,7 +401,7 @@ load("data/Arctic_BO.RData")
 
 # Prep the data for lazy joining # This removes all depth values... not ideal
 Arctic_mean_prep <- Arctic_mean %>% 
-  select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
+  # select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
   na.omit() %>% 
   dplyr::rename(lon = nav_lon, lat = nav_lat) %>% 
   mutate(lon = plyr::round_any(lon, 0.25),
