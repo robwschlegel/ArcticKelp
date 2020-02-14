@@ -35,7 +35,7 @@ library(stringr)
 library(data.table)
 
 # Set cores
-doMC::registerDoMC(cores = 50)
+doParallel::registerDoParallel(cores = 50)
 
 
 # NAPA NetCDF information -------------------------------------------------
@@ -138,7 +138,7 @@ load_NAPA_surface <- function(file_name, layer_name = "D2,D1,D0"){
     mutate(t = as.Date(as.POSIXct(t, origin = "1900-01-01")),
            month = lubridate::month(t, label = T),
            bathy = round(bathy)) %>% 
-    select(x, y, nav_lon, nav_lat, t, month, everything())
+    dplyr::select(x, y, nav_lon, nav_lat, t, month, everything())
   if("ncatice" %in% colnames(res)){
     res <- res %>% 
       dplyr::select(-ncatice) %>%

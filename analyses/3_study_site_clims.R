@@ -63,7 +63,8 @@ load_Arctic_clim <- function(){
 }
 
 # Load the clim data by running this function
-# load_Arctic_clim()
+Arctic_clim <- load_Arctic_clim()
+
 
 # Load overall mean files -------------------------------------------------
 
@@ -100,10 +101,10 @@ Arctic_mean <- load_Arctic_mean()
 
 # Load BO data
   # NB: This is a bit large to host on GitHub (27.7 MB)
-# if(!exists("Arctic_BO")){
-#   load("data/Arctic_BO.RData")
-# }
-# Arctic_BO$BO_index <- 1:nrow(Arctic_BO)
+if(!exists("Arctic_BO")){
+  load("data/Arctic_BO.RData")
+}
+Arctic_BO$BO_index <- 1:nrow(Arctic_BO)
 
 
 # Find nearest neighbours -------------------------------------------------
@@ -126,21 +127,21 @@ study_sites_index <- study_sites %>%
 # view(model_info)
 
 # Extract clims for each site
-# study_site_clims <- right_join(Arctic_clim, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) %>%
-#   dplyr::select(site:Campaign, nav_lon:bathy, everything(), -Date, -Notes)#,
-#   #               eken, soce, toce, # Depth variables
-#   #               mldr10_1, runoffs, # surface variables
-#   #               iceconc_cat, icethic_cat)  # Ice variables
-# save(study_site_clims, file = "data/study_site_clims.RData")
+study_site_clims <- right_join(Arctic_clim, study_sites_index, by = c("nav_lon", "nav_lat", "x", "y", "bathy")) %>%
+  dplyr::select(site:Campaign, nav_lon:bathy, everything(), -Date, -Notes)#,
+  #               eken, soce, toce, # Depth variables
+  #               mldr10_1, runoffs, # surface variables
+  #               iceconc_cat, icethic_cat)  # Ice variables
+save(study_site_clims, file = "data/study_site_clims.RData")
 
 # Melt for plotting purposes
-# study_site_clims_long <- study_site_clims %>%
-#   gather("var", "val", -c(site:bathy)) %>%
-#   na.omit() #%>%
-#   # mutate(var = factor(var, levels = c("iceconc_cat", "icethic_cat", #Ice
-#   #                                     "mldr10_1", "runoffs", # Surface
-#   #                                     "eken", "soce", "toce"))) # Depth
-# save(study_site_clims_long, file = "data/study_site_clims_long.RData")
+study_site_clims_long <- study_site_clims %>%
+  gather("var", "val", -c(site:bathy)) %>%
+  na.omit() #%>%
+  # mutate(var = factor(var, levels = c("iceconc_cat", "icethic_cat", #Ice
+  #                                     "mldr10_1", "runoffs", # Surface
+  #                                     "eken", "soce", "toce"))) # Depth
+save(study_site_clims_long, file = "data/study_site_clims_long.RData")
 
 
 # Study site overall means ------------------------------------------------
@@ -169,19 +170,19 @@ save(study_site_means_long, file = "data/study_site_means_long.RData")
 # E-mail robert.schlegel@dal.ca for the file
 
 # Find the nearest BO points to each site
-# study_site_BO <- study_sites %>% 
-#   mutate(BO_index = as.vector(knnx.index(as.matrix(Arctic_BO[,c("lon", "lat")]),
-#                                          as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>% 
-#   left_join(Arctic_BO, by = "BO_index") %>% 
-#   dplyr::select(-BO_index, -Date, -Notes) %>% 
-#   dplyr::rename(lon = lon.x, lat = lat.x, lon_BO = lon.y, lat_BO = lat.y)
-# save(study_site_BO, file = "data/study_site_BO.RData")
+study_site_BO <- study_sites %>%
+  mutate(BO_index = as.vector(knnx.index(as.matrix(Arctic_BO[,c("lon", "lat")]),
+                                         as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>%
+  left_join(Arctic_BO, by = "BO_index") %>%
+  dplyr::select(-BO_index, -Date, -Notes) %>%
+  dplyr::rename(lon = lon.x, lat = lat.x, lon_BO = lon.y, lat_BO = lat.y)
+save(study_site_BO, file = "data/study_site_BO.RData")
 
 # Melt for plotting purposes
-# study_site_BO_long <- study_site_BO %>%
-#   gather("var", "val", -c(site:lat_BO)) %>%
-#   na.omit()
-# save(study_site_BO_long, file = "data/study_site_BO_long.RData")
+study_site_BO_long <- study_site_BO %>%
+  gather("var", "val", -c(site:lat_BO)) %>%
+  na.omit()
+save(study_site_BO_long, file = "data/study_site_BO_long.RData")
 
 
 # Visualise ---------------------------------------------------------------

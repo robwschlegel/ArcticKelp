@@ -5,16 +5,18 @@
 
 # Libraries ---------------------------------------------------------------
 
+# If new sites have been added it is necessary to run this script
+# source("analyses/3_study_site_clims.R")
+
 # Load study sites and base packages
-source("analyses/3_study_site_clims.R")
-# source("analyses/1_study_sites.R")
+source("analyses/1_study_sites.R")
 
 library(ggridges)
 
 
 # Load data ---------------------------------------------------------------
 
-# If the following excel file is opened in Excel on a WIndows computer it will 
+# If the following excel file is opened in Excel on a Windows computer it will 
 # change the comma (,) separation into semicolon (;) separation and the commented out 
 # bit in the following line needs to be turned back on
 adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv") %>% #, sep=';', dec=',') %>%
@@ -75,7 +77,7 @@ adf_summary <- adf %>%
    labs(y = "Site", x = expression(Kelp~cover~('%')), fill = "depth") +
    theme_bw(base_size = 14) +
    theme(legend.position = 'top')
-#fig1
+# fig1
 # ggsave("graph/kelp_cover_vs_sites.png", fig1, width = 8, height = 10, units = "in", dpi = 300)
 
 # Ridge plots showing coverage of Laminariales by site and depth
