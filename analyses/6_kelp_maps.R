@@ -7,6 +7,10 @@
 
 source("analyses/4_kelp_cover.R")
 
+library(FNN)
+
+load("data/study_sites_index.RData")
+
 
 # Maps --------------------------------------------------------------------
 
@@ -87,6 +91,4 @@ distribution_cover_abiotic <- function(cover = "kelp.cover", abiotic = "sst"){
 # Visualise all kelp cover against sst
 distribution_cover_abiotic()
 # ggsave("graph/kelp_cover_vs_sst_distribution.png", width = 9, height = 5)
-
-
 

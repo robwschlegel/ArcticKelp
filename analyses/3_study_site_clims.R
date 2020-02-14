@@ -115,6 +115,7 @@ study_sites_index <- study_sites %>%
                                  as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>% 
   left_join(NAPA_arctic, by = "NAPA_index") %>% 
   dplyr::select(-NAPA_index)
+save(study_sites_index, file = "data/study_sites_index.RData")
 
 
 # Match monthly clims to each site ----------------------------------------
