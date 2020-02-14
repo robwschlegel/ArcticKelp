@@ -15,6 +15,7 @@ source("analyses/4_kelp_cover.R")
 unique(as.character(adf_summary$family))
 # Abiotic variable options are:
 # unique(as.character(study_site_means_long$var))
+load("data/Arctic_surface_mean.RData")
 colnames(Arctic_surface_mean)
 # The function
 map_cover_abiotic <- function(cover = "kelp.cover", abiotic = "sst"){

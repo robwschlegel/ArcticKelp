@@ -4,6 +4,8 @@
 # in one place moving forward in the sake of tidiness.
 
 
+# An open water period would be a useful measurement to consider
+
 # Setup -------------------------------------------------------------------
 
 # Load all data nad previous libraries
