@@ -45,6 +45,8 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep=';', dec=','
          too_little_cover = ifelse(sand + rock < 100, TRUE, FALSE),
          too_much_cover = ifelse(sand + rock > 100, TRUE, FALSE))
 
+load("data/study_site_means.RData")
+
 
 # Quadrat data ------------------------------------------------------------
 

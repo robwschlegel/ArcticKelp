@@ -49,8 +49,8 @@ sand_rock_PI <- adf %>%
 
 # Create data.frame that makes vegan happy
 kelp_wide_PI <- kelp_means_PI %>% 
-  spread(key = model_var, value = val) %>% 
-  spread(key = family, value = mean_cover) %>% 
+  pivot_wider(names_from = model_var, values_from = val, values_fn = list(val = mean)) %>% 
+  pivot_wider(names_from = family, values_from = mean_cover, values_fn = list(val = mean)) %>% 
   ungroup() %>% 
   left_join(sand_rock_PI, by = c("Campaign", "site", "depth"))
 
