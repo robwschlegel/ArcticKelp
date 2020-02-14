@@ -72,11 +72,6 @@ scatter_means <- kelp_means %>%
 # }
 # hist_cover_plot("iicefrac")
 
-ggplot(data = kelp_wide, aes(x = iceconc_cat/0.2)) +
-  geom_histogram() +
-  geom_point(aes(colour = kelp.cover), y = 0, size = 4) +
-  scale_colour_viridis_c()
-
 
 # Multivariate analyses ---------------------------------------------------
 
@@ -98,6 +93,11 @@ kelp_wide <- kelp_means %>%
   # ungroup() %>% 
   left_join(sand_rock, by = c("Campaign", "site", "depth")) %>% 
   ungroup()
+
+ggplot(data = kelp_wide, aes(x = iceconc_cat/0.2)) +
+  geom_histogram() +
+  geom_point(aes(colour = kelp.cover), y = 0, size = 4) +
+  scale_colour_viridis_c()
 
 # The reduced version that doesn't know about depth etc.
 kelp_wide_blind <- kelp_wide %>% 

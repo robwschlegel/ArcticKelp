@@ -17,7 +17,7 @@ library(ggridges)
 # If the following excel file is opened in Excel on a WIndows computer it will 
 # change the comma (,) separation into semicolon (;) separation and the commented out 
 # bit in the following line needs to be turned back on
-adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv") %>% #, sep=';', dec=',') %>%
+adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep=';', dec=',') %>%
   dplyr::rename(site = Site, depth = Depth.m, 
                 sand = Sand.., Agarum = Agarum.., Alaria = Alaria.., Alaria = Alaria.., Sacharrina = S..latissima.., 
                 L.solidungula = L..solid.., L.digitata = L..digitata..) %>% 
@@ -75,7 +75,7 @@ adf_summary <- adf %>%
    labs(y = "Site", x = expression(Kelp~cover~('%')), fill = "depth") +
    theme_bw(base_size = 14) +
    theme(legend.position = 'top')
-#fig1
+# fig1
 # ggsave("graph/kelp_cover_vs_sites.png", fig1, width = 8, height = 10, units = "in", dpi = 300)
 
 # Ridge plots showing coverage of Laminariales by site and depth
