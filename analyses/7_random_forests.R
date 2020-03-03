@@ -102,7 +102,7 @@ cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:site))), 2) %>%
 rf_data_prep <- function(kelp_choice, df = kelp_all, exclude_cor = T){
   # Trim down data.frame
   # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-  df_1 <- data.frame(dplyr::select(df, -c(Campaign:site)))#, depth))
+  df_1 <- data.frame(dplyr::select(df, -c(Campaign:site))) 
   
   # Rmove highly correlated values
   if(exclude_cor) df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
@@ -118,6 +118,7 @@ rf_data_prep <- function(kelp_choice, df = kelp_all, exclude_cor = T){
   df_2 <- dplyr::select(df_1, -chosen_kelp, everything(), chosen_kelp, -c(other_kelps)) #, depth) %>% 
   # mutate(depth = as.numeric(depth))
 }
+
 
 # Single rule model -------------------------------------------------------
 
@@ -164,6 +165,36 @@ OneR_model("Agarum")
 OneR_model("Alaria")
 
 
+# Test the best mtry ------------------------------------------------------
+
+# The data.frame that will be fed to the model
+# The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
+# The substrate and depth values also score consistently in the bottom of importance so aren't used
+data1 <- select(kelp_all, kelp.cover, everything(),
+                -c(Campaign:site), -Laminariales, -Agarum, -Alaria) 
+
+# Filter by columns that correlate highly with many others
+data1 <- data1[,!(colnames(data1) %in% cor_df$var2)]
+
+# Split data up for training and testing
+set.seed(666)
+train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
+train_set <- data1[train,]
+valid_set <- data1[-train,]
+
+# Test function to see what the best `mtry` value is
+rf_mtry_test <- function(mtry_num){
+  set.seed(666)
+  test_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = mtry_num, ntree = 1000,
+                          importance = TRUE)
+  pred_test <- predict(test_rf, train_set)
+  pred_accuracy <- data.frame(mtry = mtry_num,
+                              acc = round(mean(abs(pred_test - train_set$kelp.cover))))
+  return(pred_accuracy)
+}
+lapply(1:10, rf_mtry_test) # It looks like an mtry >=6 is best
+
+
 # Which variables are the most important? ---------------------------------
 
 # This function runs many random forest models to determine which variables
@@ -182,10 +213,10 @@ top_variables <- function(lplyr_bit, kelp_choice){
   kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
                           importance = TRUE, na.action = na.omit)
   res <- data.frame(var = row.names(kelp_rf$importance), 
-                            kelp_rf$importance, 
-                            mean_MSE = mean(kelp_rf$mse, na.rm = T)) %>% 
+                    kelp_rf$importance, 
+                    mean_MSE = mean(kelp_rf$mse, na.rm = T)) %>% 
     arrange(-X.IncMSE) %>% 
-    slice(1:30) %>% 
+    # slice(1:30) %>% 
     mutate_if(is.numeric, round, 0)
 }
 # top_variables(kelp_choice = "kelp.cover")
@@ -196,28 +227,30 @@ top_variables_multi <- function(kelp_choice){
   multi_kelp_importance <- multi_kelp %>% 
     group_by(var) %>% 
     summarise(mean_MSE = round(mean(mean_MSE, na.rm = T)),
-              sum_IncMSE = sum(X.IncMSE),
+              mean_IncMSE = mean(X.IncMSE),
               count = n()) %>% 
     ungroup() %>% 
-    arrange(-sum_IncMSE, -count)
+    arrange(-mean_IncMSE, -count)
 }
 
 # Find the top variables for the different kelp covers
 # system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~19 seconds on 50 cores, ~543 on 3
 # save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
-load("data/top_var_kelpcover.RData")
 # top_var_laminariales <- top_variables_multi("Laminariales")
 # save(top_var_laminariales, file = "data/top_var_laminariales.RData")
-load("data/top_var_laminariales.RData")
 # top_var_agarum <- top_variables_multi("Agarum")
 # save(top_var_agarum, file = "data/top_var_agarum.RData")
-load("data/top_var_agarum.RData")
 # top_var_alaria <- top_variables_multi("Alaria")
 # save(top_var_alaria, file = "data/top_var_alaria.RData")
-load("data/top_var_alaria.RData")
 
 
 # Random Forest function --------------------------------------------------
+
+# Load top variable dataframes
+load("data/top_var_kelpcover.RData")
+load("data/top_var_laminariales.RData")
+load("data/top_var_agarum.RData")
+load("data/top_var_alaria.RData")
 
 # kelp_choice <- "Laminariales"
 # kelp_choice <- Laminariales
@@ -226,12 +259,13 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
   
   # Extract only the kelp cover of choice
   df_kelp_choice <- rf_data_prep(kelp_choice)
+  df_kelp_choice$chosen_kelp <- base::cut(df_kelp_choice$chosen_kelp)
   
   # Chose only desired columns
-  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var)[1:30])
+  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var))#[1:30])
   
   # Split data up for training and testing
-  # set.seed(666)
+  set.seed(666)
   train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
   train_set <- df_var_choice[train,]
   # colnames(train_set)[1] <- "chosen_kelp"
@@ -257,9 +291,7 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
   #                          kelp_rf$importance), -X.IncMSE)[1:30,])
 }
 
-
-# Random Forest per family check ------------------------------------------
-
+# Check the random forests
 random_kelp_forest_check("kelp.cover", top_var_kelpcover)
 random_kelp_forest_check("Laminariales", top_var_laminariales)
 random_kelp_forest_check("Agarum", top_var_agarum)
@@ -275,7 +307,7 @@ random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
   df_kelp_choice <- rf_data_prep(kelp_choice)
   
   # Chose only desired columns
-  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var)[1:30])
+  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var))#[1:30])
   
   # Split data up for training and testing
   train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
@@ -298,16 +330,10 @@ random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
                                original = train_set$chosen_kelp) %>% 
     mutate(accuracy = pred-original)
   validate_accuracy <- data.frame(portion = "validate",
-                               pred = round(pred_valid, 2), 
-                               original = valid_set$chosen_kelp) %>% 
+                                  pred = round(pred_valid, 2), 
+                                  original = valid_set$chosen_kelp) %>% 
     mutate(accuracy = pred-original)
   res_accuracy <- rbind(train_accuracy, validate_accuracy)
-  
-  # Visualisation
-  # NB: The random forest generally underestimates kelp cover
-  # ggplot(res_accuracy, aes(x = original, y = pred)) +
-  #   geom_point(aes(colour = portion)) +
-  #   geom_smooth(method = "lm", aes(colour = portion))
   
   # Package the model up with the accuracy results and exit
   res <- list(model = kelp_rf, accuracy = res_accuracy)
@@ -381,48 +407,75 @@ ggplot(filter(test, portion == "validate"), aes(x = original, y = pred)) +
 ggplot(filter(test, portion == "validate"), aes(x = as.factor(original), y = pred)) +
   geom_boxplot()
 
-# 90 CI around predictions per step
-conf_acc <- best_rf_kelpcover$model_accuracy %>% 
-  filter(portion == "validate") %>% 
-  group_by(original) %>% 
-  summarise(q05 = quantile(accuracy, 0.05),
-            q25 = quantile(accuracy, 0.25),
-            q50 = median(accuracy),
-            mean = mean(accuracy),
-            q75 = quantile(accuracy, 0.75),
-            q95 = quantile(accuracy, 0.95)) %>% 
-  ungroup()
+# Function for creating figure showing confidence intervals of prediction accuracy
+conf_plot <- function(df, plot_title){
+  
+  # 90 CI around predictions per step
+  conf_acc <- df %>% 
+    filter(portion == "validate") %>% 
+    group_by(original) %>% 
+    mutate(accuracy = round(accuracy)) %>% 
+    summarise(q05 = quantile(accuracy, 0.05),
+              q25 = quantile(accuracy, 0.25),
+              q50 = median(accuracy),
+              mean = mean(accuracy),
+              q75 = quantile(accuracy, 0.75),
+              q95 = quantile(accuracy, 0.95)) %>% 
+    ungroup()
+  
+  conf_mean <- df %>% 
+    filter(portion == "validate") %>% 
+    group_by(model_id) %>% 
+    mutate(accuracy = round(accuracy)) %>% 
+    summarise(mean_acc = mean(abs(accuracy)),
+              sd_acc = sd(abs(accuracy)),
+              r_acc = cor(x = original, y = pred)) %>% 
+    ungroup()
+  
+  conf_mean_label <- conf_mean %>% 
+    summarise(mean_acc = round(mean(abs(mean_acc))),
+              sd_acc = round(mean(abs(sd_acc))),
+              r_acc = round(mean(r_acc), 2))
+  
+  conf_best_label <- conf_mean %>% 
+    filter(mean_acc == min(mean_acc)) %>% 
+    mutate(mean_acc = round(abs(mean_acc)),
+           sd_acc = round(sd_acc),
+           r_acc = round(r_acc, 2))
+  
+  conf_best <- df %>% 
+    filter(model_id == conf_best_label$model_id,
+           portion == "validate") %>% 
+    group_by(original) %>% 
+    summarise(mean_acc = mean(accuracy),
+              sd_acc = sd(accuracy)) %>% 
+    ungroup()
+  
+  # Visualise
+  ggplot(conf_acc, aes(x = original, y = mean)) +
+    geom_hline(yintercept = 0, size = 2, colour = "red") +
+    geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
+                  fatten = 0, fill = "grey70", colour = NA, width = 1) +
+    geom_crossbar(aes(ymin = q25, ymax = q75),
+                  fatten = 0, fill = "grey50", width = 1) +
+    geom_crossbar(aes(ymin = q50, ymax = q50),
+                  fatten = 0, fill = NA, colour = "black", width = 1) +
+    geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
+                 colour = "purple", size = 1.2, alpha = 0.8) +
+    geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
+    geom_label(data = conf_mean_label, 
+               aes(x = 75, y = 75, label = paste0("Mean accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
+    geom_label(data = conf_best_label, colour = "purple",
+               aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
+    scale_y_continuous(limits = c(-100, 100)) +
+    labs(y = "Range in accuracy of predictions", x = "Original value (% cover)", title = plot_title)
+}
 
-conf_best <- best_rf_kelpcover$model_accuracy %>%
-  filter(portion == "validate") %>%
-  group_by(model_id) %>%
-  summarise(mean_acc = mean(abs(accuracy))) %>%
-  ungroup() %>%
-  filter(mean_acc == min(mean_acc))
-conf_best <- best_rf_kelpcover$model_accuracy %>%
-  filter(model_id == conf_best$model_id[1],
-         portion == "validate") %>%
-  group_by(original) %>%
-  summarise(mean_acc = mean(accuracy)) %>%
-  ungroup()
-
-# VIsualise
-# Create figure
-ggplot(conf_acc, aes(x = original, y = mean)) +
-  # ) line intercept
-  geom_hline(yintercept = 0, size = 2, colour = "red") +
-  # 90 CI crossbars
-  geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
-                fatten = 0, fill = "grey70", colour = NA, width = 1) +
-  # IQR Crossbars
-  geom_crossbar(aes(ymin = q25, ymax = q75),
-                fatten = 0, fill = "grey50", width = 1) +
-  # Median segments
-  geom_crossbar(aes(ymin = q50, ymax = q50),
-                fatten = 0, fill = NA, colour = "black", width = 1) +
-  geom_point(data = conf_best, aes(y = mean_acc), colour = "purple") +
-  geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), colour = "purple") +
-  labs(y = "Range in accuracy of predictions", x = "Original value (% cover)")
+# Create the plots
+conf_plot(best_rf_kelpcover$model_accuracy, "Total cover confidence")
+conf_plot(best_rf_laminariales$model_accuracy, "Laminariales cover confidence")
+conf_plot(best_rf_agarum$model_accuracy, "Agarum cover confidence")
+conf_plot(best_rf_alaria$model_accuracy, "Alaria cover confidence")
 
 
 # Project kelp cover in the Arctic ----------------------------------------
@@ -442,9 +495,9 @@ load("data/top_var_alaria.RData")
 # Load the Arctic data
 load("data/Arctic_BO.RData")
 
-# Prep the data for lazy joining # This removes all depth values... not ideal
+# Prep the data for lazy joining
 Arctic_mean_prep <- Arctic_mean %>% 
-  # select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
+  # dplyr::select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
   na.omit() %>% 
   dplyr::rename(lon = nav_lon, lat = nav_lat) %>% 
   mutate(lon = plyr::round_any(lon, 0.25),
@@ -463,7 +516,7 @@ Arctic_BO_prep <- na.omit(Arctic_BO) %>%
 # Join the data for being fed to the model
 Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat")) %>%
   # na.omit() %>% 
-  select(-depth, -x, -y) %>% 
+  dplyr::select(-depth, -x, -y) %>% 
   dplyr::rename(depth = bathy) %>% 
   ungroup() %>% 
   tidyr::fill(lon:vtau_ice, .direction = "downup")
@@ -476,79 +529,31 @@ Arctic_cover_predict <- function(model_choice){
 }
 
 # Visualise a family of cover
-cover_squiz <- function(df){
+cover_squiz <- function(df, legend_title, x_nudge){
   Arctic_map +
-    geom_raster(data = filter(df, depth <= 200), 
-                aes(x = lon, y = lat, fill = pred_val)) +
-    scale_fill_viridis_c()
+    geom_tile(data = filter(df, depth <= 50), 
+              aes(x = lon, y = lat, fill = pred_val)) +
+    scale_fill_viridis_c(legend_title) +
+    theme(strip.background = element_rect(colour = "white", fill = "white"),
+          legend.position = c(x_nudge, 0.96),
+          legend.direction = "horizontal",
+          legend.spacing.y = unit(0, "mm"))
 }
 
 # Predictions
 pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
-cover_squiz(pred_kelpcover)
+cover_squiz(pred_kelpcover, "Total cover (%)", 0.785)
 pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
-cover_squiz(pred_laminariales)
+cover_squiz(pred_laminariales, "Laminariales cover (%)", 0.745)
 pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
-cover_squiz(pred_agarum)
+cover_squiz(pred_agarum, "Agarum cover (%)", 0.77)
 pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
-cover_squiz(pred_alaria)
-#
+cover_squiz(pred_alaria, "Alaria cover (%)", 0.78)
 
 
 # Substrate random forest -------------------------------------------------
 
-
-
-
-# More thorough Random Forest ---------------------------------------------
-
-# The data.frame that will be fed to the model
-# The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-# The substrate and depth values also score consistently in the bottom of importance so aren't used
-data1 <- select(kelp_all, kelp.cover, everything(),
-                -c(Campaign:Quadrat.size.m2), -Laminariales, -Agarum, -Alaria) 
-
-# Filter by columns that correlate highly with many others
-data1 <- data1[,!(colnames(data1) %in% cor_df$var2)]
-
-# Split data up for training and testing
-set.seed(666)
-train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
-train_set <- data1[train,]
-valid_set <- data1[-train,]
-
-# Test function to see what the best `mtry` value is
-rf_mtry_test <- function(mtry_num){
-  set.seed(666)
-  test_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = mtry_num, ntree = 1000,
-                          importance = TRUE)
-  pred_test <- predict(test_rf, train_set)
-  pred_accuracy <- data.frame(mtry = mtry_num,
-                              acc = round(mean(abs(pred_test - train_set$kelp.cover))))
-  return(pred_accuracy)
-}
-lapply(1:10, rf_mtry_test) # It looks like an mtry >=6 1 is best
-
-# Random forest model based on all quadrat data
-kelp_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = 6, ntree = 1000,
-                        importance = TRUE, na.action = na.omit)
-summary(kelp_rf)
-print(kelp_rf) # explains 48% of variance
-
-round(importance(kelp_rf), 1)
-varImpPlot(kelp_rf)
-partialPlot(kelp_rf, train_set, lat) # RWS This doesn't run for me
-partialPlot(kelp_rf, train_set, iceconc_cat) # RWS This doesn't run for me
-
-# Predicting on training set
-pred_train <- predict(kelp_rf, train_set)
-table(pred_train, train_set$kelp.cover)  
-mean(abs(pred_train - train_set$kelp.cover)) # within 18% accuracy, 10% with meaned sites
-
-# Predicting on Validation set
-pred_valid <- predict(kelp_rf, valid_set)
-table(pred_valid, valid_set$kelp.cover)  
-mean(abs(pred_valid - valid_set$kelp.cover)) # within 17% accuracy, 21% with meaned sites
+# This would be useful to do, but would require substrate data for the entire Arctic
 
 
 # Random Forest: Campaign -------------------------------------------------
