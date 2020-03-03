@@ -80,46 +80,6 @@ kelp_all <- adf %>%
 #   geom_point()
 
 
-# Single rule model -------------------------------------------------------
-
-# Prep the data for one rule modelling
-kelp_cut <- kelp_all %>% 
-  group_by(Campaign, site, depth) %>%
-  summarise_all(mean) %>%
-  ungroup() %>%
-  dplyr::select(-Campaign, -site) %>% 
-  mutate(depth = as.numeric(depth), # Must be numeric for upcoming model training
-         kelp.cover = ifelse(kelp.cover == 0, kelp.cover + 1, kelp.cover),  # Need to bump 0's for the binning process
-         Laminariales = ifelse(Laminariales == 0, Laminariales + 1, Laminariales),
-         Agarum = ifelse(Agarum == 0, Agarum + 1, Agarum),
-         Alaria = ifelse(Alaria == 0, Alaria + 1, Alaria),
-         kelp.cover = base::cut(kelp.cover, breaks = seq(0, 100, 20), ordered_result = F),
-         Laminariales = base::cut(Laminariales, breaks = seq(0, 100, 20), ordered_result = F),
-         Agarum = base::cut(Agarum, breaks = seq(0, 100, 20), ordered_result = F),
-         Alaria = base::cut(Alaria, breaks = seq(0, 100, 20), ordered_result = F))
-
-set.seed(666) # for reproducibility
-one_random <- sample(1:nrow(kelp_all), 0.8*nrow(kelp_all))
-
-# kelp.cover
-kelp.cover_train <- kelp_cut %>% 
-  dplyr::select(-kelp.cover, -Laminariales, -Agarum, -Alaria) %>%
-  mutate(kelp.cover = kelp_cut$kelp.cover) %>% # The category column must be last
-  slice(one_random) %>%
-  data.frame() %>% 
-  optbin(., method = "infogain") # The choice of method does have an effect on the results
-kelp.cover_test <- kelp_cut %>% 
-  dplyr::select(-kelp.cover, -Laminariales, -Agarum, -Alaria) %>%
-  mutate(kelp.cover = kelp_cut$kelp.cover) %>% # The category column must be last
-  slice(-one_random) %>% 
-  data.frame()
-kelp.cover_model <- OneR(kelp.cover_train, verbose = TRUE)
-summary(kelp.cover_model)
-plot(kelp.cover_model)
-prediction <- predict(kelp.cover_model, kelp.cover_test)
-eval_model(prediction, kelp.cover_test)
-
-
 # Which variables are highly correlated? ----------------------------------
 
 # Identify variables that correlate with 5 or more other variables at abs(0.75) or more
@@ -139,11 +99,13 @@ cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:site))), 2) %>%
 
 # Convenience function for prepping dataframe for use in the random forest
 # This removes all other kelp cover values
-rf_data_prep <- function(kelp_choice, df = kelp_all){
+rf_data_prep <- function(kelp_choice, df = kelp_all, exclude_cor = T){
   # Trim down data.frame
   # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-  df_1 <- data.frame(dplyr::select(df, -c(Campaign:Quadrat.size.m2)))#, depth))
-  df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
+  df_1 <- data.frame(dplyr::select(df, -c(Campaign:site)))#, depth))
+  
+  # Rmove highly correlated values
+  if(exclude_cor) df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
   
   # Create double of chosen kelp cover column
   names(df_1)[names(df_1) == kelp_choice] <- "chosen_kelp"
@@ -153,9 +115,53 @@ rf_data_prep <- function(kelp_choice, df = kelp_all){
   other_kelps <- other_kelps[other_kelps != kelp_choice]
   
   # The data.frame that will be fed to the model
-  df_2 <- dplyr::select(df_1, chosen_kelp, everything(), -c(other_kelps)) #, depth) %>% 
-    # mutate(depth = as.numeric(depth))
+  df_2 <- dplyr::select(df_1, -chosen_kelp, everything(), chosen_kelp, -c(other_kelps)) #, depth) %>% 
+  # mutate(depth = as.numeric(depth))
 }
+
+# Single rule model -------------------------------------------------------
+
+# Prep the data for one rule modelling
+kelp_cut <- kelp_all %>% 
+  group_by(Campaign, site, depth) %>%
+  summarise_all(mean) %>%
+  ungroup() %>%
+  # dplyr::select(-Campaign, -site) %>% 
+  mutate(depth = as.numeric(depth), # Must be numeric for upcoming model training
+         kelp.cover = ifelse(kelp.cover == 0, kelp.cover + 1, kelp.cover),  # Need to bump 0's for the binning process
+         Laminariales = ifelse(Laminariales == 0, Laminariales + 1, Laminariales),
+         Agarum = ifelse(Agarum == 0, Agarum + 1, Agarum),
+         Alaria = ifelse(Alaria == 0, Alaria + 1, Alaria),
+         kelp.cover = base::cut(kelp.cover, breaks = seq(0, 100, 20), ordered_result = F),
+         Laminariales = base::cut(Laminariales, breaks = seq(0, 100, 20), ordered_result = F),
+         Agarum = base::cut(Agarum, breaks = seq(0, 100, 20), ordered_result = F),
+         Alaria = base::cut(Alaria, breaks = seq(0, 100, 20), ordered_result = F))
+
+# Pull out training index
+set.seed(666) # for reproducibility
+one_random <- sample(1:nrow(kelp_all), 0.8*nrow(kelp_all))
+
+# Function for OneR model run
+OneR_model <- function(kelp_choice, df = kelp_cut){
+  kelp_train <- rf_data_prep(kelp_choice = kelp_choice, df = df, exclude_cor = F) %>% 
+    slice(one_random) %>%
+    data.frame() %>% 
+    optbin(., method = "infogain") # The choice of method does have an effect on the results
+  kelp_test <- rf_data_prep(kelp_choice = kelp_choice, df = df, exclude_cor = F) %>% 
+    slice(-one_random) %>% 
+    data.frame()
+  kelp_model <- OneR(kelp_train, verbose = TRUE)
+  summary(kelp_model)
+  plot(kelp_model)
+  prediction <- predict(kelp_model, kelp_test)
+  eval_model(prediction, kelp_test)
+}
+
+# Run models for each type of kelp cover
+OneR_model("kelp.cover")
+OneR_model("Laminariales")
+OneR_model("Agarum")
+OneR_model("Alaria")
 
 
 # Which variables are the most important? ---------------------------------
