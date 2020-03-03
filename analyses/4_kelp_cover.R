@@ -22,6 +22,7 @@ round_coords <- function(df){
   return(df_round)
 }
 
+
 # Load data ---------------------------------------------------------------
 
 # If the following excel file is opened in Excel on a Windows computer it will 
@@ -51,7 +52,8 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep=';', dec=','
          site = str_replace(site, "Durban Habour", "Durban Harbour"),
          site = as.character(site),
          too_little_cover = ifelse(sand + rock < 100, TRUE, FALSE),
-         too_much_cover = ifelse(sand + rock > 100, TRUE, FALSE))
+         too_much_cover = ifelse(sand + rock > 100, TRUE, FALSE),
+         Campaign = as.character(Campaign))
 
 load("data/study_site_means.RData")
 
@@ -86,6 +88,7 @@ load_Arctic_mean <- function(){
 }
 Arctic_mean <- load_Arctic_mean()
 
+
 # Quadrat data ------------------------------------------------------------
 
 adf_quadrat <- adf %>% 
@@ -112,20 +115,20 @@ adf_summary <- adf %>%
 # Create figures ----------------------------------------------------------
 
 # Ridge plot showing percent kelp cover in quadrats by site and depth
- fig1 <- ggplot(adf, aes(y = site, x = kelp.cover, fill = as.factor(depth))) +
-   stat_density_ridges(alpha = 0.7) +
-   labs(y = "Site", x = expression(Kelp~cover~('%')), fill = "depth") +
-   theme_bw(base_size = 14) +
-   theme(legend.position = 'top')
+fig1 <- ggplot(adf, aes(y = site, x = kelp.cover, fill = as.factor(depth))) +
+  stat_density_ridges(alpha = 0.7) +
+  labs(y = "Site", x = expression(Kelp~cover~('%')), fill = "depth") +
+  theme_bw(base_size = 14) +
+  theme(legend.position = 'top')
 # fig1
 # ggsave("graph/kelp_cover_vs_sites.png", fig1, width = 8, height = 10, units = "in", dpi = 300)
 
 # Ridge plots showing coverage of Laminariales by site and depth
- fig2 <- ggplot(adf, aes(y = site, x = Laminariales, fill = as.factor(depth))) +
-   stat_density_ridges(alpha = 0.7) +
-   labs(y = "Site", x = expression(Laminariales~cover~('%')), fill = "depth") +
-   theme_bw(base_size = 14) +
-   theme(legend.position = 'top')
+fig2 <- ggplot(adf, aes(y = site, x = Laminariales, fill = as.factor(depth))) +
+  stat_density_ridges(alpha = 0.7) +
+  labs(y = "Site", x = expression(Laminariales~cover~('%')), fill = "depth") +
+  theme_bw(base_size = 14) +
+  theme(legend.position = 'top')
 # fig2
 # ggsave("graph/Laminariales_cover_vs_sites.png", fig2, width = 8, height = 10, units = "in", dpi = 300)
 

@@ -367,14 +367,14 @@ bathy <- load_layers(c("BO_bathymin", "BO_bathymean", "BO_bathymax"))
 bathy_df <- as.data.frame(bathy, xy = T)
 
 ## The layes currently chosen for use in this study
-  # NB: Many of the varuables below also have surface values
+  # NB: Many of the variables below also have surface values
   # NB: Min depth is the deepest as the values are in -m
 # Calcite - mean - BO_calcite
 # Diffuse attenuation coefficient at 490 nm - mean - BO_damean
 # Photosynthetically available radiation - mean - BO_parmean
 # pH - mean - BO_ph
 # Chl con. - mean at min depth - BO2_chlomean_bdmin
-# Current velocity - passing for now - BO2_curvelmean_bdmin
+# Current velocity - mean at min depth - BO2_curvelmean_bdmin
 # Dissolved oxygen - mean at min depth - BO2_dissoxmean_bdmin
 # Iron con. - mean at min depth -	BO2_ironmean_bdmin
 # Phos con. - mean at min depth - BO2_phosphatemean_bdmin

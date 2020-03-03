@@ -97,7 +97,8 @@ kelp_wide <- kelp_means %>%
 ggplot(data = kelp_wide, aes(x = iceconc_cat/0.2)) +
   geom_histogram() +
   geom_point(aes(colour = kelp.cover), y = 0, size = 4) +
-  scale_colour_viridis_c()
+  scale_colour_viridis_c() +
+  labs(x = "Ice concentration")
 
 # The reduced version that doesn't know about depth etc.
 kelp_wide_blind <- kelp_wide %>% 

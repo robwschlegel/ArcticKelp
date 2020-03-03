@@ -17,11 +17,11 @@ library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
 library(skimr)       # Quickly get a sense of data
 library(randomForest)
 library(knitr)
+library(OneR) # For single rule machine learning
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
 # Site clims
-  # NB: These need to be updated
-# load("data/study_site_clims.RData")
+load("data/study_site_clims.RData")
 
 # BO data
 load("data/study_site_BO.RData")
@@ -29,18 +29,19 @@ load("data/study_site_BO.RData")
 # Prep data.frames for combining
 # study_site_means$month <- "mean" # Use these two lines if using clim values
 # study_site_BO$month <- "mean"
-study_site_BO$depth <- 0
+# study_site_BO$depth <- 0
+# study_site_BO$Campaign <- NULL
 
 # Combine the data
 # study_site_ALL <- rbind(study_site_means, study_site_clims) %>% # Include monthly climatologies in modelling
-study_site_ALL <- study_site_means %>% # Use only overall means in modelling
-  # left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth", "month")) %>% # For clim use 
-  left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth")) %>% # For mean only use
-  # dplyr::select(Campaign, site, month, lon, lat, # Select month if using clim values 
-  dplyr::select(Campaign, site, lon, lat, 
-                nav_lon, nav_lat, lon_BO, lat_BO, x, y,
-                bathy, depth, everything()) %>% 
-  filter(depth == 0) # Filter out all NAPA model depth data, this keeps the BIO depth data
+# study_site_ALL <- study_site_means %>% # Use only overall means in modelling
+#   # left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth", "month")) %>% # For clim use 
+#   left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth")) %>% # For mean only use
+#   # dplyr::select(Campaign, site, month, lon, lat, # Select month if using clim values 
+#   dplyr::select(Campaign, site, lon, lat, 
+#                 nav_lon, nav_lat, lon_BO, lat_BO, x, y,
+#                 bathy, depth, everything()) %>% 
+#   filter(depth == 0) # Filter out all NAPA model depth data, this keeps the BIO depth data
 # rm(study_site_means, study_site_clims, study_site_BO)
 
 # Remove scientific notation from data.frame displays in RStudio
@@ -57,36 +58,31 @@ Arctic_map <- ggplot() +
 
 # Data --------------------------------------------------------------------
 
-# Create wide data.frame with all of the abiotic variables matched to depth of site
-# Also includes substrate percentage variables
-# Rather just use the surface values for NAPA
+# Create wide data.frame with all of the BO variables matched to sites
 kelp_all <- adf %>% 
   # The substrate variables need to be removed as they can't be used in the final data
   # to predict kelp cover presence because we don't know what they are everywhere
-  dplyr::select(Campaign, site, depth, Quadrat, Quadrat.size.m2, -c(Bedrock..:sand), 
-                kelp.cover, Laminariales, Agarum, Alaria) %>% 
-  # Create mean kelp cover values per site
-  # group_by(Campaign, site, depth) %>% 
+  dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
+  # Create mean kelp cover values per site and depths
+  # group_by(site, depth) %>% 
   # summarise_all(mean) %>% 
   # ungroup() %>% 
   # End mean site creation
-  left_join(study_site_ALL, by = c("Campaign", "site")) %>%
-  dplyr::select(-c(nav_lon:depth.y)) %>%
-  dplyr::rename(depth = depth.x) %>%
-  dplyr::select(-depth) %>% # Removing depth for the moment
+  left_join(study_site_BO, by = c("Campaign", "site")) %>%
+  mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
   na.omit()
 
 
 # Quick visuals -----------------------------------------------------------
 
 # ggplot(kelp_all, aes(x = lon, y = kelp.cover)) +
-#   geom_point(aes(colour = as.factor(depth)))
+#   geom_point()
 
 
 # Which variables are highly correlated? ----------------------------------
 
-# Identify variables that correlate with 50 or more other variables at abs(0.75) or more
-cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %>% 
+# Identify variables that correlate with 5 or more other variables at abs(0.75) or more
+cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:site))), 2) %>% 
   data.frame() %>% 
   mutate(var1 = row.names(.)) %>% 
   pivot_longer(cols = -var1, names_to = "var2") %>% 
@@ -94,8 +90,33 @@ cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:Quadrat.size.m2))), 2) %
   filter(value != 1, abs(value) >= 0.75) %>% # Find high correlation results
   group_by(var2) %>% 
   summarise(var2_count = n()) %>% 
-  filter(var2_count >= 20) %>% 
+  filter(var2_count >= 5) %>% 
   ungroup()
+
+
+# Single rule model -------------------------------------------------------
+
+# Prep the data for one rule modelling
+kelp_cut <- kelp_all %>% 
+  dplyr::select(-Campaign, -site) %>% 
+  mutate(depth = as.numeric(depth), # Must be numeric for upcoming model training
+         kelp.cover = ifelse(kelp.cover == 0, kelp.cover + 1, kelp.cover),  # Need to bump 0's for the binning process
+         Laminariales = ifelse(Laminariales == 0, Laminariales + 1, Laminariales),
+         Agarum = ifelse(Agarum == 0, Agarum + 1, Agarum),
+         Alaria = ifelse(Alaria == 0, Alaria + 1, Alaria),
+         kelp.cover = base::cut(kelp.cover, breaks = seq(0, 100, 10)), ordered_result = T,
+         Laminariales = base::cut(Laminariales, breaks = seq(0, 100, 10)), ordered_result = T,
+         Agarum = base::cut(Agarum, breaks = seq(0, 100, 10)), ordered_result = T,
+         Alaria = base::cut(Alaria, breaks = seq(0, 100, 10)), ordered_result = T)
+
+set.seed(666) # for reproducibility
+one_random <- sample(1:nrow(kelp_all), 0.8*nrow(kelp_all))
+
+# kelp.cover
+kelp.cover_cut <- rf_data_prep("kelp.cover", kelp_cut)
+
+one_train <- optbin(kelp_all[one_random, ], method = "infogain")
+one_test <- kelp_all[-one_random, ]
 
 
 # Data prep function ------------------------------------------------------
@@ -121,7 +142,7 @@ rf_data_prep <- function(kelp_choice, df = kelp_all){
 }
 
 
-# Which variables are the most imprtant? ----------------------------------
+# Which variables are the most important? ---------------------------------
 
 # This function runs many random forest models to determine which variables
 # are consistantly the most important
@@ -131,7 +152,7 @@ top_variables <- function(lplyr_bit, kelp_choice){
   df_kelp_choice <- rf_data_prep(kelp_choice)
   
   # Split data up for training and testing
-  train <- sample(nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
+  train <- sample(1:nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
   train_set <- df_kelp_choice[train,]
   valid_set <- df_kelp_choice[-train,]
   
