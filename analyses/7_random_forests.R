@@ -6,6 +6,10 @@
 
 # An open water period would be a useful measurement to consider
 
+# Consider changing the bins into which the cover categories are put
+# Make them smaller and matched more closely to the top quantile
+# of the distribution of kelp covers for each family
+
 
 # Setup -------------------------------------------------------------------
 
@@ -100,57 +104,47 @@ cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:site))), 2) %>%
 # Convenience function for prepping dataframe for use in the random forest
 # This removes all other kelp cover values
 rf_data_prep <- function(kelp_choice, df = kelp_all, exclude_cor = T){
+  
   # Trim down data.frame
-  # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
-  df_1 <- data.frame(dplyr::select(df, -c(Campaign:site))) 
+  df_1 <- data.frame(dplyr::select(df, -c(Campaign:site))) %>% 
+    pivot_longer(cols = kelp.cover:Alaria, names_to = "chosen_kelp", values_to = "cover") %>% 
+    filter(chosen_kelp == kelp_choice) %>% 
+    mutate(depth = as.numeric(depth))
   
   # Rmove highly correlated values
   if(exclude_cor) df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
   
-  # Create double of chosen kelp cover column
-  names(df_1)[names(df_1) == kelp_choice] <- "chosen_kelp"
-  
-  # Determine which kelp cover is being used
-  other_kelps <- c("kelp.cover", "Laminariales", "Agarum", "Alaria")
-  other_kelps <- other_kelps[other_kelps != kelp_choice]
-  
-  # The data.frame that will be fed to the model
-  df_2 <- dplyr::select(df_1, -chosen_kelp, everything(), chosen_kelp, -c(other_kelps)) #, depth) %>% 
-  # mutate(depth = as.numeric(depth))
+  return(df_1)
 }
 
 
 # Single rule model -------------------------------------------------------
 
-# Prep the data for one rule modelling
-kelp_cut <- kelp_all %>% 
-  group_by(Campaign, site, depth) %>%
-  summarise_all(mean) %>%
-  ungroup() %>%
-  # dplyr::select(-Campaign, -site) %>% 
-  mutate(depth = as.numeric(depth), # Must be numeric for upcoming model training
-         kelp.cover = ifelse(kelp.cover == 0, kelp.cover + 1, kelp.cover),  # Need to bump 0's for the binning process
-         Laminariales = ifelse(Laminariales == 0, Laminariales + 1, Laminariales),
-         Agarum = ifelse(Agarum == 0, Agarum + 1, Agarum),
-         Alaria = ifelse(Alaria == 0, Alaria + 1, Alaria),
-         kelp.cover = base::cut(kelp.cover, breaks = seq(0, 100, 20), ordered_result = F),
-         Laminariales = base::cut(Laminariales, breaks = seq(0, 100, 20), ordered_result = F),
-         Agarum = base::cut(Agarum, breaks = seq(0, 100, 20), ordered_result = F),
-         Alaria = base::cut(Alaria, breaks = seq(0, 100, 20), ordered_result = F))
-
-# Pull out training index
-set.seed(666) # for reproducibility
-one_random <- sample(1:nrow(kelp_all), 0.8*nrow(kelp_all))
-
 # Function for OneR model run
-OneR_model <- function(kelp_choice, df = kelp_cut){
-  kelp_train <- rf_data_prep(kelp_choice = kelp_choice, df = df, exclude_cor = F) %>% 
+OneR_model <- function(kelp_choice, df = kelp_all){
+
+  # Pull out training index
+  set.seed(13) # for reproducibility
+  one_random <- sample(1:nrow(kelp_all), 0.7*nrow(kelp_all))
+  
+  # Prep the data
+  kelp_cut <- rf_data_prep(kelp_choice = kelp_choice, df = df, exclude_cor = F) %>% 
+    mutate(cover = ifelse(cover == 0, cover + 1, cover),  # Need to bump 0's for the binning process
+           cover = base::cut(cover, breaks = seq(0, 100, 20), ordered_result = F)) %>% 
+    select(-chosen_kelp)
+           
+  # The training data
+  kelp_train <- kelp_cut %>% 
     slice(one_random) %>%
     data.frame() %>% 
     optbin(., method = "infogain") # The choice of method does have an effect on the results
-  kelp_test <- rf_data_prep(kelp_choice = kelp_choice, df = df, exclude_cor = F) %>% 
+  
+  # The test data
+  kelp_test <- kelp_cut %>% 
     slice(-one_random) %>% 
     data.frame()
+  
+  # Various tests and results
   kelp_model <- OneR(kelp_train, verbose = TRUE)
   summary(kelp_model)
   plot(kelp_model)
@@ -177,14 +171,14 @@ data1 <- select(kelp_all, kelp.cover, everything(),
 data1 <- data1[,!(colnames(data1) %in% cor_df$var2)]
 
 # Split data up for training and testing
-set.seed(666)
+set.seed(13)
 train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
 train_set <- data1[train,]
 valid_set <- data1[-train,]
 
 # Test function to see what the best `mtry` value is
 rf_mtry_test <- function(mtry_num){
-  set.seed(666)
+  set.seed(13)
   test_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = mtry_num, ntree = 1000,
                           importance = TRUE)
   pred_test <- predict(test_rf, train_set)
@@ -259,36 +253,53 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
   
   # Extract only the kelp cover of choice
   df_kelp_choice <- rf_data_prep(kelp_choice)
-  df_kelp_choice$chosen_kelp <- base::cut(df_kelp_choice$chosen_kelp)
+  # df_kelp_choice$cover <- base::cut(df_kelp_choice$cover)
   
   # Chose only desired columns
-  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var))#[1:30])
+  df_var_choice <- select(df_kelp_choice, cover, as.character(column_choice$var)) %>% #[1:30])
+    mutate(cover_cut = base::cut(cover, breaks = c(-Inf, 30, 100), ordered_factors = T))
   
   # Split data up for training and testing
-  set.seed(666)
+  set.seed(13)
   train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
   train_set <- df_var_choice[train,]
-  # colnames(train_set)[1] <- "chosen_kelp"
   valid_set <- df_var_choice[-train,]
-  # colnames(valid_set)[1] <- "chosen_kelp"
   
-  # Random forest model based on all quadrat data
-  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+  # Random forest model regression
+  kelp_rf <- randomForest(cover ~ ., data = select(train_set, -cover_cut), mtry = 6, ntree = 1000,
                           importance = TRUE, na.action = na.omit)
   print(kelp_rf) # percent of variance explained
   varImpPlot(kelp_rf)
   
+  # Random forest model category
+  kelp_rf_cat <- randomForest(cover_cut ~ ., data = select(train_set, -cover), mtry = 6, ntree = 1000,
+                              importance = TRUE, na.action = na.omit)
+  print(kelp_rf_cat) # percent of variance explained
+  varImpPlot(kelp_rf_cat)
+  
   # Predicting on training set
   pred_train <- predict(kelp_rf, train_set)
-  print(paste0("Average accuracy of prediction on test data: ", 
-               round(mean(abs(pred_train - train_set$chosen_kelp)), 2),"%"))
+  print(paste0("Average inaccuracy of prediction on test data: ", 
+               round(mean(abs(pred_train - train_set$cover)), 2),"%"))
   
   # Predicting on Validation set
   pred_valid <- predict(kelp_rf, valid_set)
-  print(paste0("Average accuracy of prediction on validation data: ", 
-               round(mean(abs(pred_valid - valid_set$chosen_kelp)), 2),"%"))
-  # print(arrange(data.frame(var = row.names(kelp_rf$importance), 
-  #                          kelp_rf$importance), -X.IncMSE)[1:30,])
+  print(paste0("Average inaccuracy of prediction on validation data: ", 
+               round(mean(abs(pred_valid - valid_set$cover)), 2),"%"))
+  
+  # Accuracy of categorical prediction
+  pred_train_cat <- predict(kelp_rf_cat, train_set)
+  print(paste0("Average accuracy of category prediction on test data: ", 
+         cbind(pred_train_cat, train_set$cover_cut) %>% 
+           data.frame() %>% 
+           mutate(acc = ifelse(pred_train_cat == V2, 1, 0)) %>% 
+           summarise(acc = round(sum(acc)/n(), 4)*100),"%"))
+  pred_valid_cat <- predict(kelp_rf_cat, valid_set)
+  print(paste0("Average accuracy of category prediction on validation data: ", 
+         cbind(pred_valid_cat, valid_set$cover_cut) %>% 
+           data.frame() %>% 
+           mutate(acc = ifelse(pred_valid_cat == V2, 1, 0)) %>% 
+           summarise(acc = round(sum(acc)/n(), 4)*100),"%"))
 }
 
 # Check the random forests
