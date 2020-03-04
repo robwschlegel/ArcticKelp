@@ -8,69 +8,27 @@
 source("analyses/4_kelp_cover.R")
 
 library(vegan)
-library(randomForest)
-
-model_info <- read_csv("metadata/model_info.csv")
 
 
 # Check for site mismatches -----------------------------------------------
 
+# NB: The following two lines of code should return 'character(0)'
+# This means there are no differences in the sites for the ArctcKelp and BO data
+# If there are, re-run '3_study_site_clims.R'
+
 # Sites from Kelp data not in study site names
-unique(adf_summary$site)[!(unique(adf_summary$site) %in% unique(study_site_means$site))]
+unique(adf_summary$site)[!(unique(adf_summary$site) %in% unique(study_site_BO$site))]
 
 # Study site names not in kelp data
-unique(study_site_means$site)[!(unique(study_site_means$site) %in% unique(adf_summary$site))]
-
-# Change site names to match kelp data
-# study_site_clims <- study_site_clims %>% 
-#   mutate(site = str_replace(site, "Durban Habour", "Durban Harbour"),
-#          site = str_replace(site, "S. of Qik", "S. of Qikitarjuak"),
-#          site = str_replace(site, "Qik", "Qikitarjuak"))
-
-# Re-run the above lines to check if everything has been fixed
+unique(study_site_BO$site)[!(unique(study_site_BO$site) %in% unique(adf_summary$site))]
 
 
 # Join kelp and means -----------------------------------------------------
 
-kelp_means <- left_join(adf_summary, study_site_means, by = c("Campaign", "site")) %>% 
-  # filter(depth > -1) %>%  # Removes sites with names that don't match up
-  dplyr::select(Campaign:mean_cover, depth.y, eken:icethic_cat) %>% 
-  mutate(eken = ifelse(depth.x == depth.y, eken, NA),  # A funny way of getting rid of non-target depth data
-         soce = ifelse(depth.x == depth.y, soce, NA), 
-         toce = ifelse(depth.x == depth.y, toce, NA)) %>% 
-  dplyr::select(-depth.y) %>% 
-  dplyr::rename(depth = depth.x) %>% 
-  gather(key = "model_var", value = "val", -c(Campaign:mean_cover)) %>% 
+# Mean kelp cover and BO variables
+kelp_means <- left_join(adf_summary, study_site_BO, by = c("Campaign", "site")) %>% 
+  gather(key = "var", value = "val", -c(Campaign:mean_cover)) %>% 
   na.omit()
-
-# Kelp cover vs. overall mean for abiotic variables
-scatter_means <- kelp_means %>% 
-  filter(family == "kelp.cover") %>%
-  ggplot(aes(x = val, y = mean_cover)) +
-  geom_point(aes(group = site, colour = as.factor(depth))) +
-  geom_smooth(method = "lm", se = F, aes(colour = as.factor(depth), linetype = Campaign)) +
-  geom_label(aes(label = site, fill = as.factor(depth)), size = 2) +
-  facet_grid(~model_var, scales = "free_x", switch = "both") +
-  labs(x = "Model variable value", y = "Cover (%)", 
-       colour = "Depth (m)", fill = "Depth (m)", linetype = "Campaign") +
-  theme(legend.position = "top")
-# scatter_means
-# ggsave("graph/scatter_clim_mean.pdf", scatter_clim_mean, height = 4, width = 16)
-# ggsave("graph/scatter_clim_mean.png", scatter_clim_mean, height = 4, width = 16)
-
-
-# Visuals -----------------------------------------------------------------
-
-# Barplots of phys var with dots showing kelp cover %
-# Labels above these with number of obs at each bar
-# RWS: Not working...
-# hist_cover_plot <- function(var){
-#   ggplot(kelp_wide, aes_string(x = var)) +
-#     geom_histogram() +
-#     geom_point(aes(colour = kelp.cover), y = 0, size = 4) +
-#     scale_colour_viridis_c()
-# }
-# hist_cover_plot("iicefrac")
 
 
 # Multivariate analyses ---------------------------------------------------
@@ -78,45 +36,36 @@ scatter_means <- kelp_means %>%
 # Need to consider percent sand and rock when looking at patterns
 sand_rock <- adf %>% 
   dplyr::select(Campaign, site, depth, sand, rock) %>% 
-  # mutate(Shell = replace_na(Shell, 0)) %>% 
   group_by(Campaign, site, depth) %>% 
-  summarise_all(mean, na.rm = T) #%>% 
-  # select(-Shell) # RWS: This is too infrequent to be useful
+  summarise_all(mean, na.rm = T)
 
 # Create data.frame that makes vegan happy
 kelp_wide <- kelp_means %>% 
-  # group_by(Campaign, site, depth, family, mean_cover) %>% 
-  pivot_wider(names_from = model_var, values_from = val, values_fn = list(val = mean)) %>% 
-  pivot_wider(names_from = family, values_from = mean_cover, values_fn = list(val = mean)) %>% 
-  # spread(key = model_var, value = val) %>% 
-  # spread(key = family, value = mean_cover) %>% 
-  # ungroup() %>% 
+  pivot_wider(names_from = var, values_from = val, values_fn = list(val = mean)) %>% 
+  pivot_wider(names_from = family, values_from = c(mean_cover, sd_cover), values_fn = list(val = mean)) %>% 
   left_join(sand_rock, by = c("Campaign", "site", "depth")) %>% 
   ungroup()
 
-ggplot(data = kelp_wide, aes(x = iceconc_cat/0.2)) +
-  geom_histogram() +
-  geom_point(aes(colour = kelp.cover), y = 0, size = 4) +
+ggplot(data = kelp_wide, aes(x = BO2_icecovermean_ss)) +
+  geom_histogram(bins = 6) +
+  geom_point(aes(colour = mean_cover_kelp.cover), y = 0, size = 4) +
   scale_colour_viridis_c() +
-  labs(x = "Ice concentration")
+  labs(x = "Mean ice cover")
 
-# The reduced version that doesn't know about depth etc.
-kelp_wide_blind <- kelp_wide %>% 
-  # select(eken:toce, Bedrock..:Shell)
-  dplyr::select(eken:toce)
+# The BO variables
+kelp_wide_var <- kelp_wide %>% 
+  dplyr::select(BO_calcite:BO2_icethickrange_ss)
 
 # The "environmental" variables
 kelp_wide_env <- kelp_wide %>% 
-  dplyr::select(Campaign, depth, kelp.cover:rock)
+  dplyr::select(Campaign, depth, mean_cover_kelp.cover:rock)
 
 # Run the MDS
-kelp_MDS <- metaMDS(decostand(kelp_wide_blind, method = "standardize"),
+kelp_MDS <- metaMDS(decostand(kelp_wide_var, method = "standardize"),
                     distance = "euclidean", try = 100, autotransform = F)
-# kelp_MDS <- metaMDS(kelp_wide_blind, distance = "euclidean", try = 100)
-# kelp_MDS$species <- kelp_MDS$points
 
 # Fit environmental variables
-ord_fit <- envfit(kelp_MDS ~ depth + kelp.cover + rock + sand, data = kelp_wide_env)
+ord_fit <- envfit(kelp_MDS ~ depth + mean_cover_kelp.cover + rock + sand, data = kelp_wide_env)
 ord_fit_df <- data.frame(ord_fit$vectors$arrows) %>% 
   mutate(var = row.names(.))
 
@@ -124,9 +73,8 @@ ord_fit_df <- data.frame(ord_fit$vectors$arrows) %>%
 mds_df <- data.frame(site = kelp_wide$site, kelp_wide_env, kelp_MDS$points)
 
 # Test correlations
-cor(x = kelp_wide$kelp.cover, y = kelp_wide$sand)
-cor(x = kelp_wide$kelp.cover, y = kelp_wide$rock)
-# cor(x = kelp_wide$kelp.cover, y = kelp_wide$Shell)
+cor(x = kelp_wide$mean_cover_kelp.cover, y = kelp_wide$sand)
+cor(x = kelp_wide$mean_cover_kelp.cover, y = kelp_wide$rock)
 
 # The ordiplot
 ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
@@ -137,7 +85,7 @@ ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
   geom_segment(data = ord_fit_df, aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2),
                arrow = arrow(angle = 40, length = unit(0.2, "cm"), type = "open"), 
                alpha = 1, colour = "black", size = 0.5) +
-  geom_point(aes(size = kelp.cover, colour = as.factor(Campaign))) +
+  geom_point(aes(size = mean_cover_kelp.cover, colour = as.factor(Campaign))) +
   scale_colour_brewer(name = "Campaign", palette = "Dark2") +
   # scale_fill_brewer(name = "Campaign", palette = "Dark2") +
   scale_size_continuous(name = "Kelp cover (total %)", breaks = c(0, 25, 50, 75, 100)) +
@@ -153,23 +101,3 @@ ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
 ggsave("graph/MDS_plot.pdf", width = 10, height = 8)
 ggsave("graph/MDS_plot.png", width = 10, height = 8)
 
-
-# Random forest -----------------------------------------------------------
-
-# Test example
-# set.seed(17)
-# iris.urf <- randomForest(iris[, -5])
-# MDSplot(iris.urf, iris$Species)
-
-# Proposed formulae:
-# Kelp cover ~ Ice + % rock + depth + Kinetic energy + Lat + Exposure + (1|Region/Site)
-# Laminariales cover ~ Ice + % rock + depth + Kinetic energy + Lat + Exposure + (1|Region/Site)  
-
-# Prep the data for a random forest
-random_kelp_prep <- kelp_wide %>% 
-  left_join(study_sites, by = c("Campaign", "site")) %>% 
-  select(kelp.cover, iceconc_cat, rock, depth, eken, toce, lon, lat)
-
-random_kelp <- randomForest(random_kelp_prep)
-MDSplot(random_kelp, factor(kelp_wide$Campaign), k = 1)
-ggsave("graph/random_forest_test_plot.png", height = 5, width = 5)

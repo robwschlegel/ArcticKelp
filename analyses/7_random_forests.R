@@ -1,7 +1,5 @@
 # analyses/7_random_forests.R
 # The purpose of this script is to house the code used for the random forest analyses
-# There is an analysis in script 5 and 6A as well, but my (RWS) thinking was to put everything
-# in one place moving forward in the sake of tidiness.
 
 
 # An open water period would be a useful measurement to consider
@@ -9,6 +7,17 @@
 # Consider changing the bins into which the cover categories are put
 # Make them smaller and matched more closely to the top quantile
 # of the distribution of kelp covers for each family
+
+# Switch over to maximum depth variables
+# Include min, mean, max of all variables currently used
+# Include better dpeth values, slope, distance from land
+
+# First run the model with all of the variables,
+# and then remove important variables that correlate
+
+# Remove the variables that aren't in the top 5 or so
+
+# Compare probability of presence against projected percent cover
 
 
 # Setup -------------------------------------------------------------------
@@ -24,29 +33,8 @@ library(knitr)
 library(OneR) # For single rule machine learning
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
-# Site clims
-load("data/study_site_clims.RData")
-
 # BO data
 load("data/study_site_BO.RData")
-
-# Prep data.frames for combining
-# study_site_means$month <- "mean" # Use these two lines if using clim values
-# study_site_BO$month <- "mean"
-# study_site_BO$depth <- 0
-# study_site_BO$Campaign <- NULL
-
-# Combine the data
-# study_site_ALL <- rbind(study_site_means, study_site_clims) %>% # Include monthly climatologies in modelling
-# study_site_ALL <- study_site_means %>% # Use only overall means in modelling
-#   # left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth", "month")) %>% # For clim use 
-#   left_join(study_site_BO, by = c("site", "lon", "lat", "Campaign", "depth")) %>% # For mean only use
-#   # dplyr::select(Campaign, site, month, lon, lat, # Select month if using clim values 
-#   dplyr::select(Campaign, site, lon, lat, 
-#                 nav_lon, nav_lat, lon_BO, lat_BO, x, y,
-#                 bathy, depth, everything()) %>% 
-#   filter(depth == 0) # Filter out all NAPA model depth data, this keeps the BIO depth data
-# rm(study_site_means, study_site_clims, study_site_BO)
 
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
@@ -62,26 +50,45 @@ Arctic_map <- ggplot() +
 
 # Data --------------------------------------------------------------------
 
-# Create wide data.frame with all of the BO variables matched to sites
+# NB: The substrate variables need to be removed as they can't be used in the final data
+# to predict kelp cover presence because we don't know what they are everywhere
+
+# All of the BO variables matched to sites
 kelp_all <- adf %>% 
-  # The substrate variables need to be removed as they can't be used in the final data
-  # to predict kelp cover presence because we don't know what they are everywhere
   dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
-  # Create mean kelp cover values per site and depths
-  # group_by(Campaign, site, depth) %>%
-  # summarise_all(mean) %>%
-  # ungroup() %>%
-  # End mean site creation
+  left_join(study_site_BO, by = c("Campaign", "site")) %>%
+  mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
+  dplyr::select(-lon_BO, -lat_BO) %>% 
+  na.omit()
+
+# The mean kelp covers per site/depth
+kelp_all_mean <- adf %>% 
+  dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
+  group_by(Campaign, site, depth) %>%
+  summarise_all(mean) %>%
+  ungroup() %>%
   left_join(study_site_BO, by = c("Campaign", "site")) %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
   dplyr::select(-lon_BO, -lat_BO) %>% 
   na.omit()
 
 
-# Quick visuals -----------------------------------------------------------
+# Quick random forest -----------------------------------------------------
 
-# ggplot(kelp_all, aes(x = lon, y = kelp.cover)) +
-#   geom_point()
+# Proposed formulae:
+# Kelp cover ~ Ice + % rock + depth + Kinetic energy + Lat + Exposure + (1|Region/Site)
+# Laminariales cover ~ Ice + % rock + depth + Kinetic energy + Lat + Exposure + (1|Region/Site)  
+
+# Prep the data for a random forest
+kelp_prep <- kelp_all %>% 
+  dplyr::select(kelp.cover, BO2_tempmean_bdmin, BO2_icecovermean_ss, BO2_curvelmean_bdmin, lon, lat)
+
+random_kelp <- randomForest(random_kelp_prep)
+MDSplot(random_kelp, factor(kelp_wide$Campaign), k = 1)
+ggsave("graph/random_forest_test_plot.png", height = 5, width = 5)
+
+# Note here that the use of lon/lat in the forest allows it to very successfully
+# identify the different campaigns as different clusters
 
 
 # Which variables are highly correlated? ----------------------------------

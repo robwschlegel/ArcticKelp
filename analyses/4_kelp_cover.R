@@ -13,22 +13,13 @@ source("analyses/1_study_sites.R")
 
 library(ggridges)
 
-# Convenience loading and coord rounding function
-round_coords <- function(df){
-  df_round <- data.frame(df) %>%
-    mutate(nav_lon = round(nav_lon, 4),
-           nav_lat = round(nav_lat, 4))
-  if(!("depth" %in% colnames(df_round))) df_round$depth <- 0
-  return(df_round)
-}
-
 
 # Load data ---------------------------------------------------------------
 
 # If the following excel file is opened in Excel on a Windows computer it will 
 # change the comma (,) separation into semicolon (;) separation and the commented out 
 # bit in the following line needs to be turned back on
-adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep=';', dec=',') %>%
+adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep = ';', dec = ',') %>%
   dplyr::rename(site = Site, depth = Depth.m, 
                 sand = Sand.., Agarum = Agarum.., Alaria = Alaria.., Alaria = Alaria.., Sacharrina = S..latissima.., 
                 L.solidungula = L..solid.., L.digitata = L..digitata..) %>% 
@@ -55,38 +46,8 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep=';', dec=','
          too_much_cover = ifelse(sand + rock > 100, TRUE, FALSE),
          Campaign = as.character(Campaign))
 
-load("data/study_site_means.RData")
-
-load_Arctic_mean <- function(){
-  load("data/Arctic_surface_mean.RData")
-  Arctic_surface_mean <- round_coords(Arctic_surface_mean) %>% 
-    dplyr::select(-emp_ice) %>%  # Rather use the emp_ice from the ice data
-    dplyr::select(-qla_oce, -qsb_oce) # These two variables are empty
-  load("data/Arctic_ice_mean.RData")
-  Arctic_ice_mean <- round_coords(Arctic_ice_mean) %>% 
-    dplyr::select(-emp_oce, -qemp_oce) # Rather use the emp_oce and qemp_oce from the sea data
-  load("data/Arctic_depth_T_mean.RData")
-  Arctic_depth_T_mean <- round_coords(Arctic_depth_T_mean)
-  load("data/Arctic_depth_U_mean.RData")
-  Arctic_depth_U_mean <- round_coords(Arctic_depth_U_mean)
-  load("data/Arctic_depth_V_mean.RData")
-  Arctic_depth_V_mean <- round_coords(Arctic_depth_V_mean)
-  load("data/Arctic_depth_W_mean.RData")
-  Arctic_depth_W_mean <- round_coords(Arctic_depth_W_mean)
-  
-  # Join everything
-  Arctic_mean <- left_join(Arctic_depth_T_mean, Arctic_depth_U_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>%
-    left_join(Arctic_depth_V_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>% 
-    left_join(Arctic_depth_W_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>% 
-    left_join(Arctic_surface_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy")) %>% 
-    left_join(Arctic_ice_mean, by = c("x", "y", "nav_lon", "nav_lat", "depth", "bathy"))#, "emp_ice", "emp_oce", "qemp_oce"))
-  
-  # Clean up
-  rm(Arctic_depth_T_mean, Arctic_depth_U_mean, Arctic_depth_V_mean, 
-     Arctic_depth_W_mean, Arctic_surface_mean, Arctic_ice_mean)
-  return(Arctic_mean)
-}
-Arctic_mean <- load_Arctic_mean()
+# The BO data per study site
+load("data/study_site_BO.RData")
 
 
 # Quadrat data ------------------------------------------------------------
@@ -115,20 +76,20 @@ adf_summary <- adf %>%
 # Create figures ----------------------------------------------------------
 
 # Ridge plot showing percent kelp cover in quadrats by site and depth
-fig1 <- ggplot(adf, aes(y = site, x = kelp.cover, fill = as.factor(depth))) +
-  stat_density_ridges(alpha = 0.7) +
-  labs(y = "Site", x = expression(Kelp~cover~('%')), fill = "depth") +
-  theme_bw(base_size = 14) +
-  theme(legend.position = 'top')
+# fig1 <- ggplot(adf, aes(y = site, x = kelp.cover, fill = as.factor(depth))) +
+#   stat_density_ridges(alpha = 0.7) +
+#   labs(y = "Site", x = expression(Kelp~cover~('%')), fill = "depth") +
+#   theme_bw(base_size = 14) +
+#   theme(legend.position = 'top')
 # fig1
 # ggsave("graph/kelp_cover_vs_sites.png", fig1, width = 8, height = 10, units = "in", dpi = 300)
 
 # Ridge plots showing coverage of Laminariales by site and depth
-fig2 <- ggplot(adf, aes(y = site, x = Laminariales, fill = as.factor(depth))) +
-  stat_density_ridges(alpha = 0.7) +
-  labs(y = "Site", x = expression(Laminariales~cover~('%')), fill = "depth") +
-  theme_bw(base_size = 14) +
-  theme(legend.position = 'top')
+# fig2 <- ggplot(adf, aes(y = site, x = Laminariales, fill = as.factor(depth))) +
+#   stat_density_ridges(alpha = 0.7) +
+#   labs(y = "Site", x = expression(Laminariales~cover~('%')), fill = "depth") +
+#   theme_bw(base_size = 14) +
+#   theme(legend.position = 'top')
 # fig2
 # ggsave("graph/Laminariales_cover_vs_sites.png", fig2, width = 8, height = 10, units = "in", dpi = 300)
 
