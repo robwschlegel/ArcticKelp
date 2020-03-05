@@ -75,24 +75,49 @@ save(Arctic_bathy, file = "data/Arctic_bathy.RData")
 
 ## Download the chosen layers
   # NB: Don't run this if nothing has changed as there is no need to ping their servers
-BO_layers_dl <- load_layers(c("BO_calcite", "BO_damean", "BO_parmean", "BO_ph",
-                              "BO2_chlomin_bdmax", "BO2_chlomean_bdmax", "BO2_chlomax_bdmax", 
-                              "BO2_curvelmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelmax_bdmax", 
-                              "BO2_dissoxmin_bdmax", "BO2_dissoxmean_bdmax", "BO2_dissoxmax_bdmax", 
-                              "BO2_ironmin_bdmax", "BO2_ironmean_bdmax", "BO2_ironmax_bdmax", 
-                              "BO2_phosphatemin_bdmax", "BO2_phosphatemean_bdmax", "BO2_phosphatemax_bdmax", 
-                              "BO2_lightbotmin_bdmax", "BO2_lightbotmean_bdmax", "BO2_lightbotmax_bdmax", 
-                              "BO2_nitratemin_bdmax", "BO2_nitratemean_bdmax", "BO2_nitratemax_bdmax", 
-                              "BO2_tempmin_bdmax", "BO2_tempmean_bdmax", "BO2_tempmax_bdmax", 
-                              "BO2_templtmin_bdmean", "BO2_templtmax_bdmean",
-                              "BO2_carbonphytomin_bdmax", "BO2_carbonphytomean_bdmax", "BO2_carbonphytomax_bdmax",
-                              "BO2_ppmin_bdmax", "BO2_ppmean_bdmax", "BO2_ppmax_bdmax", 
+                              # Bottom temperature
+BO_layers_dl <- load_layers(c("BO2_tempmin_bdmax", "BO2_tempmean_bdmax", "BO2_tempmax_bdmax", 
+                              "BO2_temprange_bdmax", "BO2_templtmin_bdmax", "BO2_templtmax_bdmax",
+                              # Surface temperature
+                              "BO2_tempmin_ss", "BO2_tempmean_ss", "BO2_tempmax_ss", 
+                              "BO2_temprange_ss", "BO2_templtmin_ss", "BO2_templtmax_ss",
+                              # Bottom salinity
                               "BO2_salinitymin_bdmax", "BO2_salinitymean_bdmax", "BO2_salinitymax_bdmax", 
-                              "BO2_silicatemin_bdmax", "BO2_silicatemean_bdmax", "BO2_silicatemax_bdmax",
-                              "BO2_icecoverltmin_ss",  "BO2_icecoverltmax_ss",
-                              "BO2_icecovermin_ss", "BO2_icecovermean_ss", "BO2_icecovermax_ss",
+                              "BO2_salinityrange_bdmax", "BO2_salinityltmin_bdmax", "BO2_salinityltmax_bdmax",
+                              # Surface salinity
+                              "BO2_salinitymin_ss", "BO2_salinitymean_ss", "BO2_salinitymax_ss", 
+                              "BO2_salinityrange_ss", "BO2_salinityltmin_ss", "BO2_salinityltmax_ss",
+                              # Ice cover
+                              # "BO2_icecovermin_ss", "BO2_icecovermean_ss", "BO2_icecovermax_ss",
+                              # "BO2_icecoverrange_ss", "BO2_icecoverltmin_ss", "BO2_icecoverltmax_ss",
+                              # Ice thickness
                               "BO2_icethickmin_ss", "BO2_icethickmean_ss", "BO2_icethickmax_ss", 
-                              "BO2_icethickrange_ss"))
+                              "BO2_icethickrange_ss", "BO2_icethickltmin_ss",  "BO2_icethickltmax_ss",
+                              # Photosynthetically active radiation
+                              "BO_parmean", "BO_parmax", 
+                              # Dissolve oxygen
+                              "BO2_dissoxmin_bdmax", "BO2_dissoxmean_bdmax", "BO2_dissoxmax_bdmax", 
+                              "BO2_dissoxrange_ss", "BO2_dissoxltmin_ss",  "BO2_dissoxltmax_ss",
+                              # pH
+                              "BO_ph", 
+                              # Calcite
+                              "BO_calcite",
+                              # Iron
+                              "BO2_ironmin_bdmax", "BO2_ironmean_bdmax", "BO2_ironmax_bdmax", 
+                              "BO2_ironrange_ss", "BO2_ironltmin_ss",  "BO2_ironltmax_ss",
+                              # Nitrate
+                              "BO2_nitratemin_bdmax", "BO2_nitratemean_bdmax", "BO2_nitratemax_bdmax", 
+                              "BO2_nitraterange_ss", "BO2_nitrateltmin_ss",  "BO2_nitrateltmax_ss",
+                              # Phosphate
+                              "BO2_phosphatemin_bdmax", "BO2_phosphatemean_bdmax", "BO2_phosphatemax_bdmax", 
+                              "BO2_phosphaterange_ss", "BO2_phosphateltmin_ss",  "BO2_phosphateltmax_ss",
+                              # Silicate
+                              "BO2_silicatemin_bdmax", "BO2_silicatemean_bdmax", "BO2_silicatemax_bdmax", 
+                              "BO2_silicaterange_ss", "BO2_silicateltmin_ss",  "BO2_silicateltmax_ss",
+                              # Current velocity
+                              "BO2_curvelmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelmax_bdmax", 
+                              "BO2_curvelrange_ss", "BO2_curvelltmin_ss",  "BO2_curvelltmax_ss"
+                              ))
 BO_layers_df <- as.data.frame(BO_layers_dl, xy = T)
 Arctic_BO <- BO_layers_df %>%
   dplyr::rename(lon = x, lat = y) %>%
@@ -118,3 +143,12 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
 list_layers_future()
 
 get_future_layers()
+
+
+# Load GMED ASCII files ---------------------------------------------------
+
+# Depth
+
+# Slope
+
+# Distance to land
