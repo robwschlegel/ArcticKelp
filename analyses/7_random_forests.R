@@ -349,7 +349,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   # system.time(
     multi_test <- plyr::llply(.data = 1:1000, .fun = random_kelp_forest_test, .parallel = T, 
                               kelp_choice = kelp_choice, column_choice = column_choice)
-    # ) # 56 seconds
+    # ) # ~80 seconds
   
   # Extract the model accuracies
   model_accuracy <- lapply(multi_test, function(x) x$accuracy) %>% 
@@ -373,7 +373,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
 }
 
 doParallel::registerDoParallel(cores = 50)
-system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~60 seconds with 50 cores
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~104 seconds with 50 cores
 save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
 save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
@@ -496,45 +496,30 @@ load("data/top_var_agarum.RData")
 load("data/top_var_alaria.RData")
 
 # Load the Arctic data
-load("data/Arctic_BO.RData")
+load("data/Arctic_env.RData")
 
 # Prep the data for lazy joining
-Arctic_mean_prep <- Arctic_mean %>% 
-  # dplyr::select(-qla_oce, -qsb_oce) %>%  # These two columns have no values
+Arctic_env_prep <- Arctic_env %>% 
   na.omit() %>% 
-  dplyr::rename(lon = nav_lon, lat = nav_lat) %>% 
   mutate(lon = plyr::round_any(lon, 0.25),
          lat = plyr::round_any(lat, 0.25)) %>% 
   group_by(lon, lat) %>% 
-  summarise_if(is.numeric, mean, na.rm = T) %>% 
-  ungroup()
-
-Arctic_BO_prep <- na.omit(Arctic_BO) %>% 
-  mutate(lon = plyr::round_any(lon, 0.25),
-         lat = plyr::round_any(lat, 0.25)) %>% 
-  group_by(lon, lat) %>% 
-  summarise_if(is.numeric, mean, na.rm = T) %>% 
-  ungroup()
-
-# Join the data for being fed to the model
-Arctic_data <- left_join(Arctic_BO_prep, Arctic_mean_prep, by = c("lon", "lat")) %>%
-  # na.omit() %>% 
-  dplyr::select(-depth, -x, -y) %>% 
   dplyr::rename(depth = bathy) %>% 
-  ungroup() %>% 
-  tidyr::fill(lon:vtau_ice, .direction = "downup")
+  summarise_if(is.numeric, mean, na.rm = T) %>% 
+  ungroup() #%>% 
+  # tidyr::fill(lon:vtau_ice, .direction = "downup")
 
 # Convenience function for final step before prediction
 Arctic_cover_predict <- function(model_choice){
-  pred_df <- data.frame(lon = Arctic_data$lon, lat = Arctic_data$lat,
-                        depth = Arctic_data$depth,
-                        pred_val = predict(model_choice, Arctic_data))
+  pred_df <- data.frame(lon = Arctic_env_prep$lon, lat = Arctic_env_prep$lat,
+                        depth = Arctic_env_prep$depth,
+                        pred_val = predict(model_choice, Arctic_env_prep))
 }
 
 # Visualise a family of cover
 cover_squiz <- function(df, legend_title, x_nudge){
   Arctic_map +
-    geom_tile(data = filter(df, depth <= 50), 
+    geom_tile(data = filter(df, depth <= 100), 
               aes(x = lon, y = lat, fill = pred_val)) +
     scale_fill_viridis_c(legend_title) +
     theme(strip.background = element_rect(colour = "white", fill = "white"),
