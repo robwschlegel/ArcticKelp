@@ -26,15 +26,15 @@
 source("analyses/4_kelp_cover.R")
 
 # Libraries for this script specifically
-library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
-library(skimr)       # Quickly get a sense of data
+# library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
+# library(skimr)       # Quickly get a sense of data
 library(randomForest)
-library(knitr)
+# library(knitr)
 library(OneR) # For single rule machine learning
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
-# BO data
-load("data/study_site_BO.RData")
+# Environmental data
+load("data/study_site_env.RData")
 
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
@@ -56,50 +56,28 @@ Arctic_map <- ggplot() +
 # All of the BO variables matched to sites
 kelp_all <- adf %>% 
   dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
-  left_join(study_site_BO, by = c("Campaign", "site")) %>%
+  left_join(study_site_env, by = c("Campaign", "site")) %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
-  dplyr::select(-lon_BO, -lat_BO) %>% 
+  dplyr::select(-lon_env, -lat_env, -env_index,
+                -bathy, -slope) %>% # There are missing data in the GMED variables
   na.omit()
 
 # The mean kelp covers per site/depth
-kelp_all_mean <- adf %>% 
-  dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
+kelp_all_mean <- kelp_all %>% 
   group_by(Campaign, site, depth) %>%
   summarise_all(mean) %>%
-  ungroup() %>%
-  left_join(study_site_BO, by = c("Campaign", "site")) %>%
-  mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
-  dplyr::select(-lon_BO, -lat_BO) %>% 
-  na.omit()
-
-
-# Quick random forest -----------------------------------------------------
-
-# Proposed formulae:
-# Kelp cover ~ Ice + % rock + depth + Kinetic energy + Lat + Exposure + (1|Region/Site)
-# Laminariales cover ~ Ice + % rock + depth + Kinetic energy + Lat + Exposure + (1|Region/Site)  
-
-# Prep the data for a random forest
-kelp_prep <- kelp_all %>% 
-  dplyr::select(kelp.cover, BO2_tempmean_bdmin, BO2_icecovermean_ss, BO2_curvelmean_bdmin, lon, lat)
-
-random_kelp <- randomForest(random_kelp_prep)
-MDSplot(random_kelp, factor(kelp_wide$Campaign), k = 1)
-ggsave("graph/random_forest_test_plot.png", height = 5, width = 5)
-
-# Note here that the use of lon/lat in the forest allows it to very successfully
-# identify the different campaigns as different clusters
+  ungroup()
 
 
 # Which variables are highly correlated? ----------------------------------
 
-# Identify variables that correlate with 5 or more other variables at abs(0.75) or more
+# Identify variables that correlate with 5 or more other variables at abs(0.7) or more
 cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:site))), 2) %>% 
   data.frame() %>% 
   mutate(var1 = row.names(.)) %>% 
   pivot_longer(cols = -var1, names_to = "var2") %>% 
   na.omit() %>% 
-  filter(value != 1, abs(value) >= 0.75) %>% # Find high correlation results
+  filter(value != 1, abs(value) >= 0.7) %>% # Find high correlation results
   group_by(var2) %>% 
   summarise(var2_count = n()) %>% 
   filter(var2_count >= 5) %>% 
@@ -110,7 +88,7 @@ cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:site))), 2) %>%
 
 # Convenience function for prepping dataframe for use in the random forest
 # This removes all other kelp cover values
-rf_data_prep <- function(kelp_choice, df = kelp_all, exclude_cor = T){
+rf_data_prep <- function(kelp_choice, df = kelp_all, exclude_cor = F){
   
   # Trim down data.frame
   df_1 <- data.frame(dplyr::select(df, -c(Campaign:site))) %>% 
@@ -137,8 +115,8 @@ OneR_model <- function(kelp_choice, df = kelp_all){
   # Prep the data
   kelp_cut <- rf_data_prep(kelp_choice = kelp_choice, df = df, exclude_cor = F) %>% 
     mutate(cover = ifelse(cover == 0, cover + 1, cover),  # Need to bump 0's for the binning process
-           cover = base::cut(cover, breaks = seq(0, 100, 20), ordered_result = F)) %>% 
-    select(-chosen_kelp)
+           cover = base::cut(cover, breaks = seq(0, 100, 20), ordered_result = T)) %>% 
+    dplyr::select(-chosen_kelp)
            
   # The training data
   kelp_train <- kelp_cut %>% 
@@ -160,10 +138,10 @@ OneR_model <- function(kelp_choice, df = kelp_all){
 }
 
 # Run models for each type of kelp cover
-OneR_model("kelp.cover")
-OneR_model("Laminariales")
-OneR_model("Agarum")
-OneR_model("Alaria")
+# OneR_model("kelp.cover")
+# OneR_model("Laminariales")
+# OneR_model("Agarum")
+# OneR_model("Alaria")
 
 
 # Test the best mtry ------------------------------------------------------
@@ -171,29 +149,28 @@ OneR_model("Alaria")
 # The data.frame that will be fed to the model
 # The Quadrat information is fairly random, as it should be, and so isn't used in the model TRUE
 # The substrate and depth values also score consistently in the bottom of importance so aren't used
-data1 <- select(kelp_all, kelp.cover, everything(),
-                -c(Campaign:site), -Laminariales, -Agarum, -Alaria) 
-
-# Filter by columns that correlate highly with many others
-data1 <- data1[,!(colnames(data1) %in% cor_df$var2)]
-
-# Split data up for training and testing
-set.seed(13)
-train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
-train_set <- data1[train,]
-valid_set <- data1[-train,]
-
-# Test function to see what the best `mtry` value is
-rf_mtry_test <- function(mtry_num){
-  set.seed(13)
-  test_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = mtry_num, ntree = 1000,
-                          importance = TRUE)
-  pred_test <- predict(test_rf, train_set)
-  pred_accuracy <- data.frame(mtry = mtry_num,
-                              acc = round(mean(abs(pred_test - train_set$kelp.cover))))
-  return(pred_accuracy)
-}
-lapply(1:10, rf_mtry_test) # It looks like an mtry >=6 is best
+# data1 <- dplyr::select(kelp_all, kelp.cover, everything(),
+#                        -c(Campaign:site), -Laminariales, -Agarum, -Alaria) 
+# 
+# # Filter by columns that correlate highly with many others
+# data1 <- data1[,!(colnames(data1) %in% cor_df$var2)]
+# 
+# # Split data up for training and testing
+# set.seed(13)
+# train <- sample(nrow(data1), 0.7*nrow(data1), replace = FALSE)
+# train_set <- data1[train,]
+# valid_set <- data1[-train,]
+# 
+# # Test function to see what the best `mtry` value is
+# rf_mtry_test <- function(mtry_num){
+#   test_rf <- randomForest(kelp.cover ~ ., data = train_set, mtry = mtry_num, 
+#                           ntree = 1000, importance = TRUE)
+#   pred_test <- predict(test_rf, train_set)
+#   pred_accuracy <- data.frame(mtry = mtry_num,
+#                               acc = round(mean(abs(pred_test - train_set$kelp.cover))))
+#   return(pred_accuracy)
+# }
+# lapply(1:10, rf_mtry_test) # It looks like an mtry >=6 is best
 
 
 # Which variables are the most important? ---------------------------------
@@ -203,7 +180,8 @@ lapply(1:10, rf_mtry_test) # It looks like an mtry >=6 is best
 top_variables <- function(lplyr_bit, kelp_choice){
   
   # Extract only the kelp cover of choice
-  df_kelp_choice <- rf_data_prep(kelp_choice)
+  df_kelp_choice <- rf_data_prep(kelp_choice) %>% 
+    dplyr::select(-chosen_kelp)
   
   # Split data up for training and testing
   train <- sample(1:nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
@@ -211,7 +189,7 @@ top_variables <- function(lplyr_bit, kelp_choice){
   valid_set <- df_kelp_choice[-train,]
   
   # Random forest model based on all quadrat data
-  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+  kelp_rf <- randomForest(cover ~ ., data = train_set, mtry = 6, ntree = 1000,
                           importance = TRUE, na.action = na.omit)
   res <- data.frame(var = row.names(kelp_rf$importance), 
                     kelp_rf$importance, 
@@ -235,7 +213,7 @@ top_variables_multi <- function(kelp_choice){
 }
 
 # Find the top variables for the different kelp covers
-# system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~19 seconds on 50 cores, ~543 on 3
+# system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~61 seconds on 50 cores, ~543 on 3
 # save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
 # top_var_laminariales <- top_variables_multi("Laminariales")
 # save(top_var_laminariales, file = "data/top_var_laminariales.RData")
@@ -247,24 +225,28 @@ top_variables_multi <- function(kelp_choice){
 
 # Random Forest function --------------------------------------------------
 
+# This section is largely redundant to the following section
+# The difference here is that this function spits out the results
+# without saving anything to the environment
+
 # Load top variable dataframes
 load("data/top_var_kelpcover.RData")
 load("data/top_var_laminariales.RData")
 load("data/top_var_agarum.RData")
 load("data/top_var_alaria.RData")
 
+# testers...
 # kelp_choice <- "Laminariales"
-# kelp_choice <- Laminariales
 # column_choice <- top_var_laminariales
 random_kelp_forest_check <- function(kelp_choice, column_choice){
   
   # Extract only the kelp cover of choice
-  df_kelp_choice <- rf_data_prep(kelp_choice)
-  # df_kelp_choice$cover <- base::cut(df_kelp_choice$cover)
+  df_kelp_choice <- rf_data_prep(kelp_choice) %>% 
+    dplyr::select(-chosen_kelp)
   
   # Chose only desired columns
-  df_var_choice <- select(df_kelp_choice, cover, as.character(column_choice$var)) %>% #[1:30])
-    mutate(cover_cut = base::cut(cover, breaks = c(-Inf, 30, 100), ordered_factors = T))
+  df_var_choice <- dplyr::select(df_kelp_choice, cover, as.character(column_choice$var)[1:10]) %>%
+    mutate(cover_cut = base::cut(cover, breaks = c(-Inf, 20, 40, 60, 80, 100), ordered_factors = T))
   
   # Split data up for training and testing
   set.seed(13)
@@ -273,13 +255,13 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
   valid_set <- df_var_choice[-train,]
   
   # Random forest model regression
-  kelp_rf <- randomForest(cover ~ ., data = select(train_set, -cover_cut), mtry = 6, ntree = 1000,
+  kelp_rf <- randomForest(cover ~ ., data = dplyr::select(train_set, -cover_cut), mtry = 6, ntree = 1000,
                           importance = TRUE, na.action = na.omit)
   print(kelp_rf) # percent of variance explained
   varImpPlot(kelp_rf)
   
   # Random forest model category
-  kelp_rf_cat <- randomForest(cover_cut ~ ., data = select(train_set, -cover), mtry = 6, ntree = 1000,
+  kelp_rf_cat <- randomForest(cover_cut ~ ., data = dplyr::select(train_set, -cover), mtry = 6, ntree = 1000,
                               importance = TRUE, na.action = na.omit)
   print(kelp_rf_cat) # percent of variance explained
   varImpPlot(kelp_rf_cat)
@@ -310,10 +292,10 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
 }
 
 # Check the random forests
-random_kelp_forest_check("kelp.cover", top_var_kelpcover)
-random_kelp_forest_check("Laminariales", top_var_laminariales)
-random_kelp_forest_check("Agarum", top_var_agarum)
-random_kelp_forest_check("Alaria", top_var_alaria)
+# random_kelp_forest_check("kelp.cover", top_var_kelpcover)
+# random_kelp_forest_check("Laminariales", top_var_laminariales)
+# random_kelp_forest_check("Agarum", top_var_agarum)
+# random_kelp_forest_check("Alaria", top_var_alaria)
 
 
 # Many random forests -----------------------------------------------------
@@ -322,20 +304,19 @@ random_kelp_forest_check("Alaria", top_var_alaria)
 random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
   
   # Extract only the kelp cover of choice
-  df_kelp_choice <- rf_data_prep(kelp_choice)
+  df_kelp_choice <- rf_data_prep(kelp_choice) %>% 
+    dplyr::select(-chosen_kelp)
   
   # Chose only desired columns
-  df_var_choice <- select(df_kelp_choice, chosen_kelp, as.character(column_choice$var))#[1:30])
+  df_var_choice <- dplyr::select(df_kelp_choice, cover, as.character(column_choice$var))[1:10]
   
   # Split data up for training and testing
   train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
   train_set <- df_var_choice[train,]
-  # colnames(train_set)[1] <- "chosen_kelp"
   valid_set <- df_var_choice[-train,]
-  # colnames(valid_set)[1] <- "chosen_kelp"
   
   # Random forest model based on all quadrat data
-  kelp_rf <- randomForest(chosen_kelp ~ ., data = train_set, mtry = 6, ntree = 1000,
+  kelp_rf <- randomForest(cover ~ ., data = train_set, mtry = 6, ntree = 1000,
                           importance = TRUE, na.action = na.omit)
   
   # Predicting on training and validation sets
@@ -345,11 +326,11 @@ random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
   # Create data frame of accuracy results
   train_accuracy <- data.frame(portion = "train",
                                pred = round(pred_train, 2), 
-                               original = train_set$chosen_kelp) %>% 
+                               original = train_set$cover) %>% 
     mutate(accuracy = pred-original)
   validate_accuracy <- data.frame(portion = "validate",
                                   pred = round(pred_valid, 2), 
-                                  original = valid_set$chosen_kelp) %>% 
+                                  original = valid_set$cover) %>% 
     mutate(accuracy = pred-original)
   res_accuracy <- rbind(train_accuracy, validate_accuracy)
   
@@ -391,15 +372,15 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
               model_accuracy = model_accuracy)
 }
 
-# doParallel::registerDoParallel(cores = 50)
-# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~38 seconds with 50 cores
-# save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
-# best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
-# save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
-# best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
-# save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
-# best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
-# save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
+doParallel::registerDoParallel(cores = 50)
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # ~60 seconds with 50 cores
+save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
+best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
+save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
+best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
+save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
+best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
+save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 
 
 # Analyse model accuracy --------------------------------------------------
@@ -411,18 +392,18 @@ load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
 
 # Find the distributions of accuracy from 0 - 100%
-test <- best_rf_kelpcover$model_accuracy #%>%
+test_acc <- best_rf_kelpcover$model_accuracy #%>%
   # filter(model_id == 1000)
 
 # Quick visuals
-ggplot(filter(test, portion == "validate"), aes(x = accuracy)) +
+ggplot(filter(test_acc, portion == "validate"), aes(x = accuracy)) +
   geom_histogram()
 
-ggplot(filter(test, portion == "validate"), aes(x = original, y = pred)) +
+ggplot(filter(test_acc, portion == "validate"), aes(x = original, y = pred)) +
   geom_point() +
   geom_smooth(method = "lm")
 
-ggplot(filter(test, portion == "validate"), aes(x = as.factor(original), y = pred)) +
+ggplot(filter(test_acc, portion == "validate"), aes(x = as.factor(original), y = pred)) +
   geom_boxplot()
 
 # Function for creating figure showing confidence intervals of prediction accuracy
@@ -441,6 +422,7 @@ conf_plot <- function(df, plot_title){
               q95 = quantile(accuracy, 0.95)) %>% 
     ungroup()
   
+  # The mean CI per model run
   conf_mean <- df %>% 
     filter(portion == "validate") %>% 
     group_by(model_id) %>% 
@@ -450,17 +432,20 @@ conf_plot <- function(df, plot_title){
               r_acc = cor(x = original, y = pred)) %>% 
     ungroup()
   
+  # Easy labels for plotting
   conf_mean_label <- conf_mean %>% 
     summarise(mean_acc = round(mean(abs(mean_acc))),
               sd_acc = round(mean(abs(sd_acc))),
               r_acc = round(mean(r_acc), 2))
   
+  # Label for best model
   conf_best_label <- conf_mean %>% 
     filter(mean_acc == min(mean_acc)) %>% 
     mutate(mean_acc = round(abs(mean_acc)),
            sd_acc = round(sd_acc),
            r_acc = round(r_acc, 2))
   
+  # CI of best model
   conf_best <- df %>% 
     filter(model_id == conf_best_label$model_id,
            portion == "validate") %>% 
