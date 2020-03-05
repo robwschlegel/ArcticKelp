@@ -7,9 +7,7 @@
 
 source("analyses/4_kelp_cover.R")
 
-# library(FNN)
-
-load("data/Arctic_BO.RData")
+load("data/Arctic_env.RData")
 
 
 # Maps --------------------------------------------------------------------
@@ -20,18 +18,18 @@ load("data/Arctic_BO.RData")
 unique(as.character(adf_summary$family))
 
 # Abiotic variable options are:
-colnames(Arctic_BO)
+colnames(Arctic_env)
 
 # The function
 map_cover_abiotic <- function(cover = "kelp.cover", 
-                              abiotic = "BO2_tempmean_bdmin"){
+                              abiotic = "BO2_tempmean_bdmax"){
   # Subset cover
   kelp_sub <- adf_summary %>% 
     filter(family == cover) %>% 
     left_join(study_sites, by = c("Campaign", "site"))
   
   # Subset abiotic background variable
-  abiotic_sub <- Arctic_BO[,c("lon", "lat", abiotic)]
+  abiotic_sub <- Arctic_env[,c("lon", "lat", abiotic)]
   
   # Plot it
   ggplot(data = abiotic_sub, aes(x = lon, y = lat)) +
@@ -47,8 +45,9 @@ map_cover_abiotic <- function(cover = "kelp.cover",
 
 # Visualise some different things
 map_cover_abiotic()
-map_cover_abiotic(cover = "Laminariales", abiotic = "BO2_curvelmean_bdmin")
+map_cover_abiotic(cover = "Laminariales", abiotic = "BO2_curvelmean_bdmax")
 map_cover_abiotic(cover = "Agarum", abiotic = "BO2_icecovermean_ss")
+map_cover_abiotic(cover = "Alaria", abiotic = "slope")
 
 
 # Distribution figures ----------------------------------------------------
@@ -60,14 +59,14 @@ map_cover_abiotic(cover = "Agarum", abiotic = "BO2_icecovermean_ss")
 unique(as.character(adf_summary$family))
 
 # Abiotic variable options are:
-colnames(Arctic_BO)
+colnames(Arctic_env)
 
 # The function
 distribution_cover_abiotic <- function(cover = "kelp.cover", 
-                                       abiotic = "BO2_tempmean_bdmin"){
+                                       abiotic = "BO2_tempmean_bdmax"){
   # Subset abiotic background variable
-  abiotic_sub <- Arctic_BO[,c("lon", "lat", abiotic)]
-  colnames(abiotic_sub) <- c("lon_BO", "lat_BO", "var")
+  abiotic_sub <- Arctic_env[,c("lon", "lat", abiotic)]
+  colnames(abiotic_sub) <- c("lon_env", "lat_env", "var")
   abiotic_sub <- arrange(abiotic_sub, var) %>% 
     mutate(dist_index = 1:n()) %>% 
     na.omit()
@@ -75,8 +74,8 @@ distribution_cover_abiotic <- function(cover = "kelp.cover",
   # Subset cover
   kelp_sub <- adf_summary %>% 
     filter(family == cover) %>% 
-    left_join(study_site_index, by = c("Campaign", "site")) %>% 
-    left_join(abiotic_sub, by = c("lon_BO", "lat_BO"))
+    left_join(study_site_env, by = c("Campaign", "site")) %>% 
+    left_join(abiotic_sub, by = c("lon_env", "lat_env"))
   
   # Plot it
   ggplot(data = abiotic_sub, aes(x = dist_index, y = var)) +
@@ -92,5 +91,6 @@ distribution_cover_abiotic <- function(cover = "kelp.cover",
 # Visualise all kelp cover against sst
 distribution_cover_abiotic()
 distribution_cover_abiotic(cover = "Alaria", abiotic = "BO_ph")
-distribution_cover_abiotic(cover = "Agarum", abiotic = "BO2_salinitymean_bdmin")
+distribution_cover_abiotic(cover = "Agarum", abiotic = "BO2_salinitymean_bdmax")
+distribution_cover_abiotic(cover = "Laminariales", abiotic = "BO2_icethickmean_ss")
 

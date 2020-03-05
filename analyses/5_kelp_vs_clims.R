@@ -13,22 +13,21 @@ library(vegan)
 # Check for site mismatches -----------------------------------------------
 
 # NB: The following two lines of code should return 'character(0)'
-# This means there are no differences in the sites for the ArctcKelp and BO data
+# This means there are no differences in the sites for the ArctcKelp and env data
 # If there are, re-run '3_study_site_clims.R'
 
 # Sites from Kelp data not in study site names
-unique(adf_summary$site)[!(unique(adf_summary$site) %in% unique(study_site_BO$site))]
+unique(adf_summary$site)[!(unique(adf_summary$site) %in% unique(study_site_env$site))]
 
 # Study site names not in kelp data
-unique(study_site_BO$site)[!(unique(study_site_BO$site) %in% unique(adf_summary$site))]
+unique(study_site_env$site)[!(unique(study_site_env$site) %in% unique(adf_summary$site))]
 
 
-# Join kelp and means -----------------------------------------------------
+# Join kelp to env variables ----------------------------------------------
 
-# Mean kelp cover and BO variables
-kelp_means <- left_join(adf_summary, study_site_BO, by = c("Campaign", "site")) %>% 
-  gather(key = "var", value = "val", -c(Campaign:mean_cover)) %>% 
-  na.omit()
+# Mean kelp cover and env variables
+kelp_means <- left_join(adf_summary, study_site_env, by = c("Campaign", "site")) %>% 
+  ungroup()
 
 
 # Multivariate analyses ---------------------------------------------------
@@ -41,31 +40,30 @@ sand_rock <- adf %>%
 
 # Create data.frame that makes vegan happy
 kelp_wide <- kelp_means %>% 
-  pivot_wider(names_from = var, values_from = val, values_fn = list(val = mean)) %>% 
-  pivot_wider(names_from = family, values_from = c(mean_cover, sd_cover), values_fn = list(val = mean)) %>% 
-  left_join(sand_rock, by = c("Campaign", "site", "depth")) %>% 
-  ungroup()
+  left_join(sand_rock, by = c("Campaign", "site", "depth"))
 
+# Visualise
 ggplot(data = kelp_wide, aes(x = BO2_icecovermean_ss)) +
   geom_histogram(bins = 6) +
-  geom_point(aes(colour = mean_cover_kelp.cover), y = 0, size = 4) +
+  geom_point(aes(colour = mean_cover, shape = family), y = 0, size = 4) +
   scale_colour_viridis_c() +
   labs(x = "Mean ice cover")
 
-# The BO variables
+# The env variables
+   # NB: Ignoring the GMED variables for now as there are missing values
 kelp_wide_var <- kelp_wide %>% 
-  dplyr::select(BO_calcite:BO2_icethickrange_ss)
+  dplyr::select(BO2_templtmin_bdmax:BO2_curvelltmax_bdmax)
 
-# The "environmental" variables
+# The response variables
 kelp_wide_env <- kelp_wide %>% 
-  dplyr::select(Campaign, depth, mean_cover_kelp.cover:rock)
+  dplyr::select(Campaign, depth, family, mean_cover, sd_cover, rock, sand)
 
 # Run the MDS
 kelp_MDS <- metaMDS(decostand(kelp_wide_var, method = "standardize"),
                     distance = "euclidean", try = 100, autotransform = F)
 
 # Fit environmental variables
-ord_fit <- envfit(kelp_MDS ~ depth + mean_cover_kelp.cover + rock + sand, data = kelp_wide_env)
+ord_fit <- envfit(kelp_MDS ~ depth + mean_cover + rock + sand, data = kelp_wide_env)
 ord_fit_df <- data.frame(ord_fit$vectors$arrows) %>% 
   mutate(var = row.names(.))
 
@@ -73,8 +71,8 @@ ord_fit_df <- data.frame(ord_fit$vectors$arrows) %>%
 mds_df <- data.frame(site = kelp_wide$site, kelp_wide_env, kelp_MDS$points)
 
 # Test correlations
-cor(x = kelp_wide$mean_cover_kelp.cover, y = kelp_wide$sand)
-cor(x = kelp_wide$mean_cover_kelp.cover, y = kelp_wide$rock)
+cor(x = kelp_wide$mean_cover, y = kelp_wide$sand)
+cor(x = kelp_wide$mean_cover, y = kelp_wide$rock)
 
 # The ordiplot
 ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
@@ -85,14 +83,13 @@ ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
   geom_segment(data = ord_fit_df, aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2),
                arrow = arrow(angle = 40, length = unit(0.2, "cm"), type = "open"), 
                alpha = 1, colour = "black", size = 0.5) +
-  geom_point(aes(size = mean_cover_kelp.cover, colour = as.factor(Campaign))) +
+  geom_point(aes(size = mean_cover, colour = as.factor(Campaign))) +
   scale_colour_brewer(name = "Campaign", palette = "Dark2") +
   # scale_fill_brewer(name = "Campaign", palette = "Dark2") +
   scale_size_continuous(name = "Kelp cover (total %)", breaks = c(0, 25, 50, 75, 100)) +
   guides(colour = guide_legend(order = 1),
          shape = guide_legend(order = 2),
          size = guide_legend(override.aes = list(shape = 16), order = 3)) +
-  # labs(size = "Duration") +
   theme_grey() +
   theme(strip.background = element_rect(fill = NA),
         panel.border = element_rect(fill = NA, colour = "black", size = 1),

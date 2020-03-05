@@ -47,7 +47,7 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep = ';', dec =
          Campaign = as.character(Campaign))
 
 # The BO data per study site
-load("data/study_site_BO.RData")
+load("data/study_site_env.RData")
 
 
 # Quadrat data ------------------------------------------------------------
