@@ -22,6 +22,7 @@
 # Need to think of a more honest way to show model innacuracy
 # The current mean value doesn't show the kurtosis of innacuracy
 
+# Need to update top_variables() so that it removes highly correlated values
 
 # Setup -------------------------------------------------------------------
 
@@ -29,10 +30,7 @@
 source("analyses/4_kelp_cover.R")
 
 # Libraries for this script specifically
-# library(tidymodels)  # Loads parsnip, rsample, recipes, yardstick
-# library(skimr)       # Quickly get a sense of data
 library(randomForest)
-# library(knitr)
 library(OneR) # For single rule machine learning
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
