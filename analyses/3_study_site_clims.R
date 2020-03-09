@@ -30,17 +30,3 @@ study_site_env <- study_sites %>%
   dplyr::rename(lon = lon.x, lat = lat.x, lon_env = lon.y, lat_env = lat.y)
 save(study_site_env, file = "data/study_site_env.RData")
 
-
-# Visualise ---------------------------------------------------------------
-
-# ggplot(study_site_clims_long, aes(x = month, y = val, colour = depth)) +
-#   geom_line(aes(group = depth), size = 1.5) +
-#   scale_colour_gradient(low = "steelblue", high = "black", breaks = seq(0, 30, 5),
-#                         guide = guide_legend(title.position = "left", nrow = 1)) +
-#   facet_grid(var~site, scales = "free", switch = "y") +
-#   scale_x_discrete(expand = c(0, 0)) +
-#   labs(x = "Monthly climatology", y = NULL, colour = "Depth (m)") +
-#   theme(axis.text.x = element_text(angle = 45),
-#         legend.position = "bottom")
-# ggsave("graph/study_site_clims.pdf", height = 12, width = 44)
-

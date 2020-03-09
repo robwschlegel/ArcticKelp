@@ -24,6 +24,7 @@
 
 # Need to update top_variables() so that it removes highly correlated values
 
+
 # Setup -------------------------------------------------------------------
 
 # Load all data nad previous libraries
@@ -59,13 +60,13 @@ kelp_all <- adf %>%
   dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
   left_join(study_site_env, by = c("Campaign", "site")) %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
-  dplyr::select(-lon_env, -lat_env, -env_index, -lon, -lat,
-                -bathy, -slope) %>% # There are missing data in the GMED variables
-  na.omit()
+  dplyr::select(-lon_env, -lat_env, -env_index, -lon, -lat) %>%
+  dplyr::select(-depth) %>% # This is not used in Jesi's model
+  na.omit() # No missing data
 
 # The mean kelp covers per site/depth
 kelp_all_mean <- kelp_all %>% 
-  group_by(Campaign, site, depth) %>%
+  group_by(Campaign, site) %>%
   summarise_all(mean) %>%
   ungroup()
 
@@ -82,7 +83,8 @@ cor_df <- round(cor(dplyr::select(kelp_all, -c(Campaign:site))), 2) %>%
   group_by(var2) %>% 
   summarise(var2_count = n()) %>% 
   filter(var2_count >= 5) %>% 
-  ungroup()
+  ungroup() %>% 
+  arrange(-var2_count)
 
 
 # Data prep function ------------------------------------------------------
@@ -94,8 +96,8 @@ rf_data_prep <- function(kelp_choice, df = kelp_all, exclude_cor = F){
   # Trim down data.frame
   df_1 <- data.frame(dplyr::select(df, -c(Campaign:site))) %>% 
     pivot_longer(cols = kelp.cover:Alaria, names_to = "chosen_kelp", values_to = "cover") %>% 
-    filter(chosen_kelp == kelp_choice) %>% 
-    mutate(depth = as.numeric(depth))
+    filter(chosen_kelp == kelp_choice) #%>% 
+    # mutate(depth = as.numeric(depth)) # Removing depth for now
   
   # Rmove highly correlated values
   if(exclude_cor) df_1 <- df_1[,!(colnames(df_1) %in% cor_df$var2)]
@@ -174,14 +176,40 @@ top_variables <- function(lplyr_bit, kelp_choice){
 
 # We then run this 1000 times to increase our certainty in the findings
 top_variables_multi <- function(kelp_choice){
+  # Run 1000 models
   multi_kelp <- plyr::ldply(.data = 1:1000, .fun = top_variables, .parallel = T, kelp_choice = kelp_choice)
+  
+  # Clean up thw results
   multi_kelp_importance <- multi_kelp %>% 
     group_by(var) %>% 
-    summarise(mean_MSE = round(mean(mean_MSE, na.rm = T)),
-              mean_IncMSE = mean(X.IncMSE),
-              count = n()) %>% 
+    summarise(mean_IncMSE = mean(X.IncMSE)) %>% 
     ungroup() %>% 
-    arrange(-mean_IncMSE, -count)
+    arrange(-mean_IncMSE)
+  
+  # Remove variables that correlate with better predictors
+  row_i <- 2
+  cor_kelp_importance <- multi_kelp_importance
+  while(row_i < nrow(cor_kelp_importance )){
+    cor_cols <- multi_kelp_importance[1:row_i-1, "var"]
+    cor_check <- multi_kelp_importance[row_i, "var"]
+    cor_res <- round(cor(x = dplyr::select(kelp_all, cor_cols$var),
+                         y = dplyr::select(kelp_all, cor_check$var)), 2) %>%
+      data.frame() %>%
+      filter_all(all_vars(. >= 0.7))
+      # mutate(var1 = row.names(.)) %>% 
+      # pivot_longer(cols = -var1, names_to = "var2") %>% 
+      # na.omit() %>% 
+      # filter(value != 1, abs(value) >= 0.7) #%>% 
+      # group_by(var2) %>% 
+      # summarise(var2_count = n()) %>% 
+      # ungroup() %>% 
+      # arrange(-var2_count)
+    if(nrow(cor_res)  > 0){
+      cor_kelp_importance <- cor_kelp_importance[-row_i,]
+    } else{
+      row_i <- row_i+1
+    }
+  }
 }
 
 # Find the top variables for the different kelp covers
@@ -492,7 +520,7 @@ Arctic_cover_predict <- function(model_choice){
 cover_squiz <- function(df, legend_title, x_nudge){
   Arctic_map +
     geom_tile(data = df, # No filter
-    # geom_tile(data = filter(df, depth <= 100), 
+    # geom_tile(data = filter(df, depth <= 100),
               aes(x = lon, y = lat, fill = pred_val)) +
     scale_fill_viridis_c(legend_title) +
     theme(strip.background = element_rect(colour = "white", fill = "white"),

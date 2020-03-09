@@ -33,13 +33,14 @@ map_cover_abiotic <- function(cover = "kelp.cover",
   
   # Plot it
   ggplot(data = abiotic_sub, aes(x = lon, y = lat)) +
-    geom_raster(aes_string(fill = abiotic)) +
+    geom_tile(aes_string(fill = abiotic)) +
     borders(fill = "grey70", colour = "black") +
     geom_point(data = kelp_sub, colour = "red", 
                aes(size = mean_cover)) +
     scale_fill_viridis_c(option = "D") +
     coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                    ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+                    ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                    expand = F) +
     labs(x = NULL, y = NULL, fill = abiotic, size = paste(cover," (%)"))
 }
 

@@ -26,7 +26,7 @@ study_sites <- readxl::read_xlsx("metadata/Kelp cover photograph 2019 GPS locati
   dplyr::select(site, lon, lat, everything())
 
 # Set bounding box for study
-bbox_arctic <- c(-90, -50, 50, 80)
+bbox_arctic <- c(-95, -50, 50, 75)
 
 # Load the CANA data
   # These data are from the archives of the Canadian Museum of Nature
@@ -45,7 +45,8 @@ ggplot(data = study_sites, aes(x = lon, y = lat)) +
   geom_point(colour = "red", size = 4) +
   # geom_label_repel(aes(label = site)) +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                  expand = F) +
   labs(x = NULL, y = NULL)
 # ggsave("graph/study_area_points.png", width = 9, height = 7)
 

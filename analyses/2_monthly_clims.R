@@ -112,7 +112,10 @@ BO_layers_df <- as.data.frame(BO_layers_dl, xy = T)
 Arctic_BO <- BO_layers_df %>%
   dplyr::rename(lon = x, lat = y) %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4],
+         BO2_icecovermean_ss >= 0) %>% 
+  mutate(lon = round(lon, 5),
+         lat = round(lat, 5))
 save(Arctic_BO, file = "data/Arctic_BO.RData")
 
 # Visualise
@@ -121,7 +124,8 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                  expand = F) +
   theme(legend.position = "bottom")
 
 
@@ -140,69 +144,61 @@ get_future_layers()
 
 # Load GMED ASCII files ---------------------------------------------------
 
-# The .asc files loaded below were downloaded from:
-# http://gmed.auckland.ac.nz/download.html
+# The .asc files loaded below were sent by Jesi
+# They are the Aqua Maps layers but have been 
+# regridded to match the BioOracle data
 
 # Depth
-depth <- read.asciigrid("data/gb_depth.asc")
+depth <- read.asciigrid("data/depthclip.asc")
 depth_df <- as.data.frame(depth, xy = T)
 Arctic_depth <- depth_df %>%
-  dplyr::rename(bathy = data.gb_depth.asc,
-                lon = s1, lat = s2) %>%
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-
-# Slope
-slope <- read.asciigrid("data/gb_slope.asc")
-slope_df <- as.data.frame(slope, xy = T)
-Arctic_slope <- slope_df %>%
-  dplyr::rename(slope = data.gb_slope.asc,
+  dplyr::rename(bathy = data.depthclip.asc,
                 lon = s1, lat = s2) %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # Distance to land
-land_distance <- read.asciigrid("data/gb_land_distance.asc")
+land_distance <- read.asciigrid("data/landdistclip.asc")
 land_distance_df <- as.data.frame(land_distance, xy = T)
 Arctic_land_distance <- land_distance_df %>%
-  dplyr::rename(land_distance = data.gb_land_distance.asc,
+  dplyr::rename(land_distance = data.landdistclip.asc,
                 lon = s1, lat = s2) %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # Combine into single file and save
-Arctic_GMED <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat")) %>% 
-  left_join(Arctic_slope, by = c("lon", "lat")) %>% 
-  dplyr::select(lon, lat, everything())
-save(Arctic_GMED, file = "data/Arctic_GMED.RData")
+Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat")) %>% 
+  dplyr::select(lon, lat, everything()) %>% 
+  mutate(lon = round(lon, 5),
+         lat = round(lat, 5))
+save(Arctic_GMED, file = "data/Arctic_AM.RData")
+
+# Visualise
+ggplot(Arctic_AM, aes(x = lon, y = lat)) +
+  geom_tile(aes(fill = land_distance)) +
+  borders(fill = "grey70", colour = "black") +
+  scale_fill_viridis_c(option = "D") +
+  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                  expand = F) +
+  theme(legend.position = "bottom")
 
 
 # Combine BO and GMED -----------------------------------------------------
 
 # Add an index for ease of joining
-Arctic_BO$BO_index <- 1:nrow(Arctic_BO)
+load("data/Arctic_BO.RData")
 
-# Nearest neighbour search of GMED against BO
-Arctic_env <- Arctic_GMED %>%
-  mutate(BO_index = as.vector(knnx.index(as.matrix(Arctic_BO[,c("lon", "lat")]),
-                                         as.matrix(Arctic_GMED[,c("lon", "lat")]), k = 1))) %>% 
-  left_join(Arctic_BO, by = "BO_index") %>% 
-  dplyr::select(-lon.x, -lat.x, -BO_index) %>% 
-  dplyr::rename(lon = lon.y, lat = lat.y) %>% 
-  group_by(lon, lat) %>% 
-  summarise_all(mean, na.rm = T) %>% 
-  ungroup() %>% 
-  mutate(bathy = replace_na(bathy, NA),
-         slope = replace_na(slope, NA),
-         bathy = -bathy)
+Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
 save(Arctic_env, file = "data/Arctic_env.RData")
 
 # Visualise
 ggplot(Arctic_env, aes(x = lon, y = lat)) +
   geom_tile(aes(fill = bathy)) +  
   borders(fill = "grey70", colour = "black") +
-  # scale_fill_viridis_c(option = "E") +
+  scale_fill_viridis_c(option = "E") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                  expand = F) +
   theme(legend.position = "bottom")
 
