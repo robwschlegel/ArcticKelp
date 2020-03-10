@@ -122,7 +122,7 @@ save(Arctic_BO, file = "data/Arctic_BO.RData")
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = BO2_icecovermean_ss)) +
+  geom_tile(aes(fill = BO2_ppltmax_ss)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -139,7 +139,8 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
 # RCP6.0 ~= B2
 # RCP4.5 ~= B1
 
-list_layers_future()
+future_BO_layers <- list_layers_future(datasets = "Bio-ORACLE") %>% 
+  filter(scenario == "RCP85")
 
 get_future_layers()
 
@@ -173,7 +174,7 @@ Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat"))
   dplyr::select(lon, lat, everything()) %>% 
   mutate(lon = round(lon, 5),
          lat = round(lat, 5))
-save(Arctic_GMED, file = "data/Arctic_AM.RData")
+save(Arctic_AM, file = "data/Arctic_AM.RData")
 
 # Visualise
 ggplot(Arctic_AM, aes(x = lon, y = lat)) +
@@ -188,9 +189,11 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
 
 # Combine BO and GMED -----------------------------------------------------
 
-# Add an index for ease of joining
+# Load data from previous steps as necessary
 load("data/Arctic_BO.RData")
+load("data/Arctic_AM.RData")
 
+# Merge and save
 Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
 save(Arctic_env, file = "data/Arctic_env.RData")
 

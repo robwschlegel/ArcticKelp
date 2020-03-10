@@ -33,7 +33,8 @@ source("analyses/4_kelp_cover.R")
 # Libraries for this script specifically
 library(randomForest)
 library(OneR) # For single rule machine learning
-library(tidymodels)
+library(tidymodels) # For tdy modelling conventions
+library(caret) # More modelling code
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
 # Environmental data
@@ -63,6 +64,7 @@ kelp_all <- adf %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
   dplyr::select(-lon_env, -lat_env, -env_index, -lon, -lat) %>%
   dplyr::select(-depth) %>% # This is not used in Jesi's model
+  dplyr::select(-bathy, -land_distance) %>% # Decided against these variables
   na.omit() # No missing data
 
 # The mean kelp covers per site/depth
@@ -129,35 +131,50 @@ OneR_model <- function(kelp_choice, df = kelp_all){
 # OneR_model("Alaria")
 
 
-# Test the best mtry ------------------------------------------------------
+# Establish RF conventions ------------------------------------------------
 
-# Function for testing the best number of splits
-rf_mtry_test <- function(mtry_num, kelp_choice, df = kelp_all){
-  
-  # Extract only the kelp cover of choice
-  df_kelp_choice <- rf_data_prep(kelp_choice, df = df) %>% 
-    dplyr::select(-chosen_kelp)
-  
-  # Split data up for training and testing
-  # Rather run the mtry test on the full dataset
-  # train <- sample(1:nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
-  # train_set <- df_kelp_choice[train,]
-  # valid_set <- df_kelp_choice[-train,]
-  
-  # Test function to see what the best `mtry` value is
-  test_rf <- randomForest(cover ~ ., data = df_kelp_choice, mtry = mtry_num,
-                          ntree = 1000, importance = TRUE)
-  pred_test <- predict(test_rf, df_kelp_choice)
-  pred_accuracy <- data.frame(mtry = mtry_num,
-                              acc = round(mean(abs(pred_test - df_kelp_choice$cover))))
-  return(pred_accuracy)
-}
-# lapply(1:10, rf_mtry_test, kelp_choice = "kelp.cover") # No clear increase in accuracy
-# lapply(1:10, rf_mtry_test, kelp_choice = "Laminariales") # No clear increase in accuracy
-# lapply(1:10, rf_mtry_test, kelp_choice = "Agarum") # No clear increase in accuracy
-# lapply(1:10, rf_mtry_test, kelp_choice = "Alaria") # No clear increase in accuracy
+# Prep data
+df_kelp.cover <- rf_data_prep("kelp.cover") %>% 
+  dplyr::select(-chosen_kelp)
 
-# NB: It looks like it is best to let the model decide on the number of splits
+# Define training control: 10 fold cross-validation. 
+train_control <- trainControl(method = "cv", number = 10)
+
+# Train the model using randomForest (rf).
+model <- train(cover ~ ., data = df_kelp.cover, trControl = train_control, 
+               method = "rf", importance = T)
+print(model)
+
+plot(model$finalModel)
+
+# Make predictions and produce Mean Absolute Error (MAE) scores to evaluate
+# model performance
+predictions <- predict(model, df_kelp.cover)
+result <- data.frame(Actual = df_kelp.cover$cover, Predicted = predictions)
+result$Difference <- abs(result$Actual - result$Predicted)
+summary(result$Difference) 
+
+# Plot predicted vs observed abundance to inspect model performance
+df_kelp.cover$predictions <- predictions
+
+predictions_fig <- ggplot(df_kelp.cover, aes(predictions, cover)) +
+  geom_point(colour = "black")+
+  ggtitle(bquote(~italic("All macroalgae"))) +
+  geom_abline(slope = 1, intercept = 0) +
+  scale_x_continuous(limits = c(0, 100)) +
+  labs(x = "Predicted abundance (% cover)", 
+       y = "Observed abundance (% cover)") +
+  theme_bw() +
+  theme(aspect.ratio = 1) +
+  theme(plot.title = element_text(size = 20, vjust = 0),
+        axis.text.x = element_text(angle = 50, size = 10, vjust = 1, hjust = 1),
+        axis.text.y = element_text(size = 10))
+predictions_fig
+
+# View variables by relative importance in the model to see what factors 
+# may be most ecologically important for this species.
+plot(varImp(model))
+
 
 
 # Which variables are the most important? ---------------------------------
@@ -510,15 +527,15 @@ load("data/top_var_alaria.RData")
 load("data/Arctic_env.RData")
 
 # Prep the data for lazy joining
-Arctic_env_prep <- Arctic_env %>% 
-  na.omit() %>% 
-  mutate(lon = plyr::round_any(lon, 0.25),
-         lat = plyr::round_any(lat, 0.25)) %>% 
-  group_by(lon, lat) %>% 
-  # dplyr::rename(depth = bathy) %>% 
-  summarise_if(is.numeric, mean, na.rm = T) %>% 
-  ungroup() #%>% 
-  # tidyr::fill(lon:vtau_ice, .direction = "downup")
+# Arctic_env_prep <- Arctic_env %>% 
+#   na.omit() %>% 
+#   mutate(lon = plyr::round_any(lon, 0.25),
+#          lat = plyr::round_any(lat, 0.25)) %>% 
+#   group_by(lon, lat) %>% 
+#   # dplyr::rename(depth = bathy) %>% 
+#   summarise_if(is.numeric, mean, na.rm = T) %>% 
+#   ungroup() #%>% 
+#   # tidyr::fill(lon:vtau_ice, .direction = "downup")
 
 # Convenience function for final step before prediction
 Arctic_cover_predict <- function(model_choice){
@@ -526,6 +543,12 @@ Arctic_cover_predict <- function(model_choice){
                         depth = Arctic_env$bathy,
                         pred_val = predict(model_choice, Arctic_env))
 }
+
+# Predict the covers
+pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
+pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
+pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
+pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
 
 # Visualise a family of cover
 cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
@@ -556,13 +579,128 @@ cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
     labs(size = paste0(kelp_choice, "(%)"))
 }
 
-# Predictions
-pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
+# Visualisations
 cover_squiz(pred_kelpcover, "Total cover (%)", 0.785, "kelp.cover")
-pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
 cover_squiz(pred_laminariales, "Laminariales cover (%)", 0.745, "Laminariales")
-pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
 cover_squiz(pred_agarum, "Agarum cover (%)", 0.77, "Agarum")
-pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
 cover_squiz(pred_alaria, "Alaria cover (%)", 0.78, "Alaria")
+
+
+# tidymodels demo ---------------------------------------------------------
+
+# From:
+# https://rviews.rstudio.com/2019/06/19/a-gentle-intro-to-tidymodels/
+
+# The libray
+library(tidymodels)
+
+# The initial split
+iris_split <- initial_split(iris, prop = 0.6)
+iris_split
+
+# Glimpse
+iris_split %>%
+  training() %>%
+  glimpse()
+
+# Create a recipe on the training data
+iris_recipe <- training(iris_split) %>%
+  recipe(Species ~.) %>%
+  step_corr(all_predictors()) %>%
+  step_center(all_predictors(), -all_outcomes()) %>%
+  step_scale(all_predictors(), -all_outcomes()) %>%
+  prep(retain = TRUE)
+
+# Execute pre-processing on training data
+iris_testing <- iris_recipe %>%
+  bake(testing(iris_split)) 
+glimpse(iris_testing)
+
+# But this is redundant to do on the training data
+iris_training <- juice(iris_recipe)
+glimpse(iris_training)
+
+# Random forest with ranger package
+iris_ranger <- rand_forest(trees = 100, mode = "classification") %>%
+  set_engine("ranger") %>%
+  fit(Species ~ ., data = iris_training)
+predict(iris_ranger, iris_testing)
+
+# Random forest wiht random forest package
+iris_rf <-  rand_forest(trees = 100, mode = "classification") %>%
+  set_engine("randomForest") %>%
+  fit(Species ~ ., data = iris_training)
+predict(iris_rf, iris_testing)
+
+# Glimpse
+iris_ranger %>%
+  predict(iris_testing) %>%
+  bind_cols(iris_testing) %>%
+  glimpse()
+
+# Prediction accuracy
+iris_ranger %>%
+  predict(iris_testing) %>%
+  bind_cols(iris_testing) %>%
+  metrics(truth = Species, estimate = .pred_class)
+
+iris_rf %>%
+  predict(iris_testing) %>%
+  bind_cols(iris_testing) %>%
+  metrics(truth = Species, estimate = .pred_class)
+
+# Per classifier metric
+iris_ranger %>%
+  predict(iris_testing, type = "prob") %>%
+  glimpse()
+
+iris_probs <- iris_ranger %>%
+  predict(iris_testing, type = "prob") %>%
+  bind_cols(iris_testing)
+glimpse(iris_probs)
+
+iris_probs %>%
+  gain_curve(Species, .pred_setosa:.pred_virginica) %>%
+  glimpse()
+
+# Visualise
+iris_probs %>%
+  gain_curve(Species, .pred_setosa:.pred_virginica) %>%
+  autoplot()
+
+iris_probs%>%
+  roc_curve(Species, .pred_setosa:.pred_virginica) %>%
+  autoplot()
+
+predict(iris_ranger, iris_testing, type = "prob") %>%
+  bind_cols(predict(iris_ranger, iris_testing)) %>%
+  bind_cols(select(iris_testing, Species)) %>%
+  glimpse()
+
+predict(iris_ranger, iris_testing, type = "prob") %>%
+  bind_cols(predict(iris_ranger, iris_testing)) %>%
+  bind_cols(select(iris_testing, Species)) %>%
+  metrics(Species, .pred_setosa:.pred_virginica, estimate = .pred_class)
+
+
+
+# Another demo ------------------------------------------------------------
+
+# From:
+# https://www.brodrigues.co/blog/2020-03-08-tidymodels/
+
+# random forest
+rf_tune_pra <- rand_forest(mtry = tune(), trees = tune()) %>%
+  set_engine("ranger") %>%
+  set_mode("classification")
+
+rf_grid <- rf_tune_pra %>%
+  parameters() %>%
+  finalize(select(pra, -job_search)) %>%  
+  grid_max_entropy(size = 10)
+
+rf_wflow <- workflow() %>%
+  add_recipe(preprocess) %>%
+  add_model(rf_tune_pra)
+
 
