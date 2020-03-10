@@ -95,8 +95,10 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               "BO2_dissoxltmin_bdmax", "BO2_dissoxmean_bdmax", "BO2_dissoxltmax_bdmax", 
                               # pH
                               "BO_ph", 
+                              # Primary productivity
+                              "BO2_ppltmin_ss", "BO2_ppmean_ss", "BO2_ppltmax_ss", 
                               # Calcite
-                              "BO_calcite",
+                              # "BO_calcite",
                               # Iron
                               "BO2_ironltmin_bdmax", "BO2_ironmean_bdmax", "BO2_ironltmax_bdmax", 
                               # Nitrate

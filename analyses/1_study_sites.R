@@ -26,7 +26,7 @@ study_sites <- readxl::read_xlsx("metadata/Kelp cover photograph 2019 GPS locati
   dplyr::select(site, lon, lat, everything())
 
 # Set bounding box for study
-bbox_arctic <- c(-95, -50, 50, 75)
+bbox_arctic <- c(-95, -50, 50, 80)
 
 # Load the CANA data
   # These data are from the archives of the Canadian Museum of Nature
