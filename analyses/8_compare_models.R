@@ -62,14 +62,15 @@ Arctic_MAX_Agarum <- MAX_Agarum_df %>%
   dplyr::rename(suitability = data.Acla.asc,
                 lon = s1, lat = s2) %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3], lat <= bbox_arctic[4]) %>% 
+         lat >= bbox_arctic[3]-5, lat <= bbox_arctic[4]) %>% 
   mutate(lon = round(lon, 5),
          lat = round(lat, 5))
 
 
 # Merge models ------------------------------------------------------------
 
-ALL_Agarum <- left_join(pred_agarum, Arctic_MAX_Agarum, by = c("lon", "lat")) %>% 
+ALL_Agarum <- right_join(pred_agarum, Arctic_MAX_Agarum, by = c("lon", "lat")) %>% 
+  left_join(Arctic_AM, by = c("lon", "lat")) %>% 
   mutate(pred_val = pred_val/100,
          diff_model = pred_val - suitability,
          both_high =  case_when(
@@ -90,17 +91,18 @@ ALL_Agarum_cut <- left_join(pred_agarum_cut, Arctic_MAX_Agarum, by = c("lon", "l
 # May be good to create four categories for MAXENT data, too
 
 # Visualise
-ggplot(filter(ALL_Agarum, depth <= 100, suitability >= 0.059), aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = as.factor(pred_cat))) +
+ggplot(filter(ALL_Agarum, land_distance <= 100 | depth <= 100), aes(x = lon, y = lat)) +
+  # geom_tile(aes(fill = as.factor(pred_cat))) +
   # geom_tile(aes(fill = as.factor(both_high))) +
   # geom_tile(aes(fill = pred_val)) +
-  # geom_tile(aes(fill = suitability)) +
+  geom_tile(aes(fill = suitability)) +
   borders(fill = "grey70", colour = "black") +
-  geom_point(data = study_site_env) +
-  # scale_fill_viridis_c(option = "D") +
+  geom_point(data = study_site_env, colour = "red") +
+  # geom_point(aes(size = pred_val), shape = 21, fill = NA) +
+  scale_fill_viridis_c(option = "D") +
   # scale_fill_gradient2() +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                  ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
                   expand = F) +
   theme(legend.position = "bottom") +
   labs(x = NULL, y = NULL)
