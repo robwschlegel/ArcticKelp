@@ -2,29 +2,6 @@
 # The purpose of this script is to house the code used for the random forest analyses
 
 
-# An open water period would be a useful measurement to consider
-
-# Consider changing the bins into which the cover categories are put
-# Make them smaller and matched more closely to the top quantile
-# of the distribution of kelp covers for each family
-
-# Switch over to maximum depth variables
-# Include min, mean, max of all variables currently used
-# Include better dpeth values, slope, distance from land
-
-# First run the model with all of the variables,
-# and then remove important variables that correlate
-
-# Remove the variables that aren't in the top 5 or so
-
-# Compare probability of presence against projected percent cover
-
-# Need to think of a more honest way to show model innacuracy
-# The current mean value doesn't show the kurtosis of innacuracy
-
-# Need to update top_variables() so that it removes highly correlated values
-
-
 # Setup -------------------------------------------------------------------
 
 # Load all data nad previous libraries
@@ -73,18 +50,29 @@ kelp_all_mean <- kelp_all %>%
   summarise_all(mean) %>%
   ungroup()
 
+# The highest kelp covers per site/depth
+kelp_all_max <- kelp_all %>% 
+  group_by(Campaign, site) %>%
+  summarise_all(max) %>%
+  ungroup()
+
 
 # Data prep function ------------------------------------------------------
 
 # Convenience function for prepping dataframe for use in the random forest
 # This removes all other kelp cover values
-rf_data_prep <- function(kelp_choice, df = kelp_all){
+rf_data_prep <- function(kelp_choice, df = kelp_all, cut_cover = F){
   
   # Trim down data.frame
   df_1 <- data.frame(dplyr::select(df, -c(Campaign:site))) %>% 
     pivot_longer(cols = kelp.cover:Alaria, names_to = "chosen_kelp", values_to = "cover") %>% 
-    filter(chosen_kelp == kelp_choice) #%>% 
-    # mutate(depth = as.numeric(depth)) # Removing depth for now
+    filter(chosen_kelp == kelp_choice) %>% 
+    dplyr::select(-chosen_kelp)
+  
+  if(cut_cover){
+    df_1$cover <- cut(df_1$cover, breaks = c(-Inf, 0, 10, 50, 100), ordered_result = T)
+    levels(df_1$cover)[1] <- "(0]"
+  }
   
   return(df_1)
 }
@@ -96,14 +84,10 @@ rf_data_prep <- function(kelp_choice, df = kelp_all){
 OneR_model <- function(kelp_choice, df = kelp_all){
 
   # Pull out training index
-  set.seed(13) # for reproducibility
   one_random <- sample(1:nrow(df), 0.7*nrow(df))
   
   # Prep the data
-  kelp_cut <- rf_data_prep(kelp_choice = kelp_choice, df = df) %>% 
-    mutate(cover = ifelse(cover == 0, cover + 1, cover),  # Need to bump 0's for the binning process
-           cover = base::cut(cover, breaks = seq(0, 100, 20), ordered_result = T)) %>% 
-    dplyr::select(-chosen_kelp)
+  kelp_cut <- rf_data_prep(kelp_choice = kelp_choice, df = df, cut_cover = T)
            
   # The training data
   kelp_train <- kelp_cut %>% 
@@ -134,8 +118,7 @@ OneR_model <- function(kelp_choice, df = kelp_all){
 # Establish RF conventions ------------------------------------------------
 
 # Prep data
-df_kelp.cover <- rf_data_prep("kelp.cover") %>% 
-  dplyr::select(-chosen_kelp)
+df_kelp.cover <- rf_data_prep("kelp.cover")
 
 # Define training control: 10 fold cross-validation. 
 train_control <- trainControl(method = "cv", number = 10)
@@ -173,19 +156,19 @@ predictions_fig
 
 # View variables by relative importance in the model to see what factors 
 # may be most ecologically important for this species.
+importance(model$finalModel)
+varImp(model)
 plot(varImp(model))
-
 
 
 # Which variables are the most important? ---------------------------------
 
 # This function runs many random forest models to determine which variables
 # are consistantly the most important
-top_variables <- function(lplyr_bit, kelp_choice){
+top_variables <- function(lplyr_bit, kelp_choice, df = kelp_all, cut_cover = F){
   
   # Extract only the kelp cover of choice
-  df_kelp_choice <- rf_data_prep(kelp_choice) %>% 
-    dplyr::select(-chosen_kelp)
+  df_kelp_choice <- rf_data_prep(kelp_choice, df = df, cut_cover = cut_cover)
   
   # Split data up for training and testing
   train <- sample(1:nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
@@ -193,32 +176,47 @@ top_variables <- function(lplyr_bit, kelp_choice){
   valid_set <- df_kelp_choice[-train,]
   
   # Random forest model based on all quadrat data
-  kelp_rf <- randomForest(cover ~ ., data = train_set, ntree = 1000, importance = TRUE)
-  res <- data.frame(var = row.names(kelp_rf$importance), 
-                    kelp_rf$importance, 
-                    importanceSD = kelp_rf$importanceSD,
-                    mean_MSE = mean(kelp_rf$mse),
-                    mean_rsq = mean(kelp_rf$rsq)) %>% 
-    arrange(-X.IncMSE) %>% 
-    mutate_if(is.numeric, round, 0)
+  kelp_rf <- randomForest(cover ~ ., data = train_set, ntree = 200, 
+                          importance = TRUE, do.trace = F)
+  if(cut_cover){
+    res <- data.frame(var = row.names(kelp_rf$importance), 
+                      kelp_rf$importance[,5:6]) %>% 
+      arrange(-MeanDecreaseAccuracy) %>% 
+      mutate_if(is.numeric, round, 4)
+  } else {
+    res <- data.frame(var = row.names(kelp_rf$importance), 
+                      kelp_rf$importance, 
+                      importanceSD = kelp_rf$importanceSD,
+                      mean_MSE = mean(kelp_rf$mse),
+                      mean_rsq = mean(kelp_rf$rsq)) %>% 
+      arrange(-X.IncMSE) %>% 
+      mutate_if(is.numeric, round, 4)
+  }
   return(res)
 }
-# top_variables(kelp_choice = "kelp.cover")
+# top_variables(kelp_choice = "Agarum", df = kelp_all, cut_cover = T)
 
 # We then run this 1000 times to increase our certainty in the findings
-top_variables_multi <- function(kelp_choice){
+top_variables_multi <- function(kelp_choice, df = kelp_all, cut_cover = F){
   
   # Run 1000 models
   multi_kelp <- plyr::ldply(.data = 1:1000, .fun = top_variables, 
-                            .parallel = T, kelp_choice = kelp_choice)
+                            .parallel = T, kelp_choice = kelp_choice, 
+                            df = df, cut_cover = cut_cover)
   
-  # Clean up thw results
+  # Clean up the results
   multi_kelp_importance <- multi_kelp %>% 
     group_by(var) %>% 
-    summarise(mean_IncMSE = mean(X.IncMSE)) %>% 
-    ungroup() %>% 
-    arrange(-mean_IncMSE)
-  
+    summarise_all(mean) %>% 
+    ungroup()
+  if("X.IncMSE" %in% colnames(multi_kelp)){
+    multi_kelp_importance <- multi_kelp_importance %>% 
+      arrange(-X.IncMSE)
+  } else {
+    multi_kelp_importance <- multi_kelp_importance %>% 
+      arrange(-MeanDecreaseAccuracy)
+  }
+
   # Remove variables that correlate with better predictors
   row_i <- 2
   cor_kelp_importance <- multi_kelp_importance
@@ -238,13 +236,26 @@ top_variables_multi <- function(kelp_choice){
   return(cor_kelp_importance)
 }
 
-# Find the top variables for the different kelp covers
+## Find the top variables for the different kelp covers
+# kelp.cover
 system.time(top_var_kelpcover <- top_variables_multi("kelp.cover")) # ~61 seconds on 50 cores, ~543 on 3
 save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
+top_var_kelpcover_mean <- top_variables_multi("kelp.cover", df = kelp_all_mean)
+
+# Laminariales
 top_var_laminariales <- top_variables_multi("Laminariales")
 save(top_var_laminariales, file = "data/top_var_laminariales.RData")
+
+# Agarum
 top_var_agarum <- top_variables_multi("Agarum")
 save(top_var_agarum, file = "data/top_var_agarum.RData")
+top_var_agarum_cut <- top_variables_multi("Agarum", cut_cover = T)
+top_var_agarum_mean <- top_variables_multi("Agarum", df = kelp_all_mean)
+# top_var_agarum_mean_cut <- top_variables_multi("Agarum", df = kelp_all_mean, cut_cover = T) # Not enough samples
+top_var_agarum_max <- top_variables_multi("Agarum", df = kelp_all_max)
+# top_var_agarum_max_cut <- top_variables_multi("Agarum", df = kelp_all_max, cut_cover = T) # Not enough samples
+
+# Alaria
 top_var_alaria <- top_variables_multi("Alaria")
 save(top_var_alaria, file = "data/top_var_alaria.RData")
 
@@ -323,7 +334,8 @@ random_kelp_forest_check("Agarum", top_var_agarum)
 random_kelp_forest_check("Alaria", top_var_alaria)
 
 
-getTree(rfobj, k=1, labelVar=FALSE)
+# For grabbing a single tree
+# getTree(rfobj, k=1, labelVar=FALSE)
 
 
 
@@ -526,17 +538,6 @@ load("data/top_var_alaria.RData")
 # Load the Arctic data
 load("data/Arctic_env.RData")
 
-# Prep the data for lazy joining
-# Arctic_env_prep <- Arctic_env %>% 
-#   na.omit() %>% 
-#   mutate(lon = plyr::round_any(lon, 0.25),
-#          lat = plyr::round_any(lat, 0.25)) %>% 
-#   group_by(lon, lat) %>% 
-#   # dplyr::rename(depth = bathy) %>% 
-#   summarise_if(is.numeric, mean, na.rm = T) %>% 
-#   ungroup() #%>% 
-#   # tidyr::fill(lon:vtau_ice, .direction = "downup")
-
 # Convenience function for final step before prediction
 Arctic_cover_predict <- function(model_choice){
   pred_df <- data.frame(lon = Arctic_env$lon, lat = Arctic_env$lat,
@@ -592,115 +593,139 @@ cover_squiz(pred_alaria, "Alaria cover (%)", 0.78, "Alaria")
 # https://rviews.rstudio.com/2019/06/19/a-gentle-intro-to-tidymodels/
 
 # The libray
-library(tidymodels)
+# library(tidymodels)
 
 # The initial split
-iris_split <- initial_split(iris, prop = 0.6)
-iris_split
+split_kelp.cover_all <- initial_split(rf_data_prep("kelp.cover"), prop = 0.7)
+split_kelp.cover_all
 
 # Glimpse
-iris_split %>%
+split_kelp.cover_all %>%
   training() %>%
   glimpse()
 
 # Create a recipe on the training data
-iris_recipe <- training(iris_split) %>%
-  recipe(Species ~.) %>%
+recipe_kelp.cover_all <- training(split_kelp.cover_all) %>%
+  recipe(cover ~.) %>%
   step_corr(all_predictors()) %>%
   step_center(all_predictors(), -all_outcomes()) %>%
   step_scale(all_predictors(), -all_outcomes()) %>%
   prep(retain = TRUE)
 
-# Execute pre-processing on training data
-iris_testing <- iris_recipe %>%
-  bake(testing(iris_split)) 
-glimpse(iris_testing)
+# Execute pre-processing on testing data
+testing_kelp.cover_all <- recipe_kelp.cover_all %>%
+  bake(testing(split_kelp.cover_all)) 
+glimpse(testing_kelp.cover_all)
 
 # But this is redundant to do on the training data
-iris_training <- juice(iris_recipe)
-glimpse(iris_training)
+training_kelp.cover_all <- juice(recipe_kelp.cover_all)
+glimpse(training_kelp.cover_all)
 
 # Random forest with ranger package
-iris_ranger <- rand_forest(trees = 100, mode = "classification") %>%
+ranger_kelp.cover_all <- rand_forest(trees = 1000, mode = "regression") %>%
   set_engine("ranger") %>%
-  fit(Species ~ ., data = iris_training)
-predict(iris_ranger, iris_testing)
+  fit(cover ~ ., data = training_kelp.cover_all)
+predict(ranger_kelp.cover_all, testing_kelp.cover_all)
 
 # Random forest wiht random forest package
-iris_rf <-  rand_forest(trees = 100, mode = "classification") %>%
+rf_kelp.cover_all <- rand_forest(trees = 1000, mode = "regression") %>%
   set_engine("randomForest") %>%
-  fit(Species ~ ., data = iris_training)
-predict(iris_rf, iris_testing)
+  fit(cover ~ ., data = training_kelp.cover_all)
+predict(rf_kelp.cover_all, testing_kelp.cover_all)
 
 # Glimpse
-iris_ranger %>%
-  predict(iris_testing) %>%
-  bind_cols(iris_testing) %>%
+ranger_kelp.cover_all %>%
+  predict(testing_kelp.cover_all) %>%
+  bind_cols(testing_kelp.cover_all) %>%
   glimpse()
 
 # Prediction accuracy
-iris_ranger %>%
-  predict(iris_testing) %>%
-  bind_cols(iris_testing) %>%
-  metrics(truth = Species, estimate = .pred_class)
+ranger_kelp.cover_all %>%
+  predict(testing_kelp.cover_all) %>%
+  bind_cols(testing_kelp.cover_all) %>%
+  metrics(truth = cover, estimate = .pred)
 
-iris_rf %>%
-  predict(iris_testing) %>%
-  bind_cols(iris_testing) %>%
-  metrics(truth = Species, estimate = .pred_class)
+rf_kelp.cover_all %>%
+  predict(testing_kelp.cover_all) %>%
+  bind_cols(testing_kelp.cover_all) %>%
+  metrics(truth = cover, estimate = .pred)
 
 # Per classifier metric
-iris_ranger %>%
-  predict(iris_testing, type = "prob") %>%
+  # For classification only
+ranger_kelp.cover_all %>%
+  predict(testing_kelp.cover_all, type = "prob") %>%
   glimpse()
 
-iris_probs <- iris_ranger %>%
-  predict(iris_testing, type = "prob") %>%
-  bind_cols(iris_testing)
-glimpse(iris_probs)
+probs_kelp.cover_all <- ranger_kelp.cover_all %>%
+  predict(testing_kelp.cover_all, type = "prob") %>%
+  bind_cols(testing_kelp.cover_all)
+glimpse(probs_kelp.cover_all)
 
-iris_probs %>%
-  gain_curve(Species, .pred_setosa:.pred_virginica) %>%
+probs_kelp.cover_all %>%
+  gain_curve(cover, .pred) %>%
   glimpse()
 
 # Visualise
-iris_probs %>%
-  gain_curve(Species, .pred_setosa:.pred_virginica) %>%
+probs_kelp.cover_all %>%
+  gain_curve(cover, .pred) %>%
   autoplot()
 
-iris_probs%>%
-  roc_curve(Species, .pred_setosa:.pred_virginica) %>%
+probs_kelp.cover_all %>%
+  roc_curve(cover, .pred) %>%
   autoplot()
 
-predict(iris_ranger, iris_testing, type = "prob") %>%
-  bind_cols(predict(iris_ranger, iris_testing)) %>%
-  bind_cols(select(iris_testing, Species)) %>%
-  glimpse()
-
-predict(iris_ranger, iris_testing, type = "prob") %>%
-  bind_cols(predict(iris_ranger, iris_testing)) %>%
-  bind_cols(select(iris_testing, Species)) %>%
-  metrics(Species, .pred_setosa:.pred_virginica, estimate = .pred_class)
+# predict(iris_ranger, iris_testing, type = "prob") %>%
+#   bind_cols(predict(iris_ranger, iris_testing)) %>%
+#   bind_cols(select(iris_testing, Species)) %>%
+#   glimpse()
+# 
+# predict(iris_ranger, iris_testing, type = "prob") %>%
+#   bind_cols(predict(iris_ranger, iris_testing)) %>%
+#   bind_cols(select(iris_testing, Species)) %>%
+#   metrics(Species, .pred_setosa:.pred_virginica, estimate = .pred_class)
 
 
 
 # Another demo ------------------------------------------------------------
 
-# From:
-# https://www.brodrigues.co/blog/2020-03-08-tidymodels/
+forest_mode = "regression"
 
-# random forest
-rf_tune_pra <- rand_forest(mtry = tune(), trees = tune()) %>%
-  set_engine("ranger") %>%
-  set_mode("classification")
+# Initial split
+rf_split <- initial_split(rf_data_prep(kelp_choice), prop = 0.7)
+rf_train <- training(rf_split)
+rf_test <- testing(rf_split)
 
-rf_grid <- rf_tune_pra %>%
+# Cross validation
+rf_cv_splits <- vfold_cv(rf_train, v = 10)
+
+# Prep the recipe
+rf_recipe <- recipe(cover ~ ., data = rf_data_prep(kelp_choice), importance = T) %>% 
+  step_corr(all_predictors()) %>% 
+  step_center(all_predictors()) %>% 
+  step_scale(all_predictors())
+
+# Tune the model
+rf_tune <- rand_forest(mtry = tune(), trees = tune()) %>%
+  set_engine("randomForest") %>%
+  set_mode(forest_mode)
+
+# Create a grid
+rf_grid <- rf_tune %>%
   parameters() %>%
-  finalize(select(pra, -job_search)) %>%  
-  grid_max_entropy(size = 10)
+  finalize(select(rf_data_prep(kelp_choice), -cover)) %>%  
+  grid_max_entropy(size = 20)
 
+# Put it together
 rf_wflow <- workflow() %>%
   add_recipe(preprocess) %>%
-  add_model(rf_tune_pra)
+  add_model(rf_tune)
 
+# Run it
+rf_tuned_model <- tune_grid(rf_wflow,
+                            resamples = rf_cv_splits,
+                            grid = rf_grid,
+                            control = control_resamples(save_pred = TRUE))
 
+# View results
+rf_tuned_model$.metrics[10]
+rf_tuned_model$splits[1]

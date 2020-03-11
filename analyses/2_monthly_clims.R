@@ -78,7 +78,7 @@ layers_correlation()
 ## Download the chosen layers
   # NB: Don't run this if nothing has changed as there is no need to ping their servers
                               # Bottom temperature
-BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_templtmax_bdmax",
+BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_templtmax_bdmax", 
                               # Surface temperature
                               "BO2_templtmin_ss", "BO2_tempmean_ss", "BO2_templtmax_ss", 
                               # Bottom salinity
@@ -95,8 +95,10 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               "BO2_dissoxltmin_bdmax", "BO2_dissoxmean_bdmax", "BO2_dissoxltmax_bdmax", 
                               # pH
                               "BO_ph", 
+                              # Diffuse attenuation coefficient at 490 nm 
+                              "BO_damin", "BO_damean", "BO_damax", 
                               # Primary productivity
-                              "BO2_ppltmin_ss", "BO2_ppmean_ss", "BO2_ppltmax_ss", 
+                              # "BO2_ppltmin_ss", "BO2_ppmean_ss", "BO2_ppltmax_ss", 
                               # Calcite
                               # "BO_calcite",
                               # Iron
@@ -122,7 +124,7 @@ save(Arctic_BO, file = "data/Arctic_BO.RData")
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = BO2_ppltmax_ss)) +
+  geom_tile(aes(fill = BO_damax)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -194,12 +196,13 @@ load("data/Arctic_BO.RData")
 load("data/Arctic_AM.RData")
 
 # Merge and save
-Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
+Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat")) %>% 
+  na.omit() # There are some pixels from the BO data that dont' match with BO2
 save(Arctic_env, file = "data/Arctic_env.RData")
 
 # Visualise
 ggplot(Arctic_env, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = bathy)) +  
+  geom_tile(aes(fill = BO2_tempmean_ss)) +  
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "E") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
