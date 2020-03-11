@@ -342,11 +342,11 @@ random_kelp_forest_check("Alaria", top_var_alaria)
 # Many random forests -----------------------------------------------------
 
 # This function is designed to output the model created and it's predictive accuracy
-random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
+random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice,
+                                    df = kelp_all, cut_cover = F){
   
   # Extract only the kelp cover of choice
-  df_kelp_choice <- rf_data_prep(kelp_choice) %>% 
-    dplyr::select(-chosen_kelp)
+  df_kelp_choice <- rf_data_prep(kelp_choice, df = df, cut_cover = cut_cover)
   
   # Chose only desired columns
   df_var_choice <- dplyr::select(df_kelp_choice, cover, as.character(column_choice$var))[1:10]
@@ -357,22 +357,22 @@ random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
   valid_set <- df_var_choice[-train,]
   
   # Random forest model based on all quadrat data
-  kelp_rf <- randomForest(cover ~ ., data = train_set, ntree = 1000,
-                          importance = TRUE, na.action = na.omit)
+  kelp_rf <- randomForest(cover ~ ., data = train_set, ntree = 200, importance = TRUE)
   
   # Predicting on training and validation sets
   pred_train <- predict(kelp_rf, train_set)
   pred_valid <- predict(kelp_rf, valid_set)
   
   # Create data frame of accuracy results
-  train_accuracy <- data.frame(portion = "train",
-                               pred = round(pred_train, 2), 
-                               original = train_set$cover) %>% 
-    mutate(accuracy = pred-original)
-  validate_accuracy <- data.frame(portion = "validate",
-                                  pred = round(pred_valid, 2), 
-                                  original = valid_set$cover) %>% 
-    mutate(accuracy = pred-original)
+    train_accuracy <- data.frame(portion = "train",
+                                 pred = pred_train, 
+                                 original = train_set$cover) %>% 
+      mutate(accuracy = as.numeric(pred)-as.numeric(original))
+    validate_accuracy <- data.frame(portion = "validate",
+                                    pred = pred_valid, 
+                                    original = valid_set$cover) %>% 
+      mutate(accuracy = as.numeric(pred)-as.numeric(original))
+  
   res_accuracy <- rbind(train_accuracy, validate_accuracy)
   
   # Package the model up with the accuracy results and exit
@@ -386,10 +386,12 @@ random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice){
 # in the accuracy of the random forests
 # This is caused by different random splitting of test/validation sets
 # as well as the many possible routes that the random forest may then take
-random_kelp_forest_select <- function(kelp_choice, column_choice){
+random_kelp_forest_select <- function(kelp_choice, column_choice, 
+                                      df = kelp_all, cut_cover = F){
   # system.time(
     multi_test <- plyr::llply(.data = 1:1000, .fun = random_kelp_forest_test, .parallel = T, 
-                              kelp_choice = kelp_choice, column_choice = column_choice)
+                              kelp_choice = kelp_choice, column_choice = column_choice,
+                              df = df, cut_cover = cut_cover)
     # ) # ~50 seconds
   
   # Extract the model accuracies
@@ -400,25 +402,49 @@ random_kelp_forest_select <- function(kelp_choice, column_choice){
   # Find which model had the best validation scores
   accuracy_check <- model_accuracy %>% 
     filter(portion == "validate") %>% 
-    group_by(model_id) %>% 
-    summarise(mean_acc = mean(abs(accuracy)),
-              r_acc = round(cor(x = original, y = pred), 2))
+    group_by(model_id)
+  if(cut_cover){
+    accuracy_check <- accuracy_check %>% 
+      mutate(count_all = n()) %>% 
+      filter(accuracy == 0) %>% 
+      mutate(count_0 = n(),
+             mean_acc = count_0/count_all) %>% 
+      ungroup() %>% 
+      dplyr::select(portion, model_id, mean_acc)
+  } else {
+    accuracy_check <- accuracy_check %>% 
+      summarise(mean_acc = mean(abs(accuracy)),
+              r_acc = round(cor(x = original, y = pred), 2)) %>% 
+      ungroup()
+  }
   
   # Extract that model
-  best_model <- arrange(accuracy_check, -r_acc, mean_acc) %>% 
-    slice(1)
+  if(cut_cover){
+    best_model <- arrange(accuracy_check, -mean_acc)[1,]
+  } else {
+    best_model <- arrange(accuracy_check, -r_acc, mean_acc)[1,]
+  }
   choice_model <- multi_test[[best_model$model_id]]$model
   res <- list(choice_model = choice_model,
               model_accuracy = model_accuracy)
 }
 
 # doParallel::registerDoParallel(cores = 50)
+# Kelp.cover
 system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 56 seconds with 50 cores
 save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
+
+# Laminariales
 best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
 save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
+
+# Agarum
 best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
 save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
+best_rf_agarum_cut <- random_kelp_forest_select("Agarum", top_var_agarum, cut_cover = T)
+save(best_rf_agarum_cut, file = "data/best_rf_agarum_cut.RData", compress = T)
+
+# Alaria
 best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
 save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 
