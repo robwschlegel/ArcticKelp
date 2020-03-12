@@ -20,6 +20,9 @@ load("data/study_site_env.RData")
 # Load Arctic data for testing variable correlations
 load("data/Arctic_env.RData")
 
+# Load the BO correlation matrix
+load("data/BO_cor_matrix.RData")
+
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
 
@@ -195,6 +198,7 @@ extract_var_imp <- function(kelp_rf){
       arrange(-X.IncMSE) %>% 
       mutate_if(is.numeric, round, 4)
   }
+  res$var <- as.character(res$var)
   return(res)
 }
 
@@ -217,23 +221,26 @@ top_variables <- function(lplyr_bit, kelp_choice, df = kelp_all){
   rf_reg_present <- randomForest(cover ~ ., data = df_reg_present[train,], ntree = 200, importance = TRUE, do.trace = F)
   rf_cut_present <- randomForest(cover ~ ., data = df_cut_present[train,], ntree = 200, importance = TRUE, do.trace = F)
 
-  # Extract results and exit
-  res <- list(reg_base = extract_var_imp(rf_reg_base),
-              cut_base = extract_var_imp(rf_cut_base),
-              reg_present = extract_var_imp(rf_reg_present),
-              cut_present = extract_var_imp(rf_cut_present))
-
+  # Extract results
+  reg_base <- extract_var_imp(rf_reg_base)
+  cut_base <-  extract_var_imp(rf_cut_base)
+  reg_present <- extract_var_imp(rf_reg_present)
+  cut_present <- extract_var_imp(rf_cut_present)
+  
+  # Combine and exit
+  res <- left_join(reg_base, cut_base, by = "var") %>% 
+    left_join(reg_present, by = "var") %>% 
+    left_join(cut_present, by = "var")
   return(res)
 }
-top_variables(kelp_choice = "Agarum", df = kelp_all)
+# top_variables(kelp_choice = "Agarum", df = kelp_all)
 
 # We then run this 100 times to increase our certainty in the findings
-top_variables_multi <- function(kelp_choice, df = kelp_all, cut_cover = F){
+top_variables_multi <- function(kelp_choice, df = kelp_all){
   
   # Run 100 models
-  multi_kelp <- plyr::ldply(.data = 1:100, .fun = top_variables, 
-                            .parallel = T, kelp_choice = kelp_choice, 
-                            df = df, cut_cover = cut_cover)
+  multi_kelp <- plyr::ldply(.data = 1:100, .fun = top_variables, .parallel = T, 
+                            kelp_choice = kelp_choice, df = df)
   
   # Clean up the results
   multi_kelp_importance <- multi_kelp %>% 
@@ -251,7 +258,7 @@ top_variables_multi <- function(kelp_choice, df = kelp_all, cut_cover = F){
   # Remove variables that correlate with better predictors
   row_i <- 2
   cor_kelp_importance <- multi_kelp_importance
-  while(row_i < nrow(cor_kelp_importance )){
+  while(row_i < nrow(cor_kelp_importance)){
     cor_cols <- cor_kelp_importance[1:row_i-1, "var"]
     cor_check <- cor_kelp_importance[row_i, "var"]
     cor_res <- round(cor(x = dplyr::select(Arctic_env, cor_cols$var),
