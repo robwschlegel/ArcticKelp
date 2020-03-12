@@ -225,7 +225,7 @@ top_variables <- function(lplyr_bit, kelp_choice, df = kelp_all){
 
   return(res)
 }
-# top_variables(kelp_choice = "Agarum", df = kelp_all, cut_cover = T, scenario = present)
+top_variables(kelp_choice = "Agarum", df = kelp_all)
 
 # We then run this 100 times to increase our certainty in the findings
 top_variables_multi <- function(kelp_choice, df = kelp_all, cut_cover = F){

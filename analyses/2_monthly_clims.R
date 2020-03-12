@@ -41,9 +41,6 @@ MAR_layers <- list_layers(datasets = "MARSPEC")
 # Check layer statistics
 layer_stats()
 
-# Check Pearson correlation coefficient between layers
-layers_correlation() 
-
 # Download bathy layers
   # NB: Not used as these values are suspicious
 # bathy <- load_layers(c("BO_bathymin", "BO_bathymean", "BO_bathymax"))
@@ -237,3 +234,13 @@ ggplot(Arctic_env, aes(x = lon, y = lat)) +
                   expand = F) +
   theme(legend.position = "bottom")
 
+
+# Establish the correlation matrix ----------------------------------------
+
+# Check Pearson correlation coefficient between layers
+  # These warnings are fine, we don't 
+BO_cor_matrix <- layers_correlation(colnames(dplyr::select(Arctic_env, 
+                                                           BO2_templtmin_bdmax:BO2_curvelltmax_bdmax))) %>% 
+  mutate(var = row.names(.)) %>% 
+  dplyr::select(var, everything())
+save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
