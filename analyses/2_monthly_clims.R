@@ -53,29 +53,11 @@ layers_correlation()
 #          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 # save(Arctic_bathy, file = "data/Arctic_bathy.RData")
 
-## The layes currently chosen for use in this study
+# The layes currently chosen for use in this study
   # NB: Many of the variables below also have surface values
   # NB: Max depth is the deepest, we checked
-# Calcite - mean - BO_calcite
-# Diffuse attenuation coefficient at 490 nm - mean - BO_damean
-# Photosynthetically available radiation - mean - BO_parmean
-# pH - mean - BO_ph
-# Chl con. - mean at max depth - BO2_chlomean_bdmax
-# Current velocity - mean at max depth - BO2_curvelmean_bdmax
-# Dissolved oxygen - mean at max depth - BO2_dissoxmean_bdmax
-# Iron con. - mean at max depth -	BO2_ironmean_bdmax
-# Phos con. - mean at max depth - BO2_phosphatemean_bdmax
-# Light at bottom - mean at max depth - BO2_lightbotmean_bdmax
-# Nitr con. - mean at max depth - BO2_nitratemean_bdmax
-# sea temp. - mean at max depth - BO2_tempmean_bdmax
-# Carbon phytoplankton biomass - mean at max depth - BO2_carbonphytomean_bdmax
-# Primary production - mean at max depth - BO2_ppmean_bdmax
-# sea salinity - mean at max depth - BO2_salinitymean_bdmax
-# Silicate con. - mean at max depth - BO2_silicatemean_bdmax
-# Ice con. - mean - BO2_icecovermean_ss
-# Ice thickness - mean + range - BO2_icethickmean_ss + BO2_icethickrange_ss
 
-## Download the chosen layers
+# Download the chosen layers
   # NB: Don't run this if nothing has changed as there is no need to ping their servers
                               # Bottom temperature
 BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_templtmax_bdmax", 
@@ -112,7 +94,11 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               # Current velocity
                               "BO2_curvelltmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelltmax_bdmax"
                               ))
+
+# Convert to dataframe
 BO_layers_df <- as.data.frame(BO_layers_dl, xy = T)
+
+# Clip to Arctic study region
 Arctic_BO <- BO_layers_df %>%
   dplyr::rename(lon = x, lat = y) %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
@@ -141,10 +127,48 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
 # RCP6.0 ~= B2
 # RCP4.5 ~= B1
 
-future_BO_layers <- list_layers_future(datasets = "Bio-ORACLE") %>% 
+# Look at possible layers
+BO_layers_future <- list_layers_future(datasets = "Bio-ORACLE") %>% 
   filter(scenario == "RCP85")
 
-get_future_layers()
+# Download as similar of layers as possible to present data
+                                           # Bottom temperature
+BO_layers_future_dl <- get_future_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_templtmax_bdmax", 
+                                           # Surface temperature
+                                           "BO2_templtmin_ss", "BO2_tempmean_ss", "BO2_templtmax_ss", 
+                                           # Bottom salinity
+                                           "BO2_salinityltmin_bdmax", "BO2_salinitymean_bdmax", "BO2_salinityltmax_bdmax", 
+                                           # Surface salinity
+                                           "BO2_salinityltmin_ss", "BO2_salinitymean_ss", "BO2_salinityltmax_ss", 
+                                           # Ice thickness
+                                           "BO2_icethickltmin_ss", "BO2_icethickmean_ss", "BO2_icethickltmax_ss", 
+                                           # Current velocity
+                                           "BO2_curvelltmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelltmax_bdmax"), 
+                                         scenario = "RCP85", year = c(2050, 2100))
+BO_layers_future_dl <- load_layers(BO_layers_future_dl$layer_code)
+
+# Convert to dataframe
+BO_layers_future_df <- as.data.frame(BO_layers_future_dl, xy = T)
+
+# Clip to Arctic study region
+Arctic_BO_future <- BO_layers_future_df %>%
+  dplyr::rename(lon = x, lat = y) %>%
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4],
+         BO2_RCP85_2100_icethickmean_ss >= 0) %>% 
+  mutate(lon = round(lon, 5),
+         lat = round(lat, 5))
+save(Arctic_BO_future, file = "data/Arctic_BO_future.RData")
+
+# Visualise
+ggplot(Arctic_BO_future, aes(x = lon, y = lat)) +
+  geom_tile(aes(fill = BO2_RCP85_2100_tempmean_ss)) +
+  borders(fill = "grey70", colour = "black") +
+  scale_fill_viridis_c(option = "D") +
+  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                  expand = F) +
+  theme(legend.position = "bottom")
 
 
 # Load GMED ASCII files ---------------------------------------------------
@@ -193,12 +217,15 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
 
 # Load data from previous steps as necessary
 load("data/Arctic_BO.RData")
+load("data/Arctic_BO_future.RData")
 load("data/Arctic_AM.RData")
 
 # Merge and save
 Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat")) %>% 
+  left_join(Arctic_BO_future, by = c("lon", "lat")) %>% 
   na.omit() # There are some pixels from the BO data that dont' match with BO2
 save(Arctic_env, file = "data/Arctic_env.RData")
+rm(Arctic_AM, Arctic_BO, Arctic_BO_future); gc()
 
 # Visualise
 ggplot(Arctic_env, aes(x = lon, y = lat)) +

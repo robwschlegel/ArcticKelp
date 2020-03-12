@@ -14,8 +14,11 @@ library(tidymodels) # For tdy modelling conventions
 library(caret) # More modelling code
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
-# Environmental data
+# Environmental data per site
 load("data/study_site_env.RData")
+
+# Load Arctic data for testing variable correlations
+load("data/Arctic_env.RData")
 
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
@@ -42,6 +45,10 @@ kelp_all <- adf %>%
   dplyr::select(-lon_env, -lat_env, -env_index, -lon, -lat) %>%
   dplyr::select(-depth) %>% # This is not used in Jesi's model
   dplyr::select(-bathy, -land_distance) %>% # Decided against these variables
+  dplyr::select(-BO_ph) %>% # There are large errors in pH throughout the entire study region
+  dplyr::select(-BO2_silicateltmin_bdmax, 
+                -BO2_silicatemean_bdmax, 
+                -BO2_silicateltmax_bdmax) %>% # There are large errors in silicate in Hudson Bay region
   na.omit() # No missing data
 
 # The mean kelp covers per site/depth
@@ -56,19 +63,28 @@ kelp_all_max <- kelp_all %>%
   summarise_all(max) %>%
   ungroup()
 
+# Scenarios
+base <- colnames(dplyr::select(kelp_all, BO2_templtmin_bdmax:BO2_curvelltmax_bdmax))
+present <- colnames(dplyr::select(kelp_all, BO2_templtmin_bdmax:BO2_salinityltmax_ss,
+                                  BO2_icethickltmin_ss:BO2_icethickltmax_ss, 
+                                  BO2_curvelltmin_bdmax:BO2_curvelltmax_bdmax))
+future_2050 <- colnames(dplyr::select(kelp_all, BO2_RCP85_2050_curvelltmax_bdmax:BO2_RCP85_2050_tempmean_ss))
+future_2100 <- colnames(dplyr::select(kelp_all, BO2_RCP85_2100_curvelltmax_bdmax:BO2_RCP85_2100_tempmean_ss))
+
 
 # Data prep function ------------------------------------------------------
 
 # Convenience function for prepping dataframe for use in the random forest
 # This removes all other kelp cover values
-rf_data_prep <- function(kelp_choice, df = kelp_all, cut_cover = F){
+rf_data_prep <- function(kelp_choice, df = kelp_all, cut_cover = F, scenario = base){
   
   # Trim down data.frame
   df_1 <- data.frame(dplyr::select(df, -c(Campaign:site))) %>% 
     pivot_longer(cols = kelp.cover:Alaria, names_to = "chosen_kelp", values_to = "cover") %>% 
     filter(chosen_kelp == kelp_choice) %>% 
-    dplyr::select(-chosen_kelp)
+    dplyr::select(scenario, cover)
   
+  # Cut cover into categories if desired
   if(cut_cover){
     df_1$cover <- cut(df_1$cover, breaks = c(-Inf, 0, 10, 50, 100), ordered_result = T)
     levels(df_1$cover)[1] <- "(0]"
@@ -141,7 +157,7 @@ summary(result$Difference)
 df_kelp.cover$predictions <- predictions
 
 predictions_fig <- ggplot(df_kelp.cover, aes(predictions, cover)) +
-  geom_point(colour = "black")+
+  geom_point(colour = "black") +
   ggtitle(bquote(~italic("All macroalgae"))) +
   geom_abline(slope = 1, intercept = 0) +
   scale_x_continuous(limits = c(0, 100)) +
@@ -163,22 +179,9 @@ plot(varImp(model))
 
 # Which variables are the most important? ---------------------------------
 
-# This function runs many random forest models to determine which variables
-# are consistantly the most important
-top_variables <- function(lplyr_bit, kelp_choice, df = kelp_all, cut_cover = F){
-  
-  # Extract only the kelp cover of choice
-  df_kelp_choice <- rf_data_prep(kelp_choice, df = df, cut_cover = cut_cover)
-  
-  # Split data up for training and testing
-  train <- sample(1:nrow(df_kelp_choice), 0.7*nrow(df_kelp_choice), replace = FALSE)
-  train_set <- df_kelp_choice[train,]
-  valid_set <- df_kelp_choice[-train,]
-  
-  # Random forest model based on all quadrat data
-  kelp_rf <- randomForest(cover ~ ., data = train_set, ntree = 200, 
-                          importance = TRUE, do.trace = F)
-  if(cut_cover){
+# Covenience wrapper for extracting variable importance from an RF
+extract_var_imp <- function(kelp_rf){
+  if(ncol(kelp_rf$importance) == 6){
     res <- data.frame(var = row.names(kelp_rf$importance), 
                       kelp_rf$importance[,5:6]) %>% 
       arrange(-MeanDecreaseAccuracy) %>% 
@@ -194,13 +197,41 @@ top_variables <- function(lplyr_bit, kelp_choice, df = kelp_all, cut_cover = F){
   }
   return(res)
 }
-# top_variables(kelp_choice = "Agarum", df = kelp_all, cut_cover = T)
 
-# We then run this 1000 times to increase our certainty in the findings
+# This function runs many random forest models to determine which variables
+# are consistantly the most important
+top_variables <- function(lplyr_bit, kelp_choice, df = kelp_all){
+  
+  # Prep the four possibilities for a single kelp cover choice
+  df_reg_base <- rf_data_prep(kelp_choice, df = df, cut_cover = F, scenario = base)
+  df_cut_base <- rf_data_prep(kelp_choice, df = df, cut_cover = T, scenario = base)
+  df_reg_present <- rf_data_prep(kelp_choice, df = df, cut_cover = F, scenario = present)
+  df_cut_present <- rf_data_prep(kelp_choice, df = df, cut_cover = T, scenario = present)
+  
+  # Random sampling to split data up for training
+  train <- sample(1:nrow(df_reg_base), 0.7*nrow(df_reg_base), replace = FALSE)
+  
+  # Random forest models for the four posibilities
+  rf_reg_base <- randomForest(cover ~ ., data = df_reg_base[train,], ntree = 200, importance = TRUE, do.trace = F)
+  rf_cut_base <- randomForest(cover ~ ., data = df_cut_base[train,], ntree = 200, importance = TRUE, do.trace = F)
+  rf_reg_present <- randomForest(cover ~ ., data = df_reg_present[train,], ntree = 200, importance = TRUE, do.trace = F)
+  rf_cut_present <- randomForest(cover ~ ., data = df_cut_present[train,], ntree = 200, importance = TRUE, do.trace = F)
+
+  # Extract results and exit
+  res <- list(reg_base = extract_var_imp(rf_reg_base),
+              cut_base = extract_var_imp(rf_cut_base),
+              reg_present = extract_var_imp(rf_reg_present),
+              cut_present = extract_var_imp(rf_cut_present))
+
+  return(res)
+}
+# top_variables(kelp_choice = "Agarum", df = kelp_all, cut_cover = T, scenario = present)
+
+# We then run this 100 times to increase our certainty in the findings
 top_variables_multi <- function(kelp_choice, df = kelp_all, cut_cover = F){
   
-  # Run 1000 models
-  multi_kelp <- plyr::ldply(.data = 1:1000, .fun = top_variables, 
+  # Run 100 models
+  multi_kelp <- plyr::ldply(.data = 1:100, .fun = top_variables, 
                             .parallel = T, kelp_choice = kelp_choice, 
                             df = df, cut_cover = cut_cover)
   
@@ -250,6 +281,7 @@ save(top_var_laminariales, file = "data/top_var_laminariales.RData")
 top_var_agarum <- top_variables_multi("Agarum")
 save(top_var_agarum, file = "data/top_var_agarum.RData")
 top_var_agarum_cut <- top_variables_multi("Agarum", cut_cover = T)
+save(top_var_agarum, file = "data/top_var_agarum_cut.RData")
 top_var_agarum_mean <- top_variables_multi("Agarum", df = kelp_all_mean)
 # top_var_agarum_mean_cut <- top_variables_multi("Agarum", df = kelp_all_mean, cut_cover = T) # Not enough samples
 top_var_agarum_max <- top_variables_multi("Agarum", df = kelp_all_max)
@@ -282,7 +314,7 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
     dplyr::select(-chosen_kelp)
   
   # Chose only desired columns
-  df_var_choice <- dplyr::select(df_kelp_choice, cover, as.character(column_choice$var)[1:10]) %>%
+  df_var_choice <- dplyr::select(df_kelp_choice, cover, as.character(column_choice$var)) %>% #[1:10]) %>%
     mutate(cover_cut = base::cut(cover, breaks = c(-Inf, 20, 40, 60, 80, 100), ordered_factors = T))
   
   # Split data up for training and testing

@@ -24,9 +24,9 @@ Arctic_env$env_index <- 1:nrow(Arctic_env)
 # Find the nearest BO points to each site and add bathy data
 study_site_env <- study_sites %>%
   mutate(env_index = as.vector(knnx.index(as.matrix(Arctic_env[,c("lon", "lat")]),
-                                         as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>%
+                                          as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>%
   left_join(Arctic_env, by = "env_index") %>%
   dplyr::select(-Date, -Notes) %>%
   dplyr::rename(lon = lon.x, lat = lat.x, lon_env = lon.y, lat_env = lat.y)
 save(study_site_env, file = "data/study_site_env.RData")
-
+Arctic_env$env_index <- NULL
