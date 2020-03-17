@@ -327,7 +327,7 @@ load("data/top_var_alaria.RData")
 # testers...
 # kelp_choice <- "Agarum"
 # column_choice <- top_var_agarum
-random_kelp_forest_check <- function(kelp_choice, column_choice){
+random_kelp_forest <- function(kelp_choice, column_choice, print_res = F){
   
   # Extract only the kelp cover of choice
   df_kelp_reg <- rf_data_prep(kelp_choice)
@@ -345,39 +345,29 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
   # Random forest model regression
   rf_reg_base <- randomForest(cover ~ ., data = df_var_reg_base[train, ], 
                               ntree = 200, importance = TRUE, do.trace = F)
-  # print(rf_reg_base) # percent of variance explained
-  # varImpPlot(rf_reg_base)
   rf_reg_sub <- randomForest(cover ~ ., data = df_var_reg_sub[train, ], 
                              ntree = 200, importance = TRUE, do.trace = F)
   
   # Random forest model category
   rf_cut_base <- randomForest(cover ~ ., data = df_var_cut_base[train, ],
                               ntree = 200, importance = TRUE, do.trace = F)
-  # print(rf_cut_base) # percent of variance explained
-  # varImpPlot(rf_cut_base)
   rf_cut_sub <- randomForest(cover ~ ., data = df_var_cut_sub[train, ],
                              ntree = 200, importance = TRUE, do.trace = F)
   
   # Predicting on training set
-  pred_reg_base_test <- predict(rf_reg_base, df_var_reg_base[train, ])
-  print(rf_cut_sub)
-  print(paste0("Average inaccuracy of prediction on base test data: ", 
-               round(mean(abs(pred_reg_base_test - df_var_reg_base[train, ]$cover)), 2),"%"))
-  pred_reg_sub_test <- predict(rf_reg_sub, df_var_reg_sub[train, ])
-  print(paste0("Average inaccuracy of prediction on sub test data: ", 
-               round(mean(abs(pred_reg_sub_test - df_var_reg_sub[train, ]$cover)), 2),"%"))
+  pred_reg_base_train <- predict(rf_reg_base, df_var_reg_base[train, ])
+  pred_reg_sub_train <- predict(rf_reg_sub, df_var_reg_sub[train, ])
+  pred_cut_base_train <- predict(rf_cut_base, df_var_cut_base[train, ])
+  pred_cut_sub_train <- predict(rf_cut_sub, df_var_cut_sub[train, ])
   
   # Predicting on Validation set
   pred_reg_base_valid <- predict(rf_reg_base, df_var_reg_base[-train, ])
-  print(paste0("Average inaccuracy of prediction on validation base data: ", 
-               round(mean(abs(pred_reg_base_valid - df_var_reg_base[-train, ]$cover)), 2),"%"))
   pred_reg_sub_valid <- predict(rf_reg_sub, df_var_reg_sub[-train, ])
-  print(paste0("Average inaccuracy of prediction on validation sub data: ", 
-               round(mean(abs(pred_reg_sub_valid - df_var_reg_sub[-train, ]$cover)), 2),"%"))
+  pred_cut_base_valid <- predict(rf_cut_base, df_var_cut_base[-train, ])
+  pred_cut_sub_valid <- predict(rf_cut_sub, df_var_cut_sub[-train, ])
   
   # Accuracy of categorical prediction
   pred_cut_base_train <- predict(rf_cut_base, df_var_cut_base[train, ])
-  print(pred_cut_base_train)
   print(paste0("Average accuracy of category prediction on test data: ", 
                cbind(pred_cut_base_train, df_var_cut_base[train, ]$cover) %>% 
                  data.frame() %>% 
@@ -389,57 +379,48 @@ random_kelp_forest_check <- function(kelp_choice, column_choice){
                  data.frame() %>% 
                  mutate(acc = ifelse(pred_valid_cat == V2, 1, 0)) %>% 
                  summarise(acc = round(sum(acc)/n(), 4)*100),"%"))
-}
-
-# Check the random forests
-random_kelp_forest_check("kelp.cover", top_var_kelpcover)
-random_kelp_forest_check("Laminariales", top_var_laminariales)
-random_kelp_forest_check("Agarum", top_var_agarum)
-random_kelp_forest_check("Alaria", top_var_alaria)
-
-# For grabbing a single tree
-# getTree(rfobj, k=1, labelVar=FALSE)
-
-
-# Many random forests -----------------------------------------------------
-
-# This function is designed to output the model created and it's predictive accuracy
-random_kelp_forest_test <- function(lplyr_bit, kelp_choice, column_choice,
-                                    df = kelp_all, cut_cover = F){
   
-  # Extract only the kelp cover of choice
-  df_kelp_choice <- rf_data_prep(kelp_choice, df = df, cut_cover = cut_cover)
-  
-  # Chose only desired columns
-  df_var_choice <- dplyr::select(df_kelp_choice, cover, as.character(column_choice$var))
-  
-  # Split data up for training and testing
-  train <- sample(nrow(df_var_choice), 0.7*nrow(df_var_choice), replace = FALSE)
-  train_set <- df_var_choice[train,]
-  valid_set <- df_var_choice[-train,]
-  
-  # Random forest model based on all quadrat data
-  kelp_rf <- randomForest(cover ~ ., data = train_set, ntree = 200, importance = TRUE)
-  
-  # Predicting on training and validation sets
-  pred_train <- predict(kelp_rf, train_set)
-  pred_valid <- predict(kelp_rf, valid_set)
-  
-  # Create data frame of accuracy results
-    train_accuracy <- data.frame(portion = "train",
-                                 pred = pred_train, 
-                                 original = train_set$cover) %>% 
-      mutate(accuracy = as.numeric(pred)-as.numeric(original))
-    validate_accuracy <- data.frame(portion = "validate",
-                                    pred = pred_valid, 
-                                    original = valid_set$cover) %>% 
-      mutate(accuracy = as.numeric(pred)-as.numeric(original))
+  # Create dataframe of accuracy results
+  mean(rf_reg_base$rsq)
+  rf_reg_base$predicted
+  train_accuracy <- data.frame(portion = "train",
+                               pred = pred_train, 
+                               original = train_set$cover) %>% 
+    mutate(accuracy = as.numeric(pred)-as.numeric(original))
+  validate_accuracy <- data.frame(portion = "validate",
+                                  pred = pred_valid, 
+                                  original = valid_set$cover) %>% 
+    mutate(accuracy = as.numeric(pred)-as.numeric(original))
   
   res_accuracy <- rbind(train_accuracy, validate_accuracy)
   
   # Package the model up with the accuracy results and exit
   res <- list(model = kelp_rf, accuracy = res_accuracy)
+  
+  if(print_res){
+    # Regression base
+    print(rf_reg_base)
+    varImpPlot(rf_reg_base)
+    # Category base
+    print(rf_cut_base)
+    varImpPlot(rf_cut_base)
+    # Regression sub
+    print(rf_reg_sub)
+    varImpPlot(rf_reg_sub)
+    # Category sub
+    print(rf_cut_sub)
+    varImpPlot(rf_cut_sub)
+  }
 }
+
+# Check the random forests
+random_kelp_forest("kelp.cover", top_var_kelpcover, print_res = T)
+random_kelp_forest("Laminariales", top_var_laminariales, print_res = T)
+random_kelp_forest("Agarum", top_var_agarum, print_res = T)
+random_kelp_forest("Alaria", top_var_alaria, print_res = T)
+
+# For grabbing a single tree
+# getTree(rfobj, k=1, labelVar=FALSE)
 
 
 # Select best random forest -----------------------------------------------
@@ -503,8 +484,6 @@ save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = 
 # Agarum
 best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
 save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
-# best_rf_agarum_cut <- random_kelp_forest_select("Agarum", top_var_agarum, cut_cover = T)
-# save(best_rf_agarum_cut, file = "data/best_rf_agarum_cut.RData", compress = T)
 
 # Alaria
 best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)

@@ -160,8 +160,8 @@ ggplot(data = mean_agarum, aes(x = model_run, y = suitability)) +
 
 ggplot(data = Arctic_MAX_Agarum_ALL, aes(x = suitability)) +
   geom_density(aes(fill = model_run), alpha = 0.5)
-ggsave("graph/darft_density.png")
+ggsave("graph/draft_density.png")
 
 ggplot(data = Arctic_MAX_Agarum_ALL, aes(x = suitability, y = model_run)) +
   stat_density_ridges(alpha = 0.7)
-ggsave("graph/darft_ridge.png")
+ggsave("graph/draft_ridge.png")
