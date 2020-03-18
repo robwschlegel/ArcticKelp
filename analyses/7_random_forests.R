@@ -321,25 +321,9 @@ random_kelp_forest <- function(lply_bit, kelp_choice, column_choice,
   df_reg <- rf_data_prep(kelp_choice, df, cat_cover = F, scenario = scenario)
   df_cat <- rf_data_prep(kelp_choice, df, cat_cover = T, scenario = scenario)
   
-  # Translate best columns choice to future projections as necessary
-  if(tail(scenario, 1) == "BO2_RCP85_2050_tempmean_ss"){
-    future_var_reg <- str_replace(column_choice$reg_var$var[!column_choice$reg_var$var %in% scenario], 
-                                  "BO2_", "BO2_RCP85_2050_")
-    future_var_cat <- str_replace(column_choice$cat_var$var[!column_choice$cat_var$var %in% scenario], 
-                                  "BO2_", "BO2_RCP85_2050_")
-    top_var_reg <- c(column_choice$reg_var$var[column_choice$reg_var$var %in% scenario], future_var_reg)
-    top_var_cat <- c(column_choice$cat_var$var[column_choice$cat_var$var %in% scenario], future_var_cat)
-  } else if(tail(scenario, 1) == "BO2_RCP85_2100_tempmean_ss"){
-    future_var_reg <- str_replace(column_choice$reg_var$var[!column_choice$reg_var$var %in% scenario], 
-                                  "BO2_", "BO2_RCP85_2100_")
-    future_var_cat <- str_replace(column_choice$cat_var$var[!column_choice$cat_var$var %in% scenario], 
-                                  "BO2_", "BO2_RCP85_2100_")
-    top_var_reg <- c(column_choice$reg_var$var[column_choice$reg_var$var %in% scenario], future_var_reg)
-    top_var_cat <- c(column_choice$cat_var$var[column_choice$cat_var$var %in% scenario], future_var_cat)
-  } else {
-    top_var_reg <- as.character(column_choice$reg_var$var)
-    top_var_cat <- as.character(column_choice$cat_var$var)
-  }
+  # Prep the selection columns
+  top_var_reg <- as.character(column_choice$reg_var$var)
+  top_var_cat <- as.character(column_choice$cat_var$var)
   
   # Chose only desired columns
   df_var_reg <- dplyr::select(df_reg, cover, all_of(top_var_reg))
@@ -477,17 +461,6 @@ save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 ## NB: It appears that the category models are massively overfitting
 
 
-# Future projections ------------------------------------------------------
-
-## 2050
-random_kelp_forest(kelp_choice = "kelp.cover", column_choice = top_var_kelpcover, scenario = future_2050, print_res = T)
-random_kelp_forest(kelp_choice = "Laminariales", column_choice = top_var_laminariales, scenario = future_2050, print_res = T)
-random_kelp_forest(kelp_choice = "Agarum", column_choice = top_var_agarum, scenario = future_2050, print_res = T)
-random_kelp_forest(kelp_choice = "Alaria", column_choice = top_var_alaria, scenario = future_2050, print_res = T)
-
-## 2100
-
-
 # Analyse model accuracy --------------------------------------------------
 
 # First load the best random forest models produced above
@@ -603,19 +576,41 @@ load("data/top_var_alaria.RData")
 # Load the Arctic data
 load("data/Arctic_env.RData")
 
+# This function changes the variable names in the future layers to match the expected names
+predict_future <- function(model_choice, scenario){
+  
+  # Filter out only columns in chosen scenario
+  Arctic_env_sub <- dplyr::select(Arctic_env, all_of(scenario))
+  
+  # Translate best columns choice from future projections as necessary
+  if(tail(scenario, 1) == "BO2_RCP85_2050_tempmean_ss"){
+    colnames(Arctic_env_sub) <- str_replace(colnames(Arctic_env_sub), "BO2_RCP85_2050_", "BO2_")
+  } else if(tail(scenario, 1) == "BO2_RCP85_2100_tempmean_ss"){
+    colnames(Arctic_env_sub) <- str_replace(colnames(Arctic_env_sub), "BO2_RCP85_2100_", "BO2_")
+  } else {
+  }
+  
+  # Run prediction and exit
+  pred_val <-  predict(model_choice, Arctic_env_sub)
+  return(pred_val)
+}
+
+
 # Convenience function for final step before prediction
-Arctic_cover_predict <- function(model_choice){
+Arctic_cover_predict <- function(model_choice, scenario){
   pred_df <- data.frame(lon = Arctic_env$lon, lat = Arctic_env$lat,
                         depth = Arctic_env$bathy,
                         land_distance = Arctic_env$land_distance,
-                        pred_val = predict(model_choice, Arctic_env))
+                        pred_val = predict_future(model_choice, scenario))
 }
 
 # Predict the covers
-pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg)
-pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg)
-pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg)
-pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg)
+pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg, base)
+pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg, base)
+pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg, base)
+pred_agarum_2050 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2050)
+pred_agarum_2100 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2100)
+pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
 
 # Visualise a family of cover
 cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
@@ -650,5 +645,7 @@ cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
 cover_squiz(pred_kelpcover, "Total cover (%)", 0.785, "kelp.cover")
 cover_squiz(pred_laminariales, "Laminariales cover (%)", 0.745, "Laminariales")
 cover_squiz(pred_agarum, "Agarum cover (%)", 0.77, "Agarum")
+cover_squiz(pred_agarum_2050, "Agarum cover (%)", 0.77, "Agarum")
+cover_squiz(pred_agarum_2100, "Agarum cover (%)", 0.77, "Agarum")
 cover_squiz(pred_alaria, "Alaria cover (%)", 0.78, "Alaria")
 
