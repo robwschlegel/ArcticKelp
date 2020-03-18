@@ -276,8 +276,8 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
     ungroup()
   
   # Remove correlated variables and exit
-  res <- list(reg_base = cor_var_rm(multi_kelp_mean[,1:6]),
-              cat_base = cor_var_rm(multi_kelp_mean[,c(1,7:8)]))
+  res <- list(reg_var = cor_var_rm(multi_kelp_mean[,1:6]),
+              cat_var = cor_var_rm(multi_kelp_mean[,c(1,7:8)]))
   return(res)
 }
 
@@ -314,15 +314,36 @@ load("data/top_var_alaria.RData")
 # testers...
 # kelp_choice <- "Agarum"
 # column_choice <- top_var_agarum
-random_kelp_forest <- function(kelp_choice, column_choice, df = kelp_all, scenario = base, print_res = F){
+random_kelp_forest <- function(lply_bit, kelp_choice, column_choice, 
+                               df = kelp_all, scenario = base, print_res = F){
   
   # Extract only the kelp cover of choice
   df_reg <- rf_data_prep(kelp_choice, df, cat_cover = F, scenario = scenario)
   df_cat <- rf_data_prep(kelp_choice, df, cat_cover = T, scenario = scenario)
   
+  # Translate best columns choice to future projections as necessary
+  if(tail(scenario, 1) == "BO2_RCP85_2050_tempmean_ss"){
+    future_var_reg <- str_replace(column_choice$reg_var$var[!column_choice$reg_var$var %in% scenario], 
+                                  "BO2_", "BO2_RCP85_2050_")
+    future_var_cat <- str_replace(column_choice$cat_var$var[!column_choice$cat_var$var %in% scenario], 
+                                  "BO2_", "BO2_RCP85_2050_")
+    top_var_reg <- c(column_choice$reg_var$var[column_choice$reg_var$var %in% scenario], future_var_reg)
+    top_var_cat <- c(column_choice$cat_var$var[column_choice$cat_var$var %in% scenario], future_var_cat)
+  } else if(tail(scenario, 1) == "BO2_RCP85_2100_tempmean_ss"){
+    future_var_reg <- str_replace(column_choice$reg_var$var[!column_choice$reg_var$var %in% scenario], 
+                                  "BO2_", "BO2_RCP85_2100_")
+    future_var_cat <- str_replace(column_choice$cat_var$var[!column_choice$cat_var$var %in% scenario], 
+                                  "BO2_", "BO2_RCP85_2100_")
+    top_var_reg <- c(column_choice$reg_var$var[column_choice$reg_var$var %in% scenario], future_var_reg)
+    top_var_cat <- c(column_choice$cat_var$var[column_choice$cat_var$var %in% scenario], future_var_cat)
+  } else {
+    top_var_reg <- as.character(column_choice$reg_var$var)
+    top_var_cat <- as.character(column_choice$cat_var$var)
+  }
+  
   # Chose only desired columns
-  df_var_reg <- dplyr::select(df_reg, cover, as.character(column_choice$reg_base$var))
-  df_var_cat <- dplyr::select(df_cat, cover, as.character(column_choice$cat_base$var))
+  df_var_reg <- dplyr::select(df_reg, cover, all_of(top_var_reg))
+  df_var_cat <- dplyr::select(df_cat, cover, all_of(top_var_cat))
   
   # Split data up for training and testing
   train <- sample(nrow(df), 0.7*nrow(df), replace = FALSE)
@@ -358,11 +379,6 @@ random_kelp_forest <- function(kelp_choice, column_choice, df = kelp_all, scenar
                              original = c(df_var_cat[train, ]$cover,
                                           df_var_cat[-train, ]$cover)) %>% 
     mutate(accuracy = ifelse(pred == original, 1, 0)) 
-
-  
-  # Package the model up with the accuracy results and exit
-  res <- list(rf_reg = rf_reg, accuracy_reg = accuracy_reg,
-              rf_cat = rf_cat, accuracy_cat = accuracy_cat)
   
   # Either print the results or return them as a list
   if(print_res){
@@ -371,15 +387,17 @@ random_kelp_forest <- function(kelp_choice, column_choice, df = kelp_all, scenar
     # Category base
     print(rf_cat); varImpPlot(rf_cat, main = kelp_choice)
   } else {
-    return(res)
+    # Package the model up with the accuracy results and exit
+    res <- list(rf_reg = rf_reg, accuracy_reg = accuracy_reg,
+                rf_cat = rf_cat, accuracy_cat = accuracy_cat)
   }
 }
 
 # Check the random forests
-random_kelp_forest("kelp.cover", top_var_kelpcover, print_res = T)
-random_kelp_forest("Laminariales", top_var_laminariales, print_res = T)
-random_kelp_forest("Agarum", top_var_agarum, print_res = T)
-random_kelp_forest("Alaria", top_var_alaria, print_res = T)
+random_kelp_forest(kelp_choice = "kelp.cover", column_choice = top_var_kelpcover, print_res = T)
+random_kelp_forest(kelp_choice = "Laminariales", column_choice = top_var_laminariales, print_res = T)
+random_kelp_forest(kelp_choice = "Agarum", column_choice = top_var_agarum, print_res = T)
+random_kelp_forest(kelp_choice = "Alaria", column_choice = top_var_alaria, print_res = T)
 
 # For grabbing a single tree
 # getTree(rfobj, k=1, labelVar=FALSE)
@@ -392,46 +410,50 @@ random_kelp_forest("Alaria", top_var_alaria, print_res = T)
 # This is caused by different random splitting of test/validation sets
 # as well as the many possible routes that the random forest may then take
 random_kelp_forest_select <- function(kelp_choice, column_choice, 
-                                      df = kelp_all, scenario = base, cat_cover = F){
+                                      df = kelp_all, scenario = base){
   # system.time(
     multi_test <- plyr::llply(.data = 1:100, .fun = random_kelp_forest, .parallel = T, 
                               kelp_choice = kelp_choice, column_choice = column_choice,
-                              df = df, scenario = scenario)#, cat_cover = cat_cover)
+                              df = df, scenario = scenario)
     # ) # ~50 seconds
   
   # Extract the model accuracies
-  model_accuracy <- lapply(multi_test, function(x) x$accuracy) %>% 
+  accuracy_reg <- lapply(multi_test, function(x) x$accuracy_reg) %>% 
+    do.call(rbind.data.frame, .) %>% 
+    mutate(model_id = rep(1:100, each = nrow(df)))
+  accuracy_cat <- lapply(multi_test, function(x) x$accuracy_cat) %>% 
     do.call(rbind.data.frame, .) %>% 
     mutate(model_id = rep(1:100, each = nrow(df)))
   
   # Find which model had the best validation scores
-  accuracy_check <- model_accuracy %>% 
+  accuracy_reg_check <- accuracy_reg %>%
     filter(portion == "validate") %>% 
-    group_by(model_id)
-  if(cat_cover){
-    accuracy_check <- accuracy_check %>% 
-      mutate(count_all = n()) %>% 
-      filter(accuracy == 0) %>% 
-      mutate(count_0 = n(),
-             mean_acc = count_0/count_all) %>% 
-      ungroup() %>% 
-      dplyr::select(portion, model_id, mean_acc)
-  } else {
-    accuracy_check <- accuracy_check %>% 
-      summarise(mean_acc = mean(abs(accuracy)),
+    group_by(model_id) %>% 
+    summarise(mean_acc = round(mean(abs(accuracy)), 2),
               r_acc = round(cor(x = original, y = pred), 2)) %>% 
-      ungroup()
-  }
+    ungroup()
+  accuracy_cat_check <- accuracy_cat %>% 
+    filter(portion == "validate") %>% 
+    group_by(model_id) %>% 
+    mutate(count_all = n()) %>% 
+    filter(accuracy == 0) %>% 
+    mutate(count_0 = n(),
+           mean_acc = round(count_0/count_all, 4)*100) %>% 
+    ungroup() %>% 
+    dplyr::select(model_id, mean_acc) %>% 
+    unique()
+  
+  # Find the best model ID
+  best_reg <- arrange(accuracy_reg_check, -r_acc, mean_acc)[1,]
+  best_cat <- arrange(accuracy_cat_check, -mean_acc)[1,]
   
   # Extract the best model
-  if(cat_cover){
-    best_model <- arrange(accuracy_check, -mean_acc)[1,]
-  } else {
-    best_model <- arrange(accuracy_check, -r_acc, mean_acc)[1,]
-  }
-  choice_model <- multi_test[[best_model$model_id]]$model
-  res <- list(choice_model = choice_model,
-              model_accuracy = model_accuracy)
+  choice_reg <- multi_test[[best_reg$model_id]]$rf_reg
+  choice_cat <- multi_test[[best_cat$model_id]]$rf_cat
+  
+  # Combine and exit
+  res <- list(choice_reg = choice_reg, accuracy_reg = accuracy_reg, 
+              choice_cat = choice_cat, accuracy_cat = accuracy_cat)
   return(res)
 }
 
@@ -452,9 +474,18 @@ save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
 best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
 save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 
+## NB: It appears that the category models are massively overfitting
+
 
 # Future projections ------------------------------------------------------
 
+## 2050
+random_kelp_forest(kelp_choice = "kelp.cover", column_choice = top_var_kelpcover, scenario = future_2050, print_res = T)
+random_kelp_forest(kelp_choice = "Laminariales", column_choice = top_var_laminariales, scenario = future_2050, print_res = T)
+random_kelp_forest(kelp_choice = "Agarum", column_choice = top_var_agarum, scenario = future_2050, print_res = T)
+random_kelp_forest(kelp_choice = "Alaria", column_choice = top_var_alaria, scenario = future_2050, print_res = T)
+
+## 2100
 
 
 # Analyse model accuracy --------------------------------------------------
@@ -466,7 +497,7 @@ load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
 
 # Find the distributions of accuracy from 0 - 100%
-test_acc <- best_rf_kelpcover$model_accuracy #%>%
+test_acc <- best_rf_kelpcover$accuracy_reg #%>%
   # filter(model_id == 1000)
 
 # Quick visuals
@@ -549,10 +580,10 @@ conf_plot <- function(df, plot_title){
 }
 
 # Create the plots
-conf_plot(best_rf_kelpcover$model_accuracy, "Total cover confidence")
-conf_plot(best_rf_laminariales$model_accuracy, "Laminariales cover confidence")
-conf_plot(best_rf_agarum$model_accuracy, "Agarum cover confidence")
-conf_plot(best_rf_alaria$model_accuracy, "Alaria cover confidence")
+conf_plot(best_rf_kelpcover$accuracy_reg, "Total cover confidence")
+conf_plot(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
+conf_plot(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
+conf_plot(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
 
 
 # Project kelp cover in the Arctic ----------------------------------------
@@ -576,14 +607,15 @@ load("data/Arctic_env.RData")
 Arctic_cover_predict <- function(model_choice){
   pred_df <- data.frame(lon = Arctic_env$lon, lat = Arctic_env$lat,
                         depth = Arctic_env$bathy,
+                        land_distance = Arctic_env$land_distance,
                         pred_val = predict(model_choice, Arctic_env))
 }
 
 # Predict the covers
-pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_model)
-pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_model)
-pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_model)
-pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_model)
+pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg)
+pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg)
+pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg)
+pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg)
 
 # Visualise a family of cover
 cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
@@ -602,7 +634,7 @@ cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
   # Create plot
   Arctic_map +
     # geom_tile(data = df, # No filter
-    geom_tile(data = filter(df, depth <= 100),
+    geom_tile(data = filter(df, depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_val)) +
     geom_point(data = data_point, colour = "red", shape = 21,
                aes_string(x = "lon", y = "lat", size = kelp_choice)) +
@@ -611,7 +643,7 @@ cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
           legend.position = c(x_nudge, 0.96),
           legend.direction = "horizontal",
           legend.spacing.y = unit(0, "mm")) +
-    labs(size = paste0(kelp_choice, "(%)"))
+    labs(size = legend_title)
 }
 
 # Visualisations
