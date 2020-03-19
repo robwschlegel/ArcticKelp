@@ -10,7 +10,6 @@ source("analyses/4_kelp_cover.R")
 # Libraries for this script specifically
 library(randomForest)
 library(OneR) # For single rule machine learning
-# library(tidymodels) # For tidy modelling conventions
 # library(caret) # For cross validation option
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
@@ -140,52 +139,6 @@ OneR_model <- function(kelp_choice, df = kelp_all){
 # OneR_model("Laminariales")
 # OneR_model("Agarum")
 # OneR_model("Alaria")
-#
-
-# Establish RF conventions ------------------------------------------------
-
-# Prep data
-df_kelp.cover <- rf_data_prep("kelp.cover")
-
-# Define training control: 10 fold cross-validation. 
-train_control <- trainControl(method = "cv", number = 10)
-
-# Train the model using randomForest (rf).
-model <- train(cover ~ ., data = df_kelp.cover, trControl = train_control, 
-               method = "rf", importance = T)
-print(model)
-
-plot(model$finalModel)
-
-# Make predictions and produce Mean Absolute Error (MAE) scores to evaluate
-# model performance
-predictions <- predict(model, df_kelp.cover)
-result <- data.frame(Actual = df_kelp.cover$cover, Predicted = predictions)
-result$Difference <- abs(result$Actual - result$Predicted)
-summary(result$Difference) 
-
-# Plot predicted vs observed abundance to inspect model performance
-df_kelp.cover$predictions <- predictions
-
-predictions_fig <- ggplot(df_kelp.cover, aes(predictions, cover)) +
-  geom_point(colour = "black") +
-  ggtitle(bquote(~italic("All macroalgae"))) +
-  geom_abline(slope = 1, intercept = 0) +
-  scale_x_continuous(limits = c(0, 100)) +
-  labs(x = "Predicted abundance (% cover)", 
-       y = "Observed abundance (% cover)") +
-  theme_bw() +
-  theme(aspect.ratio = 1) +
-  theme(plot.title = element_text(size = 20, vjust = 0),
-        axis.text.x = element_text(angle = 50, size = 10, vjust = 1, hjust = 1),
-        axis.text.y = element_text(size = 10))
-predictions_fig
-
-# View variables by relative importance in the model to see what factors 
-# may be most ecologically important for this species.
-importance(model$finalModel)
-varImp(model)
-plot(varImp(model))
 
 
 # Which variables are the most important? ---------------------------------
@@ -283,20 +236,20 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 
 ## Find the top variables for the different kelp covers
 # kelp.cover
-system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~5 seconds on 50 cores
-save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
+# system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~5 seconds on 50 cores
+# save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
 
 # Laminariales
-top_var_laminariales <- top_var_multi("Laminariales")
-save(top_var_laminariales, file = "data/top_var_laminariales.RData")
+# top_var_laminariales <- top_var_multi("Laminariales")
+# save(top_var_laminariales, file = "data/top_var_laminariales.RData")
 
 # Agarum
-top_var_agarum <- top_var_multi("Agarum")
-save(top_var_agarum, file = "data/top_var_agarum.RData")
+# top_var_agarum <- top_var_multi("Agarum")
+# save(top_var_agarum, file = "data/top_var_agarum.RData")
 
 # Alaria
-top_var_alaria <- top_var_multi("Alaria")
-save(top_var_alaria, file = "data/top_var_alaria.RData")
+# top_var_alaria <- top_var_multi("Alaria")
+# save(top_var_alaria, file = "data/top_var_alaria.RData")
 
 
 # Random Forest function --------------------------------------------------
@@ -378,10 +331,10 @@ random_kelp_forest <- function(lply_bit, kelp_choice, column_choice,
 }
 
 # Check the random forests
-random_kelp_forest(kelp_choice = "kelp.cover", column_choice = top_var_kelpcover, print_res = T)
-random_kelp_forest(kelp_choice = "Laminariales", column_choice = top_var_laminariales, print_res = T)
-random_kelp_forest(kelp_choice = "Agarum", column_choice = top_var_agarum, print_res = T)
-random_kelp_forest(kelp_choice = "Alaria", column_choice = top_var_alaria, print_res = T)
+# random_kelp_forest(kelp_choice = "kelp.cover", column_choice = top_var_kelpcover, print_res = T)
+# random_kelp_forest(kelp_choice = "Laminariales", column_choice = top_var_laminariales, print_res = T)
+# random_kelp_forest(kelp_choice = "Agarum", column_choice = top_var_agarum, print_res = T)
+# random_kelp_forest(kelp_choice = "Alaria", column_choice = top_var_alaria, print_res = T)
 
 # For grabbing a single tree
 # getTree(rfobj, k=1, labelVar=FALSE)
@@ -443,20 +396,20 @@ random_kelp_forest_select <- function(kelp_choice, column_choice,
 
 # doParallel::registerDoParallel(cores = 50)
 # Kelp.cover
-system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 3 seconds with 50 cores
-save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
+# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 3 seconds with 50 cores
+# save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 
 # Laminariales
-best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
-save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
+# best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
+# save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
 
 # Agarum
-best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
-save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
+# best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
+# save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
 
 # Alaria
-best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
-save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
+# best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
+# save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 
 ## NB: It appears that the category models are massively overfitting
 
@@ -470,19 +423,19 @@ load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
 
 # Find the distributions of accuracy from 0 - 100%
-test_acc <- best_rf_kelpcover$accuracy_reg #%>%
+# test_acc <- best_rf_kelpcover$accuracy_reg #%>%
   # filter(model_id == 1000)
 
 # Quick visuals
-ggplot(filter(test_acc, portion == "validate"), aes(x = accuracy)) +
-  geom_histogram()
+# ggplot(filter(test_acc, portion == "validate"), aes(x = accuracy)) +
+  # geom_histogram()
 
-ggplot(filter(test_acc, portion == "validate"), aes(x = original, y = pred)) +
-  geom_point() +
-  geom_smooth(method = "lm")
+# ggplot(filter(test_acc, portion == "validate"), aes(x = original, y = pred)) +
+  # geom_point() +
+  # geom_smooth(method = "lm")
 
-ggplot(filter(test_acc, portion == "validate"), aes(x = as.factor(original), y = pred)) +
-  geom_boxplot()
+# ggplot(filter(test_acc, portion == "validate"), aes(x = as.factor(original), y = pred)) +
+  # geom_boxplot()
 
 # Function for creating figure showing confidence intervals of prediction accuracy
 conf_plot <- function(df, plot_title){
@@ -553,28 +506,28 @@ conf_plot <- function(df, plot_title){
 }
 
 # Create the plots
-conf_plot(best_rf_kelpcover$accuracy_reg, "Total cover confidence")
-conf_plot(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
-conf_plot(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
-conf_plot(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
+# conf_plot(best_rf_kelpcover$accuracy_reg, "Total cover confidence")
+# conf_plot(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
+# conf_plot(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
+# conf_plot(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
 
 
 # Project kelp cover in the Arctic ----------------------------------------
 
 # First load the best random forest models produced above
-load("data/best_rf_kelpcover.RData")
-load("data/best_rf_laminariales.RData")
-load("data/best_rf_agarum.RData")
-load("data/best_rf_alaria.RData")
+# load("data/best_rf_kelpcover.RData")
+# load("data/best_rf_laminariales.RData")
+# load("data/best_rf_agarum.RData")
+# load("data/best_rf_alaria.RData")
 
 # Load top variable choices
-load("data/top_var_kelpcover.RData")
-load("data/top_var_laminariales.RData")
-load("data/top_var_agarum.RData")
-load("data/top_var_alaria.RData")
+# load("data/top_var_kelpcover.RData")
+# load("data/top_var_laminariales.RData")
+# load("data/top_var_agarum.RData")
+# load("data/top_var_alaria.RData")
 
 # Load the Arctic data
-load("data/Arctic_env.RData")
+# load("data/Arctic_env.RData")
 
 # This function changes the variable names in the future layers to match the expected names
 predict_future <- function(model_choice, scenario){
@@ -605,12 +558,12 @@ Arctic_cover_predict <- function(model_choice, scenario){
 }
 
 # Predict the covers
-pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg, base)
-pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg, base)
-pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg, base)
-pred_agarum_2050 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2050)
-pred_agarum_2100 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2100)
-pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
+# pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg, base)
+# pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg, base)
+# pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg, base)
+# pred_agarum_2050 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2050)
+# pred_agarum_2100 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2100)
+# pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
 
 # Visualise a family of cover
 cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
@@ -642,10 +595,10 @@ cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
 }
 
 # Visualisations
-cover_squiz(pred_kelpcover, "Total cover (%)", 0.785, "kelp.cover")
-cover_squiz(pred_laminariales, "Laminariales cover (%)", 0.745, "Laminariales")
-cover_squiz(pred_agarum, "Agarum cover (%)", 0.77, "Agarum")
-cover_squiz(pred_agarum_2050, "Agarum cover (%)", 0.77, "Agarum")
-cover_squiz(pred_agarum_2100, "Agarum cover (%)", 0.77, "Agarum")
-cover_squiz(pred_alaria, "Alaria cover (%)", 0.78, "Alaria")
+# cover_squiz(pred_kelpcover, "Total cover (%)", 0.785, "kelp.cover")
+# cover_squiz(pred_laminariales, "Laminariales cover (%)", 0.745, "Laminariales")
+# cover_squiz(pred_agarum, "Agarum cover (%)", 0.77, "Agarum")
+# cover_squiz(pred_agarum_2050, "Agarum cover (%)", 0.77, "Agarum")
+# cover_squiz(pred_agarum_2100, "Agarum cover (%)", 0.77, "Agarum")
+# cover_squiz(pred_alaria, "Alaria cover (%)", 0.78, "Alaria")
 
