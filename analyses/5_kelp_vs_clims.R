@@ -63,9 +63,14 @@ kelp_MDS <- metaMDS(decostand(kelp_wide_var, method = "standardize"),
                     distance = "euclidean", try = 100, autotransform = F)
 
 # Fit environmental variables
-ord_fit <- envfit(kelp_MDS ~ depth + mean_cover + rock + sand, data = kelp_wide_env)
+ord_fit <- envfit(formula = kelp_MDS ~ depth + mean_cover + rock + sand, data = kelp_wide_env)
+# plot(kelp_MDS)
+# plot(ord_fit)
+# ordiArrowMul(ord_fit)
 ord_fit_df <- data.frame(ord_fit$vectors$arrows) %>% 
-  mutate(var = row.names(.))
+  mutate(NMDS1 = NMDS1 * ord_fit$vectors$r * ordiArrowMul(ord_fit),
+         NMDS2 = NMDS2 * ord_fit$vectors$r * ordiArrowMul(ord_fit),
+         var = row.names(.))
 
 # Create a data.frame for ggplot
 mds_df <- data.frame(site = kelp_wide$site, kelp_wide_env, kelp_MDS$points)
