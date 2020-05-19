@@ -92,6 +92,8 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               "BO2_curvelltmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelltmax_bdmax"
                               ))
 
+# NB: Add the diffuse attenuation value e-mailed from Jorge
+
 # Convert to dataframe
 BO_layers_df <- as.data.frame(BO_layers_dl, xy = T)
 
