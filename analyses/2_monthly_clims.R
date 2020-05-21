@@ -21,9 +21,13 @@ library(tidync)
 library(stringr)
 library(data.table)
 library(FNN)
+library(tiff)
 
 # Set cores
 doParallel::registerDoParallel(cores = 50)
+
+# Disable scientific notation
+options(scipen = 999)
 
 # A rainbow colour palette was explicitly requested
 rainbow_palette <- c("#fefefe", "#f963fa", "#020135", "#00efe1", "#057400", "#fcfd00", "#ed0000", "#3d0000")
@@ -65,7 +69,7 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               # Surface salinity
                               "BO2_salinityltmin_ss", "BO2_salinitymean_ss", "BO2_salinityltmax_ss", 
                               # Ice cover
-                              "BO2_icecoverltmin_ss", "BO2_icecovermean_ss", "BO2_icecoverltmax_ss", 
+                              # "BO2_icecoverltmin_ss", "BO2_icecovermean_ss", "BO2_icecoverltmax_ss",
                               # Ice thickness
                               "BO2_icethickltmin_ss", "BO2_icethickmean_ss", "BO2_icethickltmax_ss", 
                               # Photosynthetically active radiation
@@ -73,7 +77,7 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               # Dissolve oxygen
                               "BO2_dissoxltmin_bdmax", "BO2_dissoxmean_bdmax", "BO2_dissoxltmax_bdmax", 
                               # pH
-                              "BO_ph", 
+                              # "BO_ph", 
                               # Diffuse attenuation coefficient at 490 nm 
                               "BO_damin", "BO_damean", "BO_damax", 
                               # Primary productivity
@@ -87,35 +91,72 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               # Phosphate
                               "BO2_phosphateltmin_bdmax", "BO2_phosphatemean_bdmax", "BO2_phosphateltmax_bdmax", 
                               # Silicate
-                              "BO2_silicateltmin_bdmax", "BO2_silicatemean_bdmax", "BO2_silicateltmax_bdmax", 
+                              # "BO2_silicateltmin_bdmax", "BO2_silicatemean_bdmax", "BO2_silicateltmax_bdmax", 
                               # Current velocity
                               "BO2_curvelltmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelltmax_bdmax"
                               ))
 
-# NB: Add the diffuse attenuation value e-mailed from Jorge
-
 # Convert to dataframe
-BO_layers_df <- as.data.frame(BO_layers_dl, xy = T)
+BO_layers_df <- as.data.frame(BO_layers_dl, xy = T) %>% 
+  dplyr::rename(lon = x, lat = y) %>% 
+  mutate(lon = round(lon, 4), 
+         lat = round(lat, 4))
+
+# The diffuse attenuation value e-mailed from Jorge Asis
+da <- as.data.frame(readTIFF("data/DiffuseAttenuationCoefficientPAR Surface Pred Mean.tif"), xy = T) %>% 
+  `colnames<-`(unique(BO_layers_df$lon)) %>% 
+  mutate(lat = unique(BO_layers_df$lat)) %>% 
+  reshape2::melt(id = "lat") %>% 
+  dplyr::rename(lon = variable, da = value) %>% 
+  mutate(lon = as.numeric(as.character(lon)),
+         da = ifelse(da > 0.000001, da, NA)) %>% 
+  dplyr::select(lon, lat, da) %>% 
+  arrange(lat, lon)
+
+# Visualise to ensure it was loaded correctly
+# da %>%
+#   # filter(lon > 120, lat > 30) %>%
+#   ggplot(aes(x = lon, y = lat)) +
+#   geom_raster(aes(fill = da)) #%>% 
+#   # coord_quickmap(expand = F)
+
+# Add to the other BO layers
+BO_layers_df <- left_join(BO_layers_df, da, by = c("lon", "lat"))
 
 # Clip to Arctic study region
 Arctic_BO <- BO_layers_df %>%
-  dplyr::rename(lon = x, lat = y) %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4],
-         BO2_icecovermean_ss >= 0) %>% 
+         BO2_icethickmean_ss >= 0) %>% 
   mutate(lon = round(lon, 5),
          lat = round(lat, 5))
 save(Arctic_BO, file = "data/Arctic_BO.RData")
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = BO_damax)) +
+  geom_tile(aes(fill = da)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                   ylim = c(bbox_arctic[3], bbox_arctic[4]),
                   expand = F) +
   theme(legend.position = "bottom")
+
+# Test for issues in the BO layers
+current_test <- BO_layers_df %>% 
+  dplyr::select(lon, lat, BO2_curvelltmin_bdmax, BO2_curvelmean_bdmax, BO2_curvelltmax_bdmax) %>% 
+  na.omit() %>% 
+  mutate(max_min = ifelse(BO2_curvelltmax_bdmax > BO2_curvelltmin_bdmax, TRUE, FALSE),
+         mean_min = ifelse(BO2_curvelmean_bdmax > BO2_curvelltmin_bdmax, TRUE, FALSE),
+         max_min_int = as.integer(max_min))
+
+# Visualise pixels where the max and min values are not as expected
+current_pixel_test_fig <- ggplot(data = current_test, aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = max_min)) +
+  coord_quickmap(expand = F) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL) +
+  theme(legend.position = "bottom")
+ggsave(plot = current_pixel_test_fig, filename = "graph/current_pixel_test.png", height = 5, width = 8)
 
 
 # Download future Bio-ORACLE data -----------------------------------------
@@ -246,3 +287,8 @@ BO_cor_matrix <- layers_correlation(colnames(dplyr::select(Arctic_env,
   mutate(var = row.names(.)) %>% 
   dplyr::select(var, everything())
 save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
+
+BO_cor_groups <- sdmpredictors::correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env,
+                                                                                             BO2_templtmin_bdmax:BO2_curvelltmax_bdmax))))
+BO_cor_groups
+  
