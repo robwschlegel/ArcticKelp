@@ -253,3 +253,4 @@ ALL_Agarum_long %>%
                             "suitability", "suitability_2050")) %>% 
   ggplot(aes(x = value, y = name)) +
   stat_density_ridges(alpha = 0.7)
+

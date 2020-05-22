@@ -47,13 +47,6 @@ kelp_all <- adf %>%
   dplyr::select(-lon_env, -lat_env, -env_index, -lon, -lat) %>%
   dplyr::select(-depth) %>% # This is not used in Jesi's model
   dplyr::select(-bathy, -land_distance) %>% # Decided against these variables
-  dplyr::select(-BO_ph) %>% # There are large errors in pH throughout the entire study region
-  dplyr::select(-BO2_icecoverltmin_ss, 
-                -BO2_icecovermean_ss, 
-                -BO2_icecoverltmax_ss) %>% # These are not projected forward and cannot be assumed to not change
-  dplyr::select(-BO2_silicateltmin_bdmax, 
-                -BO2_silicatemean_bdmax, 
-                -BO2_silicateltmax_bdmax) %>% # There are large errors in silicate in Hudson Bay region
   na.omit() # No missing data
 
 # The mean kelp covers per site/depth

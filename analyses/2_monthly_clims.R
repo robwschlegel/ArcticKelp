@@ -4,7 +4,7 @@
 # If any sites change/are added, run "analyses/3_study_sites_clims.R" 
 # to get the updated values, not this script
 
-# The Bio-Oracle (http://www.bio-oracle.org/code.php)  are downloaded directly 
+# The Bio-Oracle (http://www.bio-oracle.org/code.php) are downloaded directly 
 # from their server and so may be accessed from anywhere
 
 

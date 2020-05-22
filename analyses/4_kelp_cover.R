@@ -11,6 +11,7 @@
 # Load study sites and base packages
 source("analyses/1_study_sites.R")
 
+# Additional packages
 library(ggridges)
 
 
@@ -57,6 +58,7 @@ adf_quadrat <- adf %>%
   gather(key = "family", value = "cover", -Campaign, -site, -depth, -Quadrat) %>% 
   mutate(family = factor(family, levels = c("Agarum", "Alaria", 
                                             "Laminariales", "Sacharrina", "kelp.cover")))
+
 
 # Summarise data ----------------------------------------------------------
 

@@ -7,6 +7,7 @@
 
 source("analyses/4_kelp_cover.R")
 
+# Additional packages
 library(vegan)
 
 
@@ -43,16 +44,16 @@ kelp_wide <- kelp_means %>%
   left_join(sand_rock, by = c("Campaign", "site", "depth"))
 
 # Visualise
-ggplot(data = kelp_wide, aes(x = BO2_icecovermean_ss)) +
+ggplot(data = kelp_wide, aes(x = BO2_icethickmean_ss)) +
   geom_histogram(bins = 6) +
   geom_point(aes(colour = mean_cover, shape = family), y = 0, size = 4) +
   scale_colour_viridis_c() +
-  labs(x = "Mean ice cover")
+  labs(x = "Mean ice thickness")
 
 # The env variables
    # NB: Ignoring the GMED variables for now as there are missing values
 kelp_wide_var <- kelp_wide %>% 
-  dplyr::select(BO2_templtmin_bdmax:BO2_curvelltmax_bdmax)
+  dplyr::select(BO2_templtmin_bdmax:BO_damean)
 
 # The response variables
 kelp_wide_env <- kelp_wide %>% 

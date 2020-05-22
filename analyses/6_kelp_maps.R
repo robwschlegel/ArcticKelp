@@ -47,8 +47,8 @@ map_cover_abiotic <- function(cover = "kelp.cover",
 # Visualise some different things
 map_cover_abiotic()
 map_cover_abiotic(cover = "Laminariales", abiotic = "BO2_curvelmean_bdmax")
-map_cover_abiotic(cover = "Agarum", abiotic = "BO2_icecovermean_ss")
-map_cover_abiotic(cover = "Alaria", abiotic = "slope")
+map_cover_abiotic(cover = "Agarum", abiotic = "BO2_icethickmean_ss")
+map_cover_abiotic(cover = "Alaria", abiotic = "BO_damean")
 
 
 # Distribution figures ----------------------------------------------------
@@ -91,7 +91,7 @@ distribution_cover_abiotic <- function(cover = "kelp.cover",
 
 # Visualise all kelp cover against sst
 distribution_cover_abiotic()
-distribution_cover_abiotic(cover = "Alaria", abiotic = "BO_ph")
+distribution_cover_abiotic(cover = "Alaria", abiotic = "BO2_curvelltmax_bdmax")
 distribution_cover_abiotic(cover = "Agarum", abiotic = "BO2_salinitymean_bdmax")
 distribution_cover_abiotic(cover = "Laminariales", abiotic = "BO2_icethickmean_ss")
 
