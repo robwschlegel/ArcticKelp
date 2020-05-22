@@ -302,7 +302,7 @@ ggplot(Arctic_env, aes(x = lon, y = lat)) +
 # Check Pearson correlation coefficient between layers
   # These warnings are fine, we don't 
 BO_cor_matrix <- layers_correlation(colnames(dplyr::select(Arctic_env, 
-                                                           BO2_templtmin_bdmax:BO2_curvelltmax_bdmax))) %>% 
+                                                           BO2_templtmin_bdmax:BO_damean))) %>% 
   mutate(var = row.names(.)) %>% 
   dplyr::select(var, everything())
 save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
