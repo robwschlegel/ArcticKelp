@@ -145,37 +145,77 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
 
 # Test for issues in the BO layers ----------------------------------------
 
+# Test surface currents
+current_ss_layers <- load_layers(c("BO2_curvelltmin_ss", "BO2_curvelmean_ss", "BO2_curvelltmax_ss"))
+current_ss_test <- as.data.frame(current_ss_layers, xy = T) %>% 
+  dplyr::rename(lon = x, lat = y) %>% 
+  mutate(lon = round(lon, 4), 
+         lat = round(lat, 4)) %>% 
+  na.omit() %>% 
+  mutate(max_min = ifelse(BO2_curvelltmax_ss > BO2_curvelltmin_ss, TRUE, FALSE),
+         mean_min = ifelse(BO2_curvelmean_ss > BO2_curvelltmin_ss, TRUE, FALSE),
+         max_min_int = as.integer(max_min))
+current_ss_pixel_test <- ggplot(data = current_ss_test, aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = max_min)) +
+  coord_quickmap(expand = F) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL) +
+  theme(legend.position = "bottom")
+ggsave(plot = current_ss_pixel_test, filename = "graph/current_ss_pixel_test.png", height = 5, width = 8)
+
 # Test bottom currents
-current_test <- BO_layers_df %>% 
-  dplyr::select(lon, lat, BO2_curvelltmin_bdmax, BO2_curvelmean_bdmax, BO2_curvelltmax_bdmax) %>% 
+current_bd_layers <- load_layers(c("BO2_curvelltmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelltmax_bdmax"))
+current_bd_test <- as.data.frame(current_bd_layers, xy = T) %>% 
+  dplyr::rename(lon = x, lat = y) %>% 
+  mutate(lon = round(lon, 4), 
+         lat = round(lat, 4)) %>% 
   na.omit() %>% 
   mutate(max_min = ifelse(BO2_curvelltmax_bdmax > BO2_curvelltmin_bdmax, TRUE, FALSE),
          mean_min = ifelse(BO2_curvelmean_bdmax > BO2_curvelltmin_bdmax, TRUE, FALSE),
          max_min_int = as.integer(max_min))
 
 # Visualise pixels where the max and min values are not as expected
-current_pixel_test_fig <- ggplot(data = current_test, aes(x = lon, y = lat)) +
+current_bd_pixel_test <- ggplot(data = current_bd_test, aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
   labs(fill = "Max greater than min", x = NULL, y = NULL) +
   theme(legend.position = "bottom")
-ggsave(plot = current_pixel_test_fig, filename = "graph/current_pixel_test.png", height = 5, width = 8)
+ggsave(plot = current_bd_pixel_test, filename = "graph/current_bd_pixel.png", height = 5, width = 8)
 
 # Test SST
-SST_test <- BO_layers_df %>% 
-  dplyr::select(lon, lat, BO2_templtmin_ss, BO2_tempmean_ss, BO2_templtmax_ss) %>% 
+SST_layers <- load_layers(c("BO2_templtmin_ss", "BO2_tempmean_ss", "BO2_templtmax_ss"))
+SST_test <- as.data.frame(SST_layers, xy = T) %>% 
+  dplyr::rename(lon = x, lat = y) %>% 
+  mutate(lon = round(lon, 4), 
+         lat = round(lat, 4)) %>% 
   na.omit() %>% 
   mutate(max_min = ifelse(BO2_templtmax_ss > BO2_templtmin_ss, TRUE, FALSE),
          mean_min = ifelse( BO2_tempmean_ss > BO2_templtmin_ss, TRUE, FALSE),
          max_min_int = as.integer(max_min))
 
 # Visualise pixels where the max and min values are not as expected
-SST_pixel_test_fig <- ggplot(data = SST_test, aes(x = lon, y = lat)) +
+SST_pixel_test <- ggplot(data = SST_test, aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
   labs(fill = "Max greater than min", x = NULL, y = NULL) +
   theme(legend.position = "bottom")
-ggsave(plot = SST_pixel_test_fig, filename = "graph/SST_pixel_test.png", height = 5, width = 8)
+ggsave(plot = SST_pixel_test, filename = "graph/SST_pixel_test.png", height = 5, width = 8)
+
+# Compare data layer downloaded via R against a layer download manually
+SST_mean_manual <- as.data.frame(read.asciigrid("data/Present.Surface.Temperature.Mean.asc"), xy = T) %>% 
+  `colnames<-`(c("SST_mean_manual", "lon", "lat")) %>% 
+  mutate(lon = round(lon, 4), 
+         lat = round(lat, 4)) %>% 
+  na.omit() 
+SST_test <- left_join(SST_test, SST_mean_manual, by = c("lon", "lat")) %>% 
+  mutate(mean_comp = BO2_tempmean_ss-SST_mean_manual)
+
+# Plot the difference
+SST_mean_diff <- ggplot(SST_test, aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = mean_comp)) +
+  coord_quickmap(expand = F) +
+  labs(fill = "R download minus \nmanual download (C)", x = NULL, y = NULL) +
+  theme(legend.position = "bottom", legend.key.width = unit(3, "cm"))
+ggsave(plot = SST_mean_diff, filename = "graph/SST_pixel_mean_diff.png", height = 5, width = 8)
 
 
 # Download future Bio-ORACLE data -----------------------------------------
