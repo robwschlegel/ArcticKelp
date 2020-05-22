@@ -217,6 +217,44 @@ SST_mean_diff <- ggplot(SST_test, aes(x = lon, y = lat)) +
   theme(legend.position = "bottom", legend.key.width = unit(3, "cm"))
 ggsave(plot = SST_mean_diff, filename = "graph/SST_pixel_mean_diff.png", height = 5, width = 8)
 
+# Test new bottom velocity layers
+  # Need full layer for the lon lat values
+current_full_test <- as.data.frame(current_ss_layers, xy = T) %>% 
+  dplyr::rename(lon = x, lat = y) %>% 
+  mutate(lon = round(lon, 4), 
+         lat = round(lat, 4))
+
+# The bottom min and max current velocity value sent by Jorge Asis
+curvel_bd_min <- as.data.frame(readTIFF("data/SeaWaterVelocity Benthic Mean Pred LtMin.tif"), xy = T) %>% 
+  `colnames<-`(unique(current_full_test$lon)) %>% 
+  mutate(lat = unique(current_full_test$lat)) %>% 
+  reshape2::melt(id = "lat") %>% 
+  dplyr::rename(lon = variable, curvel_bd_min = value) %>% 
+  mutate(lon = as.numeric(as.character(lon))) %>% #,
+         # BO_damean = ifelse(BO_damean > 0.000001, BO_damean, NA)) %>% 
+  dplyr::select(lon, lat, curvel_bd_min) %>% 
+  arrange(lat, lon)
+curvel_bd_max <- as.data.frame(readTIFF("data/SeaWaterVelocity Benthic Mean Pred LtMax.tif"), xy = T) %>% 
+  `colnames<-`(unique(current_full_test$lon)) %>% 
+  mutate(lat = unique(current_full_test$lat)) %>% 
+  reshape2::melt(id = "lat") %>% 
+  dplyr::rename(lon = variable, curvel_bd_max = value) %>% 
+  mutate(lon = as.numeric(as.character(lon))) %>% #,
+  # BO_damean = ifelse(BO_damean > 0.000001, BO_damean, NA)) %>% 
+  dplyr::select(lon, lat, curvel_bd_max) %>% 
+  arrange(lat, lon)
+current_full_test <- left_join(current_full_test, curvel_bd_min, by = c("lon", "lat")) %>% 
+  left_join(curvel_bd_max, by = c("lon", "lat")) %>% 
+  na.omit() %>% 
+  mutate(max_min = ifelse(curvel_bd_max > curvel_bd_min, TRUE, FALSE),
+         max_min_int = as.integer(max_min))
+current_full_pixel_test <- ggplot(data = current_full_test, aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = max_min)) +
+  coord_quickmap(expand = F) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL) +
+  theme(legend.position = "bottom")
+ggsave(plot = current_full_pixel_test, filename = "graph/current_full_pixel.png", height = 5, width = 8)
+
 
 # Download future Bio-ORACLE data -----------------------------------------
 
