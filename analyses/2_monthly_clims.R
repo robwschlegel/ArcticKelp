@@ -79,7 +79,7 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               # pH
                               # "BO_ph", 
                               # Diffuse attenuation coefficient at 490 nm 
-                              "BO_damin", "BO_damean", "BO_damax", 
+                              # "BO_damin", "BO_damean", "BO_damax", 
                               # Primary productivity
                               # "BO2_ppltmin_ss", "BO2_ppmean_ss", "BO2_ppltmax_ss", 
                               # Calcite
@@ -107,10 +107,10 @@ da <- as.data.frame(readTIFF("data/DiffuseAttenuationCoefficientPAR Surface Pred
   `colnames<-`(unique(BO_layers_df$lon)) %>% 
   mutate(lat = unique(BO_layers_df$lat)) %>% 
   reshape2::melt(id = "lat") %>% 
-  dplyr::rename(lon = variable, da = value) %>% 
+  dplyr::rename(lon = variable, BO_damean = value) %>% 
   mutate(lon = as.numeric(as.character(lon)),
-         da = ifelse(da > 0.000001, da, NA)) %>% 
-  dplyr::select(lon, lat, da) %>% 
+         BO_damean = ifelse(BO_damean > 0.000001, BO_damean, NA)) %>% 
+  dplyr::select(lon, lat, BO_damean) %>% 
   arrange(lat, lon)
 
 # Visualise to ensure it was loaded correctly
@@ -134,7 +134,7 @@ save(Arctic_BO, file = "data/Arctic_BO.RData")
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = da)) +
+  geom_tile(aes(fill = BO_damean)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -142,7 +142,10 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
                   expand = F) +
   theme(legend.position = "bottom")
 
-# Test for issues in the BO layers
+
+# Test for issues in the BO layers ----------------------------------------
+
+# Test bottom currents
 current_test <- BO_layers_df %>% 
   dplyr::select(lon, lat, BO2_curvelltmin_bdmax, BO2_curvelmean_bdmax, BO2_curvelltmax_bdmax) %>% 
   na.omit() %>% 
@@ -157,6 +160,22 @@ current_pixel_test_fig <- ggplot(data = current_test, aes(x = lon, y = lat)) +
   labs(fill = "Max greater than min", x = NULL, y = NULL) +
   theme(legend.position = "bottom")
 ggsave(plot = current_pixel_test_fig, filename = "graph/current_pixel_test.png", height = 5, width = 8)
+
+# Test SST
+SST_test <- BO_layers_df %>% 
+  dplyr::select(lon, lat, BO2_templtmin_ss, BO2_tempmean_ss, BO2_templtmax_ss) %>% 
+  na.omit() %>% 
+  mutate(max_min = ifelse(BO2_templtmax_ss > BO2_templtmin_ss, TRUE, FALSE),
+         mean_min = ifelse( BO2_tempmean_ss > BO2_templtmin_ss, TRUE, FALSE),
+         max_min_int = as.integer(max_min))
+
+# Visualise pixels where the max and min values are not as expected
+SST_pixel_test_fig <- ggplot(data = SST_test, aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = max_min)) +
+  coord_quickmap(expand = F) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL) +
+  theme(legend.position = "bottom")
+ggsave(plot = SST_pixel_test_fig, filename = "graph/SST_pixel_test.png", height = 5, width = 8)
 
 
 # Download future Bio-ORACLE data -----------------------------------------
