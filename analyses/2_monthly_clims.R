@@ -287,6 +287,7 @@ BO_cor_matrix <- layers_correlation(colnames(dplyr::select(Arctic_env,
   mutate(var = row.names(.)) %>% 
   dplyr::select(var, everything())
 save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
+write_csv(BO_cor_matrix, "data/BO_cor_matrix.csv")
 
 BO_cor_groups <- sdmpredictors::correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env,
                                                                                              BO2_templtmin_bdmax:BO2_curvelltmax_bdmax))))
