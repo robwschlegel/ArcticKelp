@@ -21,7 +21,7 @@ library(tidync)
 library(stringr)
 library(data.table)
 library(FNN)
-library(tiff)
+# library(tiff)
 
 # Set cores
 doParallel::registerDoParallel(cores = 50)
@@ -360,42 +360,32 @@ current_full_test <- as.data.frame(current_ss_layers, xy = T) %>%
          lat = round(lat, 4))
 
 # The bottom min and max current velocity value sent by Jorge Asis
-curvel_bd_min <- as.data.frame(readTIFF("data/SeaWaterVelocity Benthic Mean Pred LtMin.tif"), xy = T) %>% 
-  `colnames<-`(unique(current_full_test$lon)) %>% 
-  mutate(lat = unique(current_full_test$lat)) %>% 
-  reshape2::melt(id = "lat") %>% 
-  dplyr::rename(lon = variable, curvel_bd_min = value) %>% 
-  mutate(lon = as.numeric(as.character(lon))) %>% #,
-  # BO_damean = ifelse(BO_damean > 0.000001, BO_damean, NA)) %>% 
-  dplyr::select(lon, lat, curvel_bd_min) %>% 
-  arrange(lat, lon)
-curvel_bd_max <- as.data.frame(readTIFF("data/SeaWaterVelocity Benthic Mean Pred LtMax.tif"), xy = T) %>% 
-  `colnames<-`(unique(current_full_test$lon)) %>% 
-  mutate(lat = unique(current_full_test$lat)) %>% 
-  reshape2::melt(id = "lat") %>% 
-  dplyr::rename(lon = variable, curvel_bd_max = value) %>% 
-  mutate(lon = as.numeric(as.character(lon))) %>% #,
-  # BO_damean = ifelse(BO_damean > 0.000001, BO_damean, NA)) %>% 
-  dplyr::select(lon, lat, curvel_bd_max) %>% 
-  arrange(lat, lon)
-current_full_test <- left_join(current_full_test, curvel_bd_min, by = c("lon", "lat")) %>% 
-  left_join(curvel_bd_max, by = c("lon", "lat")) %>% 
+curvel_bd_min <- as.data.frame(raster("data/SeaWaterVelocity Benthic Mean Pred LtMin.tif"), xy = T) %>% 
+  `colnames<-`(c("lon", "lat", "curvel_bd_min"))  %>% 
+  mutate(lon = round(lon, 4),
+         lat = round(lat, 4))
+curvel_bd_max <- as.data.frame(raster("data/SeaWaterVelocity Benthic Mean Pred LtMax.tif"), xy = T) %>% 
+  `colnames<-`(c("lon", "lat", "curvel_bd_max")) %>% 
+  mutate(lon = round(lon, 4),
+         lat = round(lat, 4))
+current_full_test <- left_join(curvel_bd_max, curvel_bd_min, by = c("lon", "lat")) %>% 
   na.omit() %>% 
-  mutate(max_min = ifelse(curvel_bd_max > curvel_bd_min, TRUE, FALSE),
-         max_min_int = as.integer(max_min))
-current_full_pixel_test <- ggplot(data = current_full_test, aes(x = lon, y = lat)) +
+  mutate(max_min = ifelse(curvel_bd_max >= curvel_bd_min, TRUE, FALSE),
+         max_min_int = as.integer(max_min)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
   labs(fill = "Max greater than min", x = NULL, y = NULL) +
   theme(legend.position = "bottom")
-ggsave(plot = current_full_pixel_test, filename = "graph/current_full_pixel.png", height = 5, width = 8)
-  
+ggsave(plot = current_full_test, filename = "graph/tests/current_full_pixel.png", height = 5, width = 8)
+
 # Load the Arctic cropped data and check all remaining min max layers
 load("data/Arctic_env.RData")
 
 # Function for comparing max and min of a chosen variable
 # chosen_var <- "BO2_templt..._bdmax"
-# chosen_var <- "BO2_RCP85_2100_templt..._bdmax"
+# chosen_var <- "BO2_RCP85_2050_templt..._bdmax"
+# chosen_var <- "BO2_RCP85_2050_salinitylt..._bdmax"
 max_min_comp <- function(chosen_var){
   
   # Set chosen columns
@@ -409,7 +399,7 @@ max_min_comp <- function(chosen_var){
   # Calculate if max is greater than min
   Arctic_sub %>% 
     na.omit() %>% 
-    mutate(max_min = ifelse(Arctic_sub[max_col] > Arctic_sub[min_col], TRUE, FALSE)) %>% 
+    mutate(max_min = ifelse(Arctic_sub[max_col] >= Arctic_sub[min_col], TRUE, FALSE)) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_raster(aes(fill = max_min)) +
     coord_quickmap(expand = F) +
@@ -423,8 +413,7 @@ colnames(Arctic_env)
 # Present
 max_min_comp("BO2_templt..._bdmax")
 max_min_comp("BO2_templt..._ss")
-max_min_comp("BO2_salinitylt..._bdmax") # Min > Max in centre of Baffin Bay and Labrador Sea
-ggsave("graph/tests/salinity_bdmax.png")
+max_min_comp("BO2_salinitylt..._bdmax")
 max_min_comp("BO2_salinitylt..._ss")
 max_min_comp("BO2_icethicklt..._ss")
 max_min_comp("BO2_dissoxlt..._bdmax")
@@ -436,34 +425,31 @@ ggsave("graph/tests/curvel_bdmax.png")
 # 2050
 max_min_comp("BO2_RCP85_2050_curvellt..._bdmax") # Nearly identical to present day curvel
 ggsave("graph/tests/curvel_bdmax_2050.png")
-max_min_comp("BO2_RCP85_2050_salinitylt..._bdmax") # Similar problems to present data
+max_min_comp("BO2_RCP85_2050_salinitylt..._bdmax") # The largest min values are larger than the largest max values
 ggsave("graph/tests/salinity_bdmax_2050.png")
 max_min_comp("BO2_RCP85_2050_salinitylt..._ss")
-max_min_comp("BO2_RCP85_2050_templt..._bdmax") # Some issues in Baffin Bay and further north
+max_min_comp("BO2_RCP85_2050_templt..._bdmax") # Some issues in Baffin Bay and further north, there is no apparent pattern
 ggsave("graph/tests/temp_bdmax_2050.png")
 max_min_comp("BO2_RCP85_2050_templt..._ss")
-max_min_comp("BO2_RCP85_2050_icethicklt..._ss") # Minor issue in far North and east edges of Labrador Sea
-ggsave("graph/tests/icethick_ss_2050.png")
+max_min_comp("BO2_RCP85_2050_icethicklt..._ss")
 # 2100
 max_min_comp("BO2_RCP85_2100_curvellt..._bdmax") # Nearly identical to present day curvel
 ggsave("graph/tests/curvel_bdmax_2100.png")
-max_min_comp("BO2_RCP85_2100_salinitylt..._bdmax") # Similar problems to present data
+max_min_comp("BO2_RCP85_2100_salinitylt..._bdmax") # Similar problems to 2050 data
 ggsave("graph/tests/salinity_bdmax_2100.png")
 max_min_comp("BO2_RCP85_2100_salinitylt..._ss")
-max_min_comp("BO2_RCP85_2100_templt..._bdmax") # Some issues in Baffin Bay and further north
+max_min_comp("BO2_RCP85_2100_templt..._bdmax") # Some issues as 2050 data
 ggsave("graph/tests/temp_bdmax_2100.png")
 max_min_comp("BO2_RCP85_2100_templt..._ss")
 max_min_comp("BO2_RCP85_2100_icethicklt..._ss") # Much of Hudson Bay and Labrador Sea are wrong
-ggsave("graph/tests/icethick_ss_2100.png")
 
 # PAR # Some issues in the far north
 Arctic_env %>% 
   na.omit() %>% 
-  mutate(max_min = ifelse(BO_parmax > BO_parmean, TRUE, FALSE)) %>% 
+  mutate(max_min = ifelse(BO_parmax >= BO_parmean, TRUE, FALSE)) %>% 
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
   labs(fill = "Max greater than mean", x = NULL, y = NULL,
        title = "PAR") +
   theme(legend.position = "bottom")
-ggsave("graph/tests/par.png")
