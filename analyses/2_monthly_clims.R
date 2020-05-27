@@ -424,7 +424,7 @@ colnames(Arctic_env)
 max_min_comp("BO2_templt..._bdmax")
 max_min_comp("BO2_templt..._ss")
 max_min_comp("BO2_salinitylt..._bdmax") # Min > Max in centre of Baffin Bay and Labrador Sea
-ggsave("graph/tests/salinity_ss.png")
+ggsave("graph/tests/salinity_bdmax.png")
 max_min_comp("BO2_salinitylt..._ss")
 max_min_comp("BO2_icethicklt..._ss")
 max_min_comp("BO2_dissoxlt..._bdmax")
