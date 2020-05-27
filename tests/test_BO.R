@@ -8,7 +8,6 @@ source("analyses/1_study_sites.R")
 library(sdmpredictors)
 
 
-
 # Tests of bottom current layers ------------------------------------------
 
 # Test bottom currents
@@ -24,7 +23,8 @@ current_bdmax_test <- as.data.frame(current_bdmax_layers, xy = T) %>%
 current_bdmax_global <- ggplot(data = current_bd_test, aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
-  labs(fill = "Max greater than min", x = NULL, y = NULL) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL,
+       title = "Bottom currents downloaded via R on May 27th") +
   theme(legend.position = "bottom")
 ggsave(plot = current_bdmax_global, filename = "tests/current_bdmax_global_R.png", height = 5, width = 8)
 
@@ -43,7 +43,8 @@ curvel_bdmax_old <- left_join(curvel_bdmax_min_old, curvel_bdmax_max_old, by = c
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
-  labs(fill = "Max greater than min", x = NULL, y = NULL) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL,
+       title = "Bottom currents from Dropbox files on May 22nd") +
   theme(legend.position = "bottom")
 ggsave(plot = curvel_bdmax_old , filename = "tests/current_bdmax_global_old.png", height = 5, width = 8)
 
@@ -62,29 +63,32 @@ curvel_bdmax_new <- left_join(curvel_bdmax_min_new, curvel_bdmax_max_new, by = c
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
-  labs(fill = "Max greater than min", x = NULL, y = NULL) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL,
+       title = "Bottom currents from Dropbox files on May 26th") +
   theme(legend.position = "bottom")
 ggsave(plot = curvel_bdmax_new , filename = "tests/current_bdmax_global_new.png", height = 5, width = 8)
 
 
-# Test for issues in the BO layers ----------------------------------------
+# Test surface current layer ----------------------------------------------
 
 # Test surface currents
-current_ss_layers <- load_layers(c("BO2_curvelltmin_ss", "BO2_curvelmean_ss", "BO2_curvelltmax_ss"))
-current_ss_test <- as.data.frame(current_ss_layers, xy = T) %>% 
+curvel_ss_layers <- load_layers(c("BO2_curvelltmin_ss", "BO2_curvelmean_ss", "BO2_curvelltmax_ss"))
+curvel_ss_test <- as.data.frame(curvel_ss_layers, xy = T) %>% 
   dplyr::rename(lon = x, lat = y) %>% 
   mutate(lon = round(lon, 4), 
          lat = round(lat, 4)) %>% 
   na.omit() %>% 
-  mutate(max_min = ifelse(BO2_curvelltmax_ss > BO2_curvelltmin_ss, TRUE, FALSE),
-         mean_min = ifelse(BO2_curvelmean_ss > BO2_curvelltmin_ss, TRUE, FALSE),
-         max_min_int = as.integer(max_min))
-current_ss_pixel_test <- ggplot(data = current_ss_test, aes(x = lon, y = lat)) +
+  mutate(max_min = ifelse(BO2_curvelltmax_ss > BO2_curvelltmin_ss, TRUE, FALSE))
+curvel_ss_global <- ggplot(data = curvel_ss_test, aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
-  labs(fill = "Max greater than min", x = NULL, y = NULL) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL,
+       title = "Surface currents downloaded via R on May 27th") +
   theme(legend.position = "bottom")
-ggsave(plot = current_ss_pixel_test, filename = "tests/current_ss_pixel_test.png", height = 5, width = 8)
+ggsave(plot = curvel_ss_global, filename = "tests/curvel_ss_global.png", height = 5, width = 8)
+
+
+# Test SST layer ----------------------------------------------------------
 
 # Test SST
 SST_layers <- load_layers(c("BO2_templtmin_ss", "BO2_tempmean_ss", "BO2_templtmax_ss"))
@@ -93,34 +97,39 @@ SST_test <- as.data.frame(SST_layers, xy = T) %>%
   mutate(lon = round(lon, 4), 
          lat = round(lat, 4)) %>% 
   na.omit() %>% 
-  mutate(max_min = ifelse(BO2_templtmax_ss > BO2_templtmin_ss, TRUE, FALSE),
-         mean_min = ifelse( BO2_tempmean_ss > BO2_templtmin_ss, TRUE, FALSE),
-         max_min_int = as.integer(max_min))
+  mutate(max_min = ifelse(BO2_templtmax_ss > BO2_templtmin_ss, TRUE, FALSE))
 
-# Visualise pixels where the max and min values are not as expected
-SST_pixel_test <- ggplot(data = SST_test, aes(x = lon, y = lat)) +
+SST_global <-  ggplot(data = SST_test, aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
   labs(fill = "Max greater than min", x = NULL, y = NULL) +
   theme(legend.position = "bottom")
-ggsave(plot = SST_pixel_test, filename = "graph/SST_pixel_test.png", height = 5, width = 8)
+ggsave(plot = SST_global, filename = "tests/SST_global.png", height = 5, width = 8)
 
 # Compare data layer downloaded via R against a layer download manually
 SST_mean_manual <- as.data.frame(read.asciigrid("data/Present.Surface.Temperature.Mean.asc"), xy = T) %>% 
-  `colnames<-`(c("SST_mean_manual", "lon", "lat")) %>% 
+  `colnames<-`(c("SST_mean", "lon", "lat")) %>% 
   mutate(lon = round(lon, 4), 
          lat = round(lat, 4)) %>% 
-  na.omit() 
-SST_test <- left_join(SST_test, SST_mean_manual, by = c("lon", "lat")) %>% 
-  mutate(mean_comp = BO2_tempmean_ss-SST_mean_manual)
+  na.omit() %>% 
+  as.data.frame() %>% 
+  left_join(SST_test, by = c("lon", "lat")) %>% 
+  mutate(BO2_tempmean_ss = round(BO2_tempmean_ss, 6),
+         SST_mean = round(SST_mean, 6),
+         mean_comp = round(BO2_tempmean_ss-SST_mean, 6)) %>% 
+  dplyr::select(lon, lat, mean_comp)
 
 # Plot the difference
-SST_mean_diff <- ggplot(SST_test, aes(x = lon, y = lat)) +
+SST_mean_diff <- ggplot(SST_mean_manual, aes(x = lon, y = lat)) +
   geom_raster(aes(fill = mean_comp)) +
   coord_quickmap(expand = F) +
-  labs(fill = "R download minus \nmanual download (C)", x = NULL, y = NULL) +
-  theme(legend.position = "bottom", legend.key.width = unit(3, "cm"))
-ggsave(plot = SST_mean_diff, filename = "graph/SST_pixel_mean_diff.png", height = 5, width = 8)
+  labs(fill = "R download minus \nmanual download (°C)", x = NULL, y = NULL,
+       title = "Difference in SST between layer downloaded in R vs. manually from BO website") +
+  theme(legend.position = "bottom")
+ggsave(plot = SST_mean_diff, filename = "tests/SST_global_mean_diff.png", height = 5, width = 8)
+
+
+# Quick tests of Arctic area only -----------------------------------------
 
 # Load the Arctic cropped data and check all remaining min max layers
 load("data/Arctic_env.RData")
@@ -184,7 +193,7 @@ max_min_comp("BO2_RCP85_2100_salinitylt..._ss")
 max_min_comp("BO2_RCP85_2100_templt..._bdmax") # Some issues as 2050 data
 ggsave("graph/tests/temp_bdmax_2100.png")
 max_min_comp("BO2_RCP85_2100_templt..._ss")
-max_min_comp("BO2_RCP85_2100_icethicklt..._ss") # Much of Hudson Bay and Labrador Sea are wrong
+max_min_comp("BO2_RCP85_2100_icethicklt..._ss")
 
 # PAR # Some issues in the far north
 Arctic_env %>% 
@@ -196,3 +205,61 @@ Arctic_env %>%
   labs(fill = "Max greater than mean", x = NULL, y = NULL,
        title = "PAR") +
   theme(legend.position = "bottom")
+
+
+# Global look at problem layers from Arctic test --------------------------
+
+# Download problematic future layers
+BO_layers_future_dl <- get_future_layers(c("BO2_templtmin_bdmax", "BO2_templtmax_bdmax", 
+                                           "BO2_salinityltmin_bdmax", "BO2_salinityltmax_bdmax", 
+                                           "BO2_curvelltmin_bdmax", "BO2_curvelltmax_bdmax"), 
+                                         scenario = "RCP85", year = c(2050, 2100))
+BO_layers_future_dl <- load_layers(BO_layers_future_dl$layer_code)
+
+# Convert to dataframe
+BO_layers_future_df <- as.data.frame(BO_layers_future_dl, xy = T) %>% 
+  dplyr::rename(lon = x, lat = y) %>% 
+  mutate(lon = round(lon, 4), 
+         lat = round(lat, 4)) %>% 
+  na.omit() %>% 
+  mutate(max_min_curvel_2050 = ifelse(BO2_RCP85_2050_curvelltmax_bdmax >= BO2_RCP85_2050_curvelltmin_bdmax, TRUE, FALSE),
+         max_min_curvel_2100 = ifelse(BO2_RCP85_2100_curvelltmax_bdmax >= BO2_RCP85_2100_curvelltmin_bdmax, TRUE, FALSE),
+         max_min_salinity_2050 = ifelse(BO2_RCP85_2050_salinityltmax_bdmax >= BO2_RCP85_2050_salinityltmin_bdmax, TRUE, FALSE),
+         max_min_salinity_2100 = ifelse(BO2_RCP85_2100_salinityltmax_bdmax >= BO2_RCP85_2100_salinityltmin_bdmax, TRUE, FALSE),
+         max_min_temp_2050 = ifelse(BO2_RCP85_2050_templtmax_bdmax >= BO2_RCP85_2050_templtmin_bdmax, TRUE, FALSE),
+         max_min_temp_2100 = ifelse(BO2_RCP85_2100_templtmax_bdmax >= BO2_RCP85_2100_templtmin_bdmax, TRUE, FALSE))
+
+# Convenience function for plots
+test_global_fig <- function(chosen_col, chosen_title){
+  ggplot(data = BO_layers_future_df, aes(x = lon, y = lat)) +
+    geom_raster(aes_string(fill = chosen_col)) +
+    coord_quickmap(expand = F) +
+    labs(fill = "Max greater than min", x = NULL, y = NULL,
+         title = chosen_title) +
+    theme(legend.position = "bottom")
+}
+
+# Curvel 2050
+curvel_2050_global <- test_global_fig("max_min_curvel_2050", "Bottom currents: 2050; RCP8.5")
+ggsave(plot = curvel_2050_global, filename = "tests/curvel_2050_global.png", height = 5, width = 8)
+
+# Curvel 2100
+curvel_2100_global <- test_global_fig("max_min_curvel_2100", "Bottom currents: 2100; RCP8.5")
+ggsave(plot = curvel_2100_global, filename = "tests/curvel_2100_global.png", height = 5, width = 8)
+
+# salinity 2050
+salinity_2050_global <- test_global_fig("max_min_salinity_2050", "Bottom salinity: 2050; RCP8.5")
+ggsave(plot = salinity_2050_global, filename = "tests/salinity_2050_global.png", height = 5, width = 8)
+
+# salinity 2100
+salinity_2100_global <- test_global_fig("max_min_salinity_2100", "Bottom salinity: 2100; RCP8.5")
+ggsave(plot = salinity_2100_global, filename = "tests/salinity_2100_global.png", height = 5, width = 8)
+
+# temp 2050
+temp_2050_global <- test_global_fig("max_min_temp_2050", "Bottom temperature: 2050; RCP8.5")
+ggsave(plot = temp_2050_global, filename = "tests/temp_2050_global.png", height = 5, width = 8)
+
+# temp 2100
+temp_2100_global <- test_global_fig("max_min_temp_2100", "Bottom temperature: 2100; RCP8.5")
+ggsave(plot = temp_2100_global, filename = "tests/temp_2100_global.png", height = 5, width = 8)
+
