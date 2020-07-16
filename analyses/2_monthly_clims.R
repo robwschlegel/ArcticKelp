@@ -68,33 +68,18 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               "BO2_salinityltmin_bdmax", "BO2_salinitymean_bdmax", "BO2_salinityltmax_bdmax", 
                               # Surface salinity
                               "BO2_salinityltmin_ss", "BO2_salinitymean_ss", "BO2_salinityltmax_ss", 
-                              # Ice cover
-                              # "BO2_icecoverltmin_ss", "BO2_icecovermean_ss", "BO2_icecoverltmax_ss",
                               # Ice thickness
                               "BO2_icethickltmin_ss", "BO2_icethickmean_ss", "BO2_icethickltmax_ss", 
                               # Photosynthetically active radiation
                               "BO_parmean", "BO_parmax", 
                               # Dissolve oxygen
                               "BO2_dissoxltmin_bdmax", "BO2_dissoxmean_bdmax", "BO2_dissoxltmax_bdmax", 
-                              # pH
-                              # "BO_ph", 
-                              # Diffuse attenuation coefficient at 490 nm 
-                              # "BO_damin", "BO_damean", "BO_damax", 
-                              # Primary productivity
-                              # "BO2_ppltmin_ss", "BO2_ppmean_ss", "BO2_ppltmax_ss", 
-                              # Calcite
-                              # "BO_calcite",
                               # Iron
                               "BO2_ironltmin_bdmax", "BO2_ironmean_bdmax", "BO2_ironltmax_bdmax", 
                               # Nitrate
                               "BO2_nitrateltmin_bdmax", "BO2_nitratemean_bdmax", "BO2_nitrateltmax_bdmax", 
                               # Phosphate
-                              "BO2_phosphateltmin_bdmax", "BO2_phosphatemean_bdmax", "BO2_phosphateltmax_bdmax", 
-                              # Silicate
-                              # "BO2_silicateltmin_bdmax", "BO2_silicatemean_bdmax", "BO2_silicateltmax_bdmax", 
-                              # Current velocity
-                              "BO2_curvelltmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelltmax_bdmax"
-                              ))
+                              "BO2_phosphateltmin_bdmax", "BO2_phosphatemean_bdmax", "BO2_phosphateltmax_bdmax"))
 
 # Convert to dataframe
 BO_layers_df <- as.data.frame(BO_layers_dl, xy = T) %>% 
@@ -102,39 +87,16 @@ BO_layers_df <- as.data.frame(BO_layers_dl, xy = T) %>%
   mutate(lon = round(lon, 4), 
          lat = round(lat, 4))
 
-# The diffuse attenuation value e-mailed from Jorge Asis
-da <- as.data.frame(readTIFF("data/DiffuseAttenuationCoefficientPAR Surface Pred Mean.tif"), xy = T) %>% 
-  `colnames<-`(unique(BO_layers_df$lon)) %>% 
-  mutate(lat = unique(BO_layers_df$lat)) %>% 
-  reshape2::melt(id = "lat") %>% 
-  dplyr::rename(lon = variable, BO_damean = value) %>% 
-  mutate(lon = as.numeric(as.character(lon)),
-         BO_damean = ifelse(BO_damean > 0.000001, BO_damean, NA)) %>% 
-  dplyr::select(lon, lat, BO_damean) %>% 
-  arrange(lat, lon)
-
-# Visualise to ensure it was loaded correctly
-# da %>%
-#   # filter(lon > 120, lat > 30) %>%
-#   ggplot(aes(x = lon, y = lat)) +
-#   geom_raster(aes(fill = da)) #%>% 
-#   # coord_quickmap(expand = F)
-
-# Add to the other BO layers
-BO_layers_df <- left_join(BO_layers_df, da, by = c("lon", "lat"))
-
 # Clip to Arctic study region
 Arctic_BO <- BO_layers_df %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4],
-         BO2_icethickmean_ss >= 0) %>% 
-  mutate(lon = round(lon, 5),
-         lat = round(lat, 5))
+         BO2_icethickmean_ss >= 0)
 save(Arctic_BO, file = "data/Arctic_BO.RData")
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = BO_damean)) +
+  geom_tile(aes(fill = BO2_templtmax_bdmax)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -144,6 +106,8 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
 
 
 # Download future Bio-ORACLE data -----------------------------------------
+
+## NB: All of the future layers have issues so aren't being used in this project at the moment
 
 # Future scenario conversions
 # https://ar5-syr.ipcc.ch/topic_futurechanges.php
@@ -241,19 +205,19 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
 
 # Load data from previous steps as necessary
 load("data/Arctic_BO.RData")
-load("data/Arctic_BO_future.RData")
+# load("data/Arctic_BO_future.RData")
 load("data/Arctic_AM.RData")
 
 # Merge and save
 Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat")) %>% 
-  left_join(Arctic_BO_future, by = c("lon", "lat")) %>% 
-  na.omit() # There are some pixels from the BO data that dont' match with BO2
+  # left_join(Arctic_BO_future, by = c("lon", "lat")) %>% 
+  na.omit() # There are some pixels from the BO data that don't match with BO2
 save(Arctic_env, file = "data/Arctic_env.RData")
-rm(Arctic_AM, Arctic_BO, Arctic_BO_future); gc()
+rm(Arctic_AM, Arctic_BO); gc()
 
 # Visualise
 ggplot(Arctic_env, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = BO2_tempmean_ss)) +  
+  geom_tile(aes(fill = BO2_phosphateltmax_bdmax)) +  
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "E") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -266,14 +230,12 @@ ggplot(Arctic_env, aes(x = lon, y = lat)) +
 
 # Check Pearson correlation coefficient between layers
   # These warnings are fine, we don't 
-BO_cor_matrix <- layers_correlation(colnames(dplyr::select(Arctic_env, 
-                                                           BO2_templtmin_bdmax:BO_damean))) %>% 
+BO_cor_matrix <- layers_correlation(colnames(dplyr::select(Arctic_env, BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax))) %>% 
   mutate(var = row.names(.)) %>% 
   dplyr::select(var, everything())
 save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
 write_csv(BO_cor_matrix, "data/BO_cor_matrix.csv")
 
-BO_cor_groups <- sdmpredictors::correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env,
-                                                                                             BO2_templtmin_bdmax:BO2_curvelltmax_bdmax))))
+BO_cor_groups <- correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env, BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax))))
 BO_cor_groups
 
