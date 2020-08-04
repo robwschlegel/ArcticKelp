@@ -65,14 +65,15 @@ kelp_all_max <- kelp_all %>%
   # Rather use the same number of variables for each scenario
   # This means using the variables that don't have projections
   # with the projected variables for the two different time tests
+# NB: The future BO layers all have many issues and so are not being used
 base <- colnames(dplyr::select(kelp_all, 
-                               BO2_templtmin_bdmax:BO2_curvelltmax_bdmax))
-future_2050 <- colnames(dplyr::select(kelp_all, 
-                                      BO_parmean:BO2_phosphateltmax_bdmax,
-                                      BO2_RCP85_2050_curvelltmax_bdmax:BO2_RCP85_2050_tempmean_ss))
-future_2100 <- colnames(dplyr::select(kelp_all, 
-                                      BO_parmean:BO2_phosphateltmax_bdmax,
-                                      BO2_RCP85_2100_curvelltmax_bdmax:BO2_RCP85_2100_tempmean_ss))
+                               BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax))
+# future_2050 <- colnames(dplyr::select(kelp_all, 
+#                                       BO_parmean:BO2_phosphateltmax_bdmax,
+#                                       BO2_RCP85_2050_curvelltmax_bdmax:BO2_RCP85_2050_tempmean_ss))
+# future_2100 <- colnames(dplyr::select(kelp_all, 
+#                                       BO_parmean:BO2_phosphateltmax_bdmax,
+#                                       BO2_RCP85_2100_curvelltmax_bdmax:BO2_RCP85_2100_tempmean_ss))
 
 
 # Data prep function ------------------------------------------------------
@@ -157,7 +158,7 @@ extract_var_imp <- function(kelp_rf){
 }
 
 # This function runs many random forest models to determine which variables
-# are consistantly the most important
+# are consistently the most important
 top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
   
   # Prep the four possibilities for a single kelp cover choice
@@ -167,7 +168,7 @@ top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
   # Random sampling to split data up for training
   train <- sample(1:nrow(df_reg), 0.7*nrow(df_reg), replace = FALSE)
   
-  # Random forest models for the four posibilities
+  # Random forest models for the four possibilities
   rf_reg <- randomForest(cover ~ ., data = df_reg[train,], ntree = 200, importance = TRUE, do.trace = F)
   rf_cat <- randomForest(cover ~ ., data = df_cat[train,], ntree = 200, importance = TRUE, do.trace = F)
 
@@ -417,7 +418,7 @@ load("data/best_rf_alaria.RData")
 
 # Find the distributions of accuracy from 0 - 100%
 # test_acc <- best_rf_kelpcover$accuracy_reg #%>%
-  # filter(model_id == 1000)
+# filter(model_id == 1000)
 
 # Quick visuals
 # ggplot(filter(test_acc, portion == "validate"), aes(x = accuracy)) +
@@ -553,10 +554,10 @@ Arctic_cover_predict <- function(model_choice, scenario){
 # Predict the covers
 # pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg, base)
 # pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg, base)
+# pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
 # pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg, base)
 # pred_agarum_2050 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2050)
 # pred_agarum_2100 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2100)
-# pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
 
 # Visualise a family of cover
 cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
@@ -590,8 +591,8 @@ cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
 # Visualisations
 # cover_squiz(pred_kelpcover, "Total cover (%)", 0.785, "kelp.cover")
 # cover_squiz(pred_laminariales, "Laminariales cover (%)", 0.745, "Laminariales")
+# cover_squiz(pred_alaria, "Alaria cover (%)", 0.78, "Alaria")
 # cover_squiz(pred_agarum, "Agarum cover (%)", 0.77, "Agarum")
 # cover_squiz(pred_agarum_2050, "Agarum cover (%)", 0.77, "Agarum")
 # cover_squiz(pred_agarum_2100, "Agarum cover (%)", 0.77, "Agarum")
-# cover_squiz(pred_alaria, "Alaria cover (%)", 0.78, "Alaria")
 
