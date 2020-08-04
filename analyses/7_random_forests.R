@@ -136,7 +136,7 @@ OneR_model <- function(kelp_choice, df = kelp_all){
 
 # Which variables are the most important? ---------------------------------
 
-# Covenience wrapper for extracting variable importance from an RF
+# Convenience wrapper for extracting variable importance from an RF
 extract_var_imp <- function(kelp_rf){
   if(ncol(kelp_rf$importance) == 5){
     res <- data.frame(var = row.names(kelp_rf$importance), 
@@ -157,7 +157,7 @@ extract_var_imp <- function(kelp_rf){
 }
 
 # This function runs many random forest models to determine which variables
-# are consistantly the most important
+# are consistently the most important
 top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
   
   # Prep the four possibilities for a single kelp cover choice
@@ -167,7 +167,7 @@ top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
   # Random sampling to split data up for training
   train <- sample(1:nrow(df_reg), 0.7*nrow(df_reg), replace = FALSE)
   
-  # Random forest models for the four posibilities
+  # Random forest models for the four possibilities
   rf_reg <- randomForest(cover ~ ., data = df_reg[train,], ntree = 200, importance = TRUE, do.trace = F)
   rf_cat <- randomForest(cover ~ ., data = df_cat[train,], ntree = 200, importance = TRUE, do.trace = F)
 
@@ -181,7 +181,7 @@ top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
 }
 # top_var(kelp_choice = "Agarum", df = kelp_all)
 
-# Convenience wrapper to remove corrrelated variables
+# Convenience wrapper to remove correlated variables
 cor_var_rm <- function(df){
   
   # Order the dataframe based on the second column
