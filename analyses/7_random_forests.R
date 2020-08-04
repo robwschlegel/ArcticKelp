@@ -66,13 +66,13 @@ kelp_all_max <- kelp_all %>%
   # This means using the variables that don't have projections
   # with the projected variables for the two different time tests
 base <- colnames(dplyr::select(kelp_all, 
-                               BO2_templtmin_bdmax:BO2_curvelltmax_bdmax))
-future_2050 <- colnames(dplyr::select(kelp_all, 
-                                      BO_parmean:BO2_phosphateltmax_bdmax,
-                                      BO2_RCP85_2050_curvelltmax_bdmax:BO2_RCP85_2050_tempmean_ss))
-future_2100 <- colnames(dplyr::select(kelp_all, 
-                                      BO_parmean:BO2_phosphateltmax_bdmax,
-                                      BO2_RCP85_2100_curvelltmax_bdmax:BO2_RCP85_2100_tempmean_ss))
+                               BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax))
+# future_2050 <- colnames(dplyr::select(kelp_all, 
+#                                       BO_parmean:BO2_phosphateltmax_bdmax,
+#                                       BO2_RCP85_2050_curvelltmax_bdmax:BO2_RCP85_2050_tempmean_ss))
+# future_2100 <- colnames(dplyr::select(kelp_all, 
+#                                       BO_parmean:BO2_phosphateltmax_bdmax,
+#                                       BO2_RCP85_2100_curvelltmax_bdmax:BO2_RCP85_2100_tempmean_ss))
 
 
 # Data prep function ------------------------------------------------------

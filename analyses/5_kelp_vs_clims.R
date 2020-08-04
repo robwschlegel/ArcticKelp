@@ -53,7 +53,7 @@ ggplot(data = kelp_wide, aes(x = BO2_icethickmean_ss)) +
 # The env variables
    # NB: Ignoring the GMED variables for now as there are missing values
 kelp_wide_var <- kelp_wide %>% 
-  dplyr::select(BO2_templtmin_bdmax:BO_damean)
+  dplyr::select(BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax)
 
 # The response variables
 kelp_wide_env <- kelp_wide %>% 
