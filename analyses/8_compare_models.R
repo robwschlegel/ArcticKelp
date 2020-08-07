@@ -10,6 +10,7 @@ source("analyses/7_random_forests.R")
 library(ggridges) # For ridgeplots
 # library(sp) # For reading ASCII files
 library(raster)
+library(doParallel); registerDoParallel(cores = 10)
 
 # Load Arctic data for land distance and bathy only
 load("data/Arctic_AM.RData")
@@ -49,81 +50,83 @@ pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
 # Load MAXENT data --------------------------------------------------------
 
 # Function for loading MAXENT .tif files as data.frames in the study area
-load_MAX_sub <- function(file_name, binary = F){
-  if(binary == F) MAX_df <- as.data.frame(sp::read.asciigrid(file_name), xy = T)
-  # if(binary == T) MAX_raw <- tiff::readTIFF(file_name, native = T)
-  if(binary == T){
-    MAX_df <- as.data.frame(raster::raster(file_name), xy = T) %>% 
-      cbind(., MAX_grid)
-    
-  } 
-  # MAX_df <- as.data.frame(MAX_raw, xy = T)
+load_MAX_sub <- function(file_name){
+  MAX_raw <- sp::read.asciigrid(file_name)
+  MAX_df <- as.data.frame(MAX_raw, xy = T)
+  # MAX_df <- as.data.frame(sp::read.asciigrid(file_name), xy = T)
   MAX_Arctic <- MAX_df %>%
     `colnames<-`(c("suitability", "lon", "lat")) %>%
     filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
            lat >= bbox_arctic[3], lat <= bbox_arctic[4]) %>% 
     mutate(lon = round(lon, 5),
-           lat = round(lat, 5))
+           lat = round(lat, 5)) %>% 
+    dplyr::select(lon, lat, suitability)
   return(MAX_Arctic)
 }
 
 ## Load continuous values
 # Laminariales
-MAX_Ldig <- load_MAX_sub("data/Ldig_avg.asc")
-MAX_Lsol <- load_MAX_sub("data/Lsol_avg.asc")
-MAX_Slat <- load_MAX_sub("data/Slat_avg.asc")
+MAX_Laminariales_cont <- plyr::ldply(c("data/Ldig_avg.asc", "data/Lsol_avg.asc", "data/Slat_avg.asc"),
+                                load_MAX_sub, .parallel = T) %>% 
+  plyr::ddply(.data = ., .variables = c("lon", "lat"), .parallel = T,
+              .fun = plyr::summarise, suitability = mean(suitability))
 
 # Alaria
-MAX_Alaria <- load_MAX_sub("data/Aesc_avg.asc")
+MAX_Alaria_cont <- load_MAX_sub("data/Aesc_avg.asc")
 
 # Agarum
-MAX_Agarum <- load_MAX_sub("data/Acla_avg.asc")
+MAX_Agarum_cont <- load_MAX_sub("data/Acla_avg.asc")
 
-## Load binary values
-# Laminariales
-MAX_Ldig <- load_MAX_sub("data/Ldig_binary.tif", binary = T)
-MAX_Lsol <- load_MAX_sub("data/Lsol_binary.tif", binary = T)
-MAX_Slat <- load_MAX_sub("data/Slat_binary.tif", binary = T)
+## Create binary values
+# Laminariales; Lsol - 0.441; Ldig - 0.222; Slat 0.199
+MAX_Laminariales <- plyr::ldply(c("data/Ldig_binary.tif", "data/Lsol_binary.tif", "data/Slat_binary.tif"),
+                                load_MAX_sub, .parallel = T) %>% 
+  plyr::ddply(.data = ., .variables = c("lon", "lat"), .parallel = T,
+              .fun = plyr::summarise, suitability = mean(suitability))
 
-# Alaria
-MAX_Alaria <- load_MAX_sub("data/Aesc_binary.tif", binary = T)
+# Alaria; Aesc - 0.233
+MAX_Alaria <- load_MAX_sub("data/Aesc_binary.tif")
 
-# Agarum
-MAX_Agarum <- load_MAX_sub("data/Acla_binary.tif", binary = T)
+# Agarum; Acla - 0.156
+MAX_Agarum <- load_MAX_sub("data/Acla_binary.tif")
+
 
 # Merge models ------------------------------------------------------------
 
 # Used for the mapping figures
-ALL_Agarum <- right_join(pred_agarum_ALL, MAX_Agarum_Arctic, by = c("lon", "lat")) %>% 
-  left_join(MAX_Agarum_future_Arctic, by = c("lon", "lat")) %>% 
-  dplyr::rename(suitability = suitability.x, suitability_2050 = suitability.y) %>% 
-  left_join(Arctic_AM, by = c("lon", "lat", "depth", "land_distance")) %>% 
-  mutate(pred_base_perc = pred_base/100,
-         pred_2050_perc = pred_2050/100,
-         pred_2100_perc = pred_2100/100,
-         diff_model_base = pred_base_perc - suitability,
-         diff_model_2050 = pred_2050_perc - suitability_2050,
-         pred_diff_2050 = pred_2050 - pred_base,
-         pred_diff_2100 = pred_2100 - pred_base,
+ALL_Agarum <- left_join(pred_agarum, MAX_Agarum_cont, by = c("lon", "lat")) %>% 
+  # left_join(MAX_Agarum_future_Arctic, by = c("lon", "lat")) %>% 
+  # dplyr::rename(suitability = suitability.x, suitability_2050 = suitability.y) %>% 
+  # left_join(Arctic_AM, by = c("lon", "lat", "depth", "land_distance")) %>% 
+  mutate(pred_val_perc = pred_val/100,
+         pred_relative = pred_val/max(pred_val, na.rm = T),
+         # pred_2050_perc = pred_2050/100,
+         # pred_2100_perc = pred_2100/100,
+         diff_model_base = pred_val_perc - suitability,
+         diff_model_base_relative = pred_relative - suitability,
+         # diff_model_2050 = pred_2050_perc - suitability_2050,
+         # pred_diff_2050 = pred_2050 - pred_base,
+         # pred_diff_2100 = pred_2100 - pred_base,
          both_high =  case_when(
-           pred_base_perc >= 0.25 & suitability >= 0.5 ~ 1),
+           pred_relative >= 0.5 & suitability >= 0.5 ~ 1,
+           TRUE ~ 0),
          pred_cat = case_when(
-           pred_base_perc >= 0.5 ~ "High",
-           pred_base_perc < 0.5 & pred_base >= 0.1 ~ "Low",
-           pred_base_perc <= 0.1 ~ "Scarce"),
-         suit_cat = cut(suitability, breaks = c(0, 30, 50, 100), ordered_result = T))
+           pred_val_perc >= 0.5 ~ "High",
+           pred_val_perc < 0.5 & pred_val >= 0.1 ~ "Low",
+           pred_val_perc <= 0.1 ~ "Scarce"),
+         suit_cat = cut(suitability, breaks = c(0, 0.30, 0.50, 1.00), ordered_result = T))
            # pred_base <= 0.1 & pred_base > 0 ~ "Scarce"))#,
            # pred_base == 0 ~ "None"))
 
 # Used for most of the other figures
 ALL_Agarum_long <- ALL_Agarum %>% 
   dplyr::select(-both_high, -pred_cat, -suit_cat) %>% 
-  pivot_longer(cols = pred_base:pred_diff_2100)
+  pivot_longer(cols = pred_val:diff_model_base_relative)
 
 # ALL_Agarum_cut <- left_join(pred_agarum_cut, Arctic_MAX_Agarum, by = c("lon", "lat")) %>%
   # mutate(suit_cat = cut(suitability, breaks = c(0, 30, 50, 100), ordered_result = T))
 
-# Create a third value that boths outputs can be brought closer to
+# Create a third value that both outputs can be brought closer to
 
 # Create a yes/no threshold for both
 
@@ -144,68 +147,68 @@ data_point <- adf %>%
 
 # Projected current Agarum percent cover
 ggplot(filter(ALL_Agarum, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = pred_base)) +
+  geom_tile(aes(fill = pred_val)) +
   borders(fill = "grey70", colour = "black") +
   geom_point(data = data_point, colour = "red", shape = 21,
              aes(x = lon, y = lat, size = Agarum)) +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
+                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
                   expand = F) +
   theme(legend.position = "bottom") +
   labs(x = NULL, y = NULL, fill = "Agarum cover")
 # ggsave("graph/map_agarum_base.png")
 
 # Difference in 2050 projected Agarum cover
-ggplot(filter(ALL_Agarum, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = pred_diff_2050)) +
-  borders(fill = "grey70", colour = "black") +
-  scale_fill_gradient2(low = "blue", high = "red") +
-  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
-                  expand = F) +
-  theme(legend.position = "bottom") +
-  labs(x = NULL, y = NULL, fill = "Agarum cover")
+# ggplot(filter(ALL_Agarum, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
+#   geom_tile(aes(fill = pred_diff_2050)) +
+#   borders(fill = "grey70", colour = "black") +
+#   scale_fill_gradient2(low = "blue", high = "red") +
+#   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+#                   ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
+#                   expand = F) +
+#   theme(legend.position = "bottom") +
+#   labs(x = NULL, y = NULL, fill = "Agarum cover")
 # ggsave("graph/map_agarum_2050.png")
 
 # Difference in 2100 projected Agarum cover
-ggplot(filter(ALL_Agarum, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = pred_diff_2100)) +
-  borders(fill = "grey70", colour = "black") +
-  scale_fill_gradient2(low = "blue", high = "red") +
-  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
-                  expand = F) +
-  theme(legend.position = "bottom") +
-  labs(x = NULL, y = NULL, fill = "Agarum cover")
+# ggplot(filter(ALL_Agarum, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
+#   geom_tile(aes(fill = pred_diff_2100)) +
+#   borders(fill = "grey70", colour = "black") +
+#   scale_fill_gradient2(low = "blue", high = "red") +
+#   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+#                   ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
+#                   expand = F) +
+#   theme(legend.position = "bottom") +
+#   labs(x = NULL, y = NULL, fill = "Agarum cover")
 # ggsave("graph/map_agarum_2100.png")
 
 # Difference between model projection
 ggplot(filter(ALL_Agarum, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = diff_model_base)) +
+  geom_tile(aes(fill = diff_model_base_relative)) +
   borders(fill = "grey70", colour = "black") +
   geom_point(data = data_point, colour = "red", shape = 21,
              aes(x = lon, y = lat, size = Agarum)) +
   scale_fill_gradient2(low = "blue", high = "red") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
+                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
                   expand = F) +
   theme(legend.position = "bottom") +
-  labs(x = NULL, y = NULL, fill = "Agarum cover")
-# ggsave("graph/map_agarum_model_base.png")
+  labs(x = NULL, y = NULL, fill = "Agarum cover\n RF - MAXENT")
+# ggsave("graph/map_agarum_model_base.png", height = 8, width = 6)
 
 # Difference between model projection for 2050
-ggplot(filter(ALL_Agarum, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = diff_model_2050)) +
-  borders(fill = "grey70", colour = "black") +
-  geom_point(data = data_point, colour = "red", shape = 21,
-             aes(x = lon, y = lat, size = Agarum)) +
-  scale_fill_gradient2(low = "blue", high = "red") +
-  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
-                  expand = F) +
-  theme(legend.position = "bottom") +
-  labs(x = NULL, y = NULL, fill = "Agarum cover")
+# ggplot(filter(ALL_Agarum, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
+#   geom_tile(aes(fill = diff_model_2050)) +
+#   borders(fill = "grey70", colour = "black") +
+#   geom_point(data = data_point, colour = "red", shape = 21,
+#              aes(x = lon, y = lat, size = Agarum)) +
+#   scale_fill_gradient2(low = "blue", high = "red") +
+#   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+#                   ylim = c(bbox_arctic[3]-5, bbox_arctic[4]),
+#                   expand = F) +
+#   theme(legend.position = "bottom") +
+#   labs(x = NULL, y = NULL, fill = "Agarum cover")
 # ggsave("graph/map_agarum_model_2050.png")
 
 
