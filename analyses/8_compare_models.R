@@ -8,11 +8,20 @@
 # Load all data nad previous libraries
 source("analyses/7_random_forests.R")
 library(ggridges) # For ridgeplots
-library(sp) # For reading ASCII files
+# library(sp) # For reading ASCII files
+library(raster)
 
 # Load Arctic data for land distance and bathy only
 load("data/Arctic_AM.RData")
 colnames(Arctic_AM)[4] <- "depth"
+
+# The MAXENT lon/lat grid
+# NB: Not currently necessary, and too large to save and push to GitHub; ~117 MB
+# MAX_grid <- as.data.frame(sp::read.asciigrid(file_name), xy = T) %>% 
+#   `colnames<-`(c("suitability", "lon", "lat")) %>%
+#   dplyr::select(lon, lat)
+# save(MAX_grid, file = "metadata/Max_grid.RData")
+# load("metadata/Max_grid.RData")
 
 
 # Predict coverage --------------------------------------------------------
@@ -24,14 +33,14 @@ pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg, base)
 pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg, base)
 
 # Agarum
-pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg, base) %>% 
-  dplyr::rename(pred_base = pred_val)
-pred_agarum_2050 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2050) %>% 
-  dplyr::rename(pred_2050 = pred_val)
-pred_agarum_2100 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2100) %>% 
-  dplyr::rename(pred_2100 = pred_val)
-pred_agarum_ALL <- left_join(pred_agarum, pred_agarum_2050) %>% 
-  left_join(pred_agarum_2100)
+pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg, base) #%>% 
+  # dplyr::rename(pred_base = pred_val)
+# pred_agarum_2050 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2050) %>% 
+#   dplyr::rename(pred_2050 = pred_val)
+# pred_agarum_2100 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2100) %>% 
+#   dplyr::rename(pred_2100 = pred_val)
+# pred_agarum_ALL <- left_join(pred_agarum, pred_agarum_2050) %>% 
+#   left_join(pred_agarum_2100)
 
 # Alaria
 pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
@@ -39,45 +48,48 @@ pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
 
 # Load MAXENT data --------------------------------------------------------
 
-# Agarum base
-MAX_Agarum <- read.asciigrid("data/Acla.asc")
-MAX_Agarum_df <- as.data.frame(MAX_Agarum, xy = T)
-MAX_Agarum_Arctic <- MAX_Agarum_df %>%
-  dplyr::rename(suitability = data.Acla.asc,
-                lon = s1, lat = s2) %>%
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3]-5, lat <= bbox_arctic[4]) %>% 
-  mutate(lon = round(lon, 5),
-         lat = round(lat, 5))
+# Function for loading MAXENT .tif files as data.frames in the study area
+load_MAX_sub <- function(file_name, binary = F){
+  if(binary == F) MAX_df <- as.data.frame(sp::read.asciigrid(file_name), xy = T)
+  # if(binary == T) MAX_raw <- tiff::readTIFF(file_name, native = T)
+  if(binary == T){
+    MAX_df <- as.data.frame(raster::raster(file_name), xy = T) %>% 
+      cbind(., MAX_grid)
+    
+  } 
+  # MAX_df <- as.data.frame(MAX_raw, xy = T)
+  MAX_Arctic <- MAX_df %>%
+    `colnames<-`(c("suitability", "lon", "lat")) %>%
+    filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+           lat >= bbox_arctic[3], lat <= bbox_arctic[4]) %>% 
+    mutate(lon = round(lon, 5),
+           lat = round(lat, 5))
+  return(MAX_Arctic)
+}
 
-# Agarum sub
-MAX_Agarum_sub <- read.asciigrid("data/Acla.sub.asc")
-MAX_Agarum_sub_df <- as.data.frame(MAX_Agarum_sub, xy = T)
-MAX_Agarum_sub_Arctic <- MAX_Agarum_sub_df %>%
-  dplyr::rename(suitability = data.Acla.sub.asc,
-                lon = s1, lat = s2) %>%
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3]-5, lat <= bbox_arctic[4]) %>% 
-  mutate(lon = round(lon, 5),
-         lat = round(lat, 5))
+## Load continuous values
+# Laminariales
+MAX_Ldig <- load_MAX_sub("data/Ldig_avg.asc")
+MAX_Lsol <- load_MAX_sub("data/Lsol_avg.asc")
+MAX_Slat <- load_MAX_sub("data/Slat_avg.asc")
 
-# Agarum future
-MAX_Agarum_future <- read.asciigrid("data/Acla.sub.fut.asc")
-MAX_Agarum_future_df <- as.data.frame(MAX_Agarum_future, xy = T)
-MAX_Agarum_future_Arctic <- MAX_Agarum_future_df %>%
-  dplyr::rename(suitability = data.Acla.sub.fut.asc,
-                lon = s1, lat = s2) %>%
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3]-5, lat <= bbox_arctic[4]) %>% 
-  mutate(lon = round(lon, 5),
-         lat = round(lat, 5))
+# Alaria
+MAX_Alaria <- load_MAX_sub("data/Aesc_avg.asc")
 
-MAX_Agarum_ALL_Arctic <- rbind(MAX_Agarum_Arctic, MAX_Agarum_sub_Arctic, MAX_Agarum_future_Arctic) %>% 
-  mutate(model_run = factor(c(rep("base", nrow(MAX_Agarum_Arctic)), 
-                              rep("sub", nrow(MAX_Agarum_sub_Arctic)),
-                              rep("future_50", nrow(MAX_Agarum_future_Arctic))),
-                            levels = c("base", "sub", "future_50")))
+# Agarum
+MAX_Agarum <- load_MAX_sub("data/Acla_avg.asc")
 
+## Load binary values
+# Laminariales
+MAX_Ldig <- load_MAX_sub("data/Ldig_binary.tif", binary = T)
+MAX_Lsol <- load_MAX_sub("data/Lsol_binary.tif", binary = T)
+MAX_Slat <- load_MAX_sub("data/Slat_binary.tif", binary = T)
+
+# Alaria
+MAX_Alaria <- load_MAX_sub("data/Aesc_binary.tif", binary = T)
+
+# Agarum
+MAX_Agarum <- load_MAX_sub("data/Acla_binary.tif", binary = T)
 
 # Merge models ------------------------------------------------------------
 
