@@ -94,7 +94,6 @@ rf_data_prep <- function(kelp_choice, df = kelp_all, cat_cover = F, scenario = b
     # levels(df_1$cover)[1] <- "[0,10]"
     levels(df_1$cover) <- c("none", "low", "medium", "high")
   }
-  
   return(df_1)
 }
 
@@ -262,6 +261,8 @@ load("data/top_var_alaria.RData")
 # testers...
 # kelp_choice <- "Agarum"
 # column_choice <- top_var_agarum
+# kelp_choice <- "Laminariales"
+# column_choice <- top_var_laminariales
 random_kelp_forest <- function(lply_bit, kelp_choice, column_choice, 
                                df = kelp_all, scenario = base, print_res = F){
   
@@ -360,6 +361,8 @@ project_cover_dual <- function(dat){
 # in the accuracy of the random forests
 # This is caused by different random splitting of test/validation sets
 # as well as the many possible routes that the random forest may then take
+# kelp_choice <- "Laminariales"
+# column_choice <- top_var_laminariales
 random_kelp_forest_select <- function(kelp_choice, column_choice, 
                                       df = kelp_all, scenario = base){
   # system.time(
@@ -375,7 +378,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice,
       group_by(lon, lat, depth, land_distance) %>% 
       summarise_all("mean", .groups = "drop") %>% 
       mutate(reg_val = round(reg_val),
-             cat_val = factor(round(cat_val), levels = c(1:4), 
+             cat_val = factor(ceiling(cat_val), levels = c(1:4), 
                               labels = c("none", "low", "medium", "high")))
   # ) # 32 seconds
   
@@ -436,8 +439,6 @@ doParallel::registerDoParallel(cores = 50)
 # Alaria
 # best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
 # save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
-
-## NB: It appears that the category models are massively overfitting
 
 
 # Analyse model accuracy --------------------------------------------------

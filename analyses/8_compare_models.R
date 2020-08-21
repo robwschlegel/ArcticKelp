@@ -8,13 +8,23 @@
 # Load all data nad previous libraries
 source("analyses/7_random_forests.R")
 library(ggridges) # For ridgeplots
-# library(sp) # For reading ASCII files
 library(raster)
-library(doParallel); registerDoParallel(cores = 10)
+library(doParallel); registerDoParallel(cores = 50)
+# library(sp) # For reading ASCII files
 
 # Load Arctic data for land distance and bathy only
 load("data/Arctic_AM.RData")
 colnames(Arctic_AM)[4] <- "depth"
+
+# Data points for maps
+data_point <- adf %>% 
+  dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
+  left_join(study_site_env, by = c("Campaign", "site")) %>%
+  mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>%
+  dplyr::select(lon, lat, Agarum, Alaria, Laminariales) %>%
+  group_by(lon, lat) %>%
+  summarise_all(mean) %>%
+  ungroup()
 
 # The MAXENT lon/lat grid
 # NB: Not currently necessary, and too large to save and push to GitHub; ~117 MB
@@ -24,6 +34,8 @@ colnames(Arctic_AM)[4] <- "depth"
 # save(MAX_grid, file = "metadata/Max_grid.RData")
 # load("metadata/Max_grid.RData")
 
+# MAXENT can be verified again by looking at where it predicts suitability and where the field data show high percentage covers
+
 
 # Predict coverage --------------------------------------------------------
 
@@ -32,12 +44,6 @@ load("data/best_rf_kelpcover.RData")
 load("data/best_rf_laminariales.RData")
 load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
-
-# Project the best fits
-pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg, base)
-pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg, base)
-pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg, base)
-pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
 
 
 # Load MAXENT data --------------------------------------------------------
@@ -57,115 +63,158 @@ load_MAX_sub <- function(file_name){
   return(MAX_Arctic)
 }
 
-## Load continuous values
-# Laminariales
-MAX_Laminariales_cont <- plyr::ldply(c("data/Ldig_avg.asc", "data/Lsol_avg.asc", "data/Slat_avg.asc"),
+## Load continuous values and create binaries
+# Laminariales; Ldig - 0.222; , Lsol - 0.441; Slat 0.199
+MAX_Laminariales <- plyr::ldply(c("data/Ldig_avg.asc", "data/Lsol_avg.asc", "data/Slat_avg.asc"),
                                 load_MAX_sub, .parallel = T) %>% 
+  mutate(species = rep(c("Ldig", "Lsol", "Slat"), each = 101257),
+         presence = case_when(species == "Ldig" & suitability >= 0.222 ~ 1,
+                              species == "Lsol" & suitability >= 0.441 ~ 1,
+                              species == "Slat" & suitability >= 0.199 ~ 1,
+                              TRUE ~ 0)) %>% 
+  dplyr::select(-species) %>% 
   plyr::ddply(.data = ., .variables = c("lon", "lat"), .parallel = T,
-              .fun = plyr::summarise, suitability = mean(suitability))
+              .fun = plyr::summarise, suitability = mean(suitability), presence = ceiling(mean(presence)))
 
-# Alaria
-MAX_Alaria_cont <- load_MAX_sub("data/Aesc_avg.asc")
-
-# Agarum
-MAX_Agarum_cont <- load_MAX_sub("data/Acla_avg.asc")
-
-## Create binary values
-# Laminariales; Lsol - 0.441; Ldig - 0.222; Slat 0.199
-MAX_Laminariales_binary <- plyr::ldply(c("data/Ldig_avg.asc", "data/Lsol_avg.asc", "data/Slat_avg.asc"),
-                                load_MAX_sub, .parallel = T) %>% 
-  plyr::ddply(.data = ., .variables = c("lon", "lat"), .parallel = T,
-              .fun = plyr::summarise, suitability = mean(suitability))
-
-# Alaria; Aesc - 0.233
-MAX_Alaria_binary <- MAX_Alaria_cont %>% 
-  mutate(presence = case_when())
+# Alaria Aesc - 0.233
+MAX_Alaria <- load_MAX_sub("data/Aesc_avg.asc" ) %>% 
+  mutate(presence = case_when(suitability >= 0.233 ~ 1, TRUE ~ 0))
 
 # Agarum; Acla - 0.156
-MAX_Agarum_binary <- MAX_Agarum_cont
+MAX_Agarum <- load_MAX_sub("data/Acla_avg.asc") %>% 
+  mutate(presence = case_when(suitability >= 0.156 ~ 1, TRUE ~ 0))
 
 
 # Merge models ------------------------------------------------------------
 
 # Used for the mapping figures
 merge_pred_MAX <- function(pred_layer, MAX_layer){
-  ALL_Agarum <- left_join(pred_layer, MAX_layer, by = c("lon", "lat")) %>% 
-    mutate(pred_val_perc = pred_val/100,
-           pred_relative = pred_val/max(pred_val, na.rm = T),
-           diff_model_base = pred_val_perc - suitability,
-           diff_model_base_relative = pred_relative - suitability,
+  max_val <- max(pred_layer$reg_val)
+  ALL_res <- left_join(pred_layer, MAX_layer, by = c("lon", "lat")) %>% 
+    mutate(reg_perc = reg_val/100,
+           reg_relative = reg_val/max_val,
+           diff_perc = reg_perc - suitability,
+           diff_relative = reg_relative - suitability,
            diff_relative_cat = case_when(
-             diff_model_base_relative >= -0.2 & diff_model_base_relative <= 0.2 ~ "Similar",
-             diff_model_base_relative > 0.2 ~ "RF",
-             diff_model_base_relative < -0.2 ~ "MAXENT"),
-           both_high =  case_when(
-             pred_relative >= 0.5 & suitability >= 0.5 ~ 1,
-             TRUE ~ 0),
-           pred_cat = case_when(
-             pred_val_perc >= 0.5 ~ "High",
-             pred_val_perc < 0.5 & pred_val >= 0.1 ~ "Low",
-             pred_val_perc <= 0.1 ~ "Scarce"),
-           suit_cat = cut(suitability, breaks = c(0, 0.30, 0.50, 1.00), ordered_result = T))
+             diff_relative >= -0.2 & diff_relative <= 0.2 ~ "Similar",
+             diff_relative > 0.2 ~ "RF",
+             diff_relative < -0.2 ~ "MAXENT"),
+           diff_cat = case_when(
+             presence == 1 & cat_val != "none" ~ "both",
+             presence == 0 & cat_val == "none" ~ "none",
+             presence == 1 & cat_val == "none" ~ "MAXENT",
+             presence == 0 & cat_val != "none" ~ "RF"))
 }
 
 # Merge layers
-ALL_laminariales <- merge_pred_MAX(pred_laminariales, MAX_Laminariales_cont)
-ALL_agarum <- merge_pred_MAX(pred_agarum, MAX_Agarum_cont)
-ALL_alaria <- merge_pred_MAX(pred_alaria, MAX_Alaria_cont)
-
-# Convenience wrapper to create long dataframes
-long_kelp_df <- function(df){
-  ALL_res_long <- df %>% 
-    dplyr::select(-both_high, -pred_cat, -suit_cat) %>% 
-    pivot_longer(cols = pred_val:diff_model_base_relative)
-}
-
-# ALL_Agarum_cut <- left_join(pred_agarum_cut, Arctic_MAX_Agarum, by = c("lon", "lat")) %>%
-  # mutate(suit_cat = cut(suitability, breaks = c(0, 30, 50, 100), ordered_result = T))
-
-# Create a third value that both outputs can be brought closer to
-
-# Create a yes/no threshold for both
-
-# May be good to create four categories for MAXENT data, too
+ALL_laminariales <- merge_pred_MAX(best_rf_laminariales$project_multi, MAX_Laminariales)
+ALL_agarum <- merge_pred_MAX(best_rf_agarum$project_multi, MAX_Agarum)
+ALL_alaria <- merge_pred_MAX(best_rf_alaria$project_multi, MAX_Alaria)
 
 
-# Map figure --------------------------------------------------------------
+# Percent cover figure ----------------------------------------------------
 
-# Data points for map
-data_point <- adf %>% 
-  dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
-  left_join(study_site_env, by = c("Campaign", "site")) %>%
-  mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>%
-  dplyr::select(lon, lat, Agarum, Alaria, Laminariales) %>%
-  group_by(lon, lat) %>%
-  summarise_all(mean) %>%
-  ungroup()
-
-# Projected current percent cover figure
-project_cover_fig <- function(df, kelp_choice){
-  cover_fig <- ggplot(filter(df, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
-    geom_tile(aes(fill = pred_val)) +
+project_reg_fig <- function(df, kelp_choice){
+  cover_fig <- df %>% 
+    dplyr::select(lon:land_distance, reg_relative, suitability) %>% 
+    pivot_longer(cols = c(reg_relative, suitability)) %>% 
+    mutate(name = case_when(name == "reg_relative" ~ "RF: relative",
+                            name == "suitability" ~ "MAXENT: suitability")) %>% 
+    filter(land_distance <= 50 | depth <= 50) %>% 
+    ggplot(aes(x = lon, y = lat)) +
+    geom_tile(aes(fill = value)) +
     borders(fill = "grey70", colour = "black") +
     geom_point(data = data_point, colour = "red", shape = 21,
                aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
     scale_fill_viridis_c(option = "D") +
     coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
-    # theme(legend.position = "bottom") +
-    labs(x = NULL, y = NULL, fill = paste0(kelp_choice," cover"))
-  ggsave(paste0("graph/map_",tolower(kelp_choice),"_base.png"), cover_fig)
+    theme(legend.position = "bottom") +#,
+          # legend.box = "vertical") +
+    labs(x = NULL, y = NULL, fill = paste0("cover (model)"),
+         title = kelp_choice, size = paste0("cover (%)")) +
+    facet_wrap(~name)
+  # cover_fig
+  ggsave(paste0("graph/map_",tolower(kelp_choice),"_reg.png"), cover_fig)
 }
 
 # Create the figures
-project_cover_fig(ALL_laminariales, "Laminariales")
-project_cover_fig(ALL_agarum, "Agarum")
-project_cover_fig(ALL_alaria, "Alaria")
+project_reg_fig(ALL_laminariales, "Laminariales")
+project_reg_fig(ALL_agarum, "Agarum")
+project_reg_fig(ALL_alaria, "Alaria")
 
-# Difference between model projection
-project_diff_fig <- function(df, kelp_choice){
-  diff_fig <- ggplot(filter(df, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
-    # geom_tile(aes(fill = diff_model_base_relative)) +
+
+# Category cover figure ---------------------------------------------------
+
+# Create categories for the kelps that are all relative to their own percent covers
+# Use binary models in combination with RF categories to see how well those match
+# Create a RF figure showing the categories, low-high, and panel that next to the binary MAXENT map
+project_cat_fig <- function(df, kelp_choice){
+  cat_val_fig <- df %>% 
+    filter(land_distance <= 50 | depth <= 50) %>% 
+    mutate(name = "RF: category") %>% 
+    ggplot(aes(x = lon, y = lat)) +
+    geom_tile(aes(fill = cat_val)) +
+    borders(fill = "grey70", colour = "black") +
+    geom_point(data = data_point, colour = "purple", shape = 21,
+               aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
+    scale_fill_brewer(palette = "Dark2") +
+    coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
+    theme(legend.position = "bottom",
+          legend.box = "vertical") +
+    labs(x = NULL, y = NULL, fill = paste0("category"),
+         title = kelp_choice, size = paste0("cover (%)")) +
+      facet_wrap(~name)
+  # cat_val_fig
+  
+  presence_fig <- df %>% 
+    filter(land_distance <= 50 | depth <= 50) %>% 
+    mutate(name = "MAXENT: presence",
+           presence = case_when(presence == 1 ~ "yes",
+                                presence == 0 ~ "no")) %>% 
+    ggplot(aes(x = lon, y = lat)) +
+    geom_tile(aes(fill = presence)) +
+    borders(fill = "grey70", colour = "black") +
+    geom_point(data = data_point, colour = "purple", shape = 21, show.legend = F,
+               aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
+    scale_fill_brewer(palette = "Set1") +
+    coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
+    theme(legend.position = "bottom",
+          legend.box = "vertical") +
+    labs(x = NULL, y = NULL, fill = paste0("presence"), size = paste0("cover (%)")) +
+    facet_wrap(~name)
+  # presence_fig
+  cat_fig <- ggpubr::ggarrange(cat_val_fig, presence_fig, ncol = 2, nrow = 1, 
+                               align = "hv", common.legend = F, legend = "bottom")
+  ggsave(paste0("graph/map_",tolower(kelp_choice),"_cat.png"), cat_fig, width = 6.5)
+}
+
+# Create the figures
+project_cat_fig(ALL_laminariales, "Laminariales")
+project_cat_fig(ALL_agarum, "Agarum")
+project_cat_fig(ALL_alaria, "Alaria")
+
+
+# Difference regression ---------------------------------------------------
+
+project_reg_diff_fig <- function(df, kelp_choice){
+  reg_diff_ridge <- df %>% 
+    filter(land_distance <= 50 | depth <= 50) %>% 
+    dplyr::select(lon:land_distance, suitability, reg_relative, diff_relative) %>% 
+    pivot_longer(cols = suitability:diff_relative) %>% 
+    mutate(name = case_when(name == "reg_relative" ~ "RF: relative",
+                            name == "suitability" ~ "MAXENT: suitability",
+                            name == "diff_relative" ~ "RF - MAXENT")) %>% 
+    mutate(name = factor(name, levels = c("MAXENT: suitability", "RF: relative", "RF - MAXENT"))) %>% 
+    ggplot(aes(x = value, y = name)) +
+    stat_density_ridges(alpha = 0.7) +
+    scale_x_continuous(limits = c(-1, 1)) +
+    labs(y = NULL) +
+    theme(axis.text.y = element_text(angle = 90, hjust = 0.5))
+  reg_diff_ridge
+  
+  reg_diff_map <- ggplot(filter(df, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
     geom_tile(aes(fill = diff_relative_cat)) +
+    # geom_tile(aes(fill = diff_relative_cat)) +
     borders(fill = "white", colour = "grey70", size = 0.1) +
     geom_point(data = data_point, colour = "black", shape = 21,
                aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
@@ -173,69 +222,65 @@ project_diff_fig <- function(df, kelp_choice){
     # scale_fill_brewer(palette = "Dark2") +
     scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = 'YlOrRd')[c(2,4,6)]) +
     coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
-    # theme(legend.position = "bottom") +
-    labs(x = NULL, y = NULL, size = paste0(kelp_choice," %"), 
-         fill = paste0(kelp_choice," cover\n RF - MAXENT"))
-  ggsave(paste0("graph/map_",tolower(kelp_choice),"_model_diff.png"), diff_fig)
+    theme(legend.position = "bottom",
+          legend.box = "vertical") +
+    labs(x = NULL, y = NULL, size = paste0("cover (%)"), 
+         fill = paste0("greater"), title = kelp_choice)
+  # reg_diff_map
+  reg_diff_fig <- ggpubr::ggarrange(reg_diff_map, reg_diff_ridge, ncol = 2, nrow = 1, 
+                                    align = "v", widths = c(1.5, 1))
+  ggsave(paste0("graph/map_",tolower(kelp_choice),"_reg_diff.png"), reg_diff_fig)
 }
 
 # Create the figures
-project_diff_fig(ALL_laminariales, "Laminariales")
-project_diff_fig(ALL_agarum, "Agarum")
-project_diff_fig(ALL_alaria, "Alaria")
-
-# Combine this plot with the ridgeplot below
-
-# A nice map figure that shows regions of agreement between models
-
-# It may be good to accompany these maps with density plots showing how the pixels relate to each other
+project_reg_diff_fig(ALL_laminariales, "Laminariales")
+project_reg_diff_fig(ALL_agarum, "Agarum")
+project_reg_diff_fig(ALL_alaria, "Alaria")
 
 
-# Barplot figure ----------------------------------------------------------
+# Difference category -----------------------------------------------------
 
-# mean_agarum <- MAX_Agarum_ALL_Arctic %>% 
-#   group_by(model_run) %>% 
-#   summarise_all(mean)
-# 
-# ggplot(data = mean_agarum, aes(x = model_run, y = suitability)) +
-#   geom_bar(stat = "identity", aes(fill = model_run))
+project_cat_diff_fig <- function(df, kelp_choice){
+  # cat_diff_bar <- df %>% 
+  #   filter(land_distance <= 50 | depth <= 50) %>% 
+  #   mutate(presence = case_when(presence == 1 ~ "yes",
+  #                               presence == 0 ~ "no")) %>% 
+  #   dplyr::select(lon:land_distance, cat_val, presence, diff_cat) %>% 
+  #   pivot_longer(cols = cat_val:diff_cat) %>% 
+  #   mutate(name = case_when(name == "cat_val" ~ "RF: category",
+  #                           name == "presence" ~ "MAXENT: presence",
+  #                           name == "diff_cat" ~ "RF vs. MAXENT")) %>% 
+  #   # mutate(name = factor(name, levels = c("MAXENT: suitability", "RF: relative", "RF - MAXENT"))) %>% 
+  #   ggplot(aes(x = name, y = value)) +
+  #   geom_col(aes(fill = value)) +
+  #   facet_wrap(~name, nrow = 3)
+  #   # labs(y = NULL) +
+  #   # theme(axis.text.y = element_text(angle = 90, hjust = 0.5))
+  # cat_diff_bar
+  
+  cat_diff_map <- df %>% 
+    filter(land_distance <= 50 | depth <= 50) %>% 
+    mutate(diff_cat = factor(diff_cat, levels = c("both", "MAXENT", "RF", "none"))) %>% 
+    ggplot(aes(x = lon, y = lat)) +
+    geom_tile(aes(fill = diff_cat)) +
+    # geom_tile(aes(fill = diff_relative_cat)) +
+    borders(fill = "white", colour = "grey70", size = 0.1) +
+    geom_point(data = data_point, colour = "black", shape = 21,
+               aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
+    scale_fill_brewer(palette = "Accent") +
+    coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
+    theme(legend.position = "bottom",
+          legend.box = "vertical") +
+    labs(x = NULL, y = NULL, size = paste0("cover (%)"), 
+         fill = paste0("presence"), title = kelp_choice)
+  # cat_diff_map
+  # cat_diff_fig <- ggpubr::ggarrange(cat_diff_map, cat_diff_ridge, ncol = 2, nrow = 1, 
+  #                                   align = "v", widths = c(1.5, 1))
+  ggsave(paste0("graph/map_",tolower(kelp_choice),"_cat_diff.png"), cat_diff_map)
+}
 
-
-# Boxplot figure ----------------------------------------------------------
-
-ALL_agarum %>% 
-  dplyr::select(-both_high, -pred_cat, -suit_cat, -pred_val) %>% 
-  pivot_longer(cols = suitability:diff_model_base_relative) %>% 
-  ggplot(aes(x = name, y = value)) +
-  geom_boxplot(aes(fill = name))
-
-
-# Density plot ------------------------------------------------------------
-
-ALL_agarum %>% 
-  dplyr::select(-both_high, -pred_cat, -suit_cat, -pred_val) %>% 
-  pivot_longer(cols = suitability:diff_model_base_relative) %>% 
-  ggplot(aes(x = value)) +
-  geom_density(aes(fill = name), alpha = 0.5)
-
-
-# Ridgeplot ---------------------------------------------------------------
-
-ALL_agarum %>% 
-  dplyr::select(-both_high, -pred_cat, -suit_cat, -pred_val, -pred_val_perc, -diff_model_base) %>% 
-  pivot_longer(cols = suitability:diff_model_base_relative) %>% 
-  ggplot(aes(x = value, y = name)) +
-  stat_density_ridges(alpha = 0.7)
-# Combine this with the diff map
-# Put everything in panels
-
-
-# Create categories for the kelps that are all relative to their own percent covers
-# Use binary models in combination with RF categories to see how well those match
-  # Create a RF figure showing the categories, low-high, and panel that next to the binary MAXENT map
-# Another comparison to look at is in areas where one model may have much more optimistic projections than the other
-# MAXENT can be verified again by looking at where it predicts suitability and where the field data show high percentage covers
-
-
-
+# Create the figures
+project_cat_diff_fig(ALL_laminariales, "Laminariales")
+project_cat_diff_fig(ALL_agarum, "Agarum")
+project_cat_diff_fig(ALL_alaria, "Alaria")
 
