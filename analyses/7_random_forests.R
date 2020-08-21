@@ -90,8 +90,9 @@ rf_data_prep <- function(kelp_choice, df = kelp_all, cat_cover = F, scenario = b
   
   # Cut cover into categories if desired
   if(cat_cover){
-    df_1$cover <- cut(df_1$cover, breaks = c(-Inf, 10, 50, 100), ordered_result = T)
-    levels(df_1$cover)[1] <- "[0,10]"
+    df_1$cover <- cut(df_1$cover, breaks = c(-Inf, seq(0, max(df_1$cover), length.out = 4)), ordered_result = T)
+    # levels(df_1$cover)[1] <- "[0,10]"
+    levels(df_1$cover) <- c("none", "low", "medium", "high")
   }
   
   return(df_1)
@@ -334,7 +335,26 @@ random_kelp_forest <- function(lply_bit, kelp_choice, column_choice,
 # getTree(rfobj, k=1, labelVar=FALSE)
 
 
-# Select best random forest -----------------------------------------------
+# Calculate and merge 1000 models -----------------------------------------
+
+# Function for projecting a model
+project_cover <- function(model_choice){
+  pred_df <- data.frame(lon = Arctic_env$lon, lat = Arctic_env$lat,
+                        depth = Arctic_env$bathy,
+                        land_distance = Arctic_env$land_distance,
+                        pred_val = predict(model_choice, Arctic_env))
+}
+
+# Convenience function for performing projections in parallel
+# dat <- multi_test[[1]]
+project_cover_dual <- function(dat){
+  reg_cover <- project_cover(dat$rf_reg)
+  cat_cover <- project_cover(dat$rf_cat)
+  dual_cover <- left_join(reg_cover, cat_cover, 
+                          by = c("lon", "lat", "depth", "land_distance")) %>% 
+    dplyr::rename(reg_val = pred_val.x, cat_val = pred_val.y)
+}
+
 
 # Now we run the test on each kelp cover 1000 times to see what the spread is
 # in the accuracy of the random forests
@@ -343,26 +363,37 @@ random_kelp_forest <- function(lply_bit, kelp_choice, column_choice,
 random_kelp_forest_select <- function(kelp_choice, column_choice, 
                                       df = kelp_all, scenario = base){
   # system.time(
-    multi_test <- plyr::llply(.data = 1:100, .fun = random_kelp_forest, .parallel = T, 
-                              kelp_choice = kelp_choice, column_choice = column_choice,
-                              df = df, scenario = scenario)
-    # ) # ~50 seconds
+  multi_test <- plyr::llply(.data = 1:1000, .fun = random_kelp_forest, .parallel = T, 
+                            kelp_choice = kelp_choice, column_choice = column_choice,
+                            df = df, scenario = scenario)
+  # ) # ~30 seconds
+    
+  # Create mean projection from all models
+  # system.time(
+    project_multi <- plyr::ldply(multi_test, project_cover_dual, .parallel = T) %>% 
+      mutate(cat_val = as.integer(cat_val)) %>% 
+      group_by(lon, lat, depth, land_distance) %>% 
+      summarise_all("mean", .groups = "drop") %>% 
+      mutate(reg_val = round(reg_val),
+             cat_val = factor(round(cat_val), levels = c(1:4), 
+                              labels = c("none", "low", "medium", "high")))
+  # ) # 32 seconds
   
-  # Extract the model accuracies
+  # Extract the accuracy of the models 
   accuracy_reg <- lapply(multi_test, function(x) x$accuracy_reg) %>% 
     do.call(rbind.data.frame, .) %>% 
-    mutate(model_id = rep(1:100, each = nrow(df)))
+    mutate(model_id = rep(1:1000, each = nrow(df)))
   accuracy_cat <- lapply(multi_test, function(x) x$accuracy_cat) %>% 
     do.call(rbind.data.frame, .) %>% 
-    mutate(model_id = rep(1:100, each = nrow(df)))
+    mutate(model_id = rep(1:1000, each = nrow(df)))
   
   # Find which model had the best validation scores
   accuracy_reg_check <- accuracy_reg %>%
     filter(portion == "validate") %>% 
     group_by(model_id) %>% 
     summarise(mean_acc = round(mean(abs(accuracy)), 2),
-              r_acc = round(cor(x = original, y = pred), 2)) %>% 
-    ungroup()
+              r_acc = round(cor(x = original, y = pred), 2),
+              .groups = "drop")
   accuracy_cat_check <- accuracy_cat %>% 
     filter(portion == "validate") %>% 
     group_by(model_id) %>% 
@@ -384,13 +415,14 @@ random_kelp_forest_select <- function(kelp_choice, column_choice,
   
   # Combine and exit
   res <- list(choice_reg = choice_reg, accuracy_reg = accuracy_reg, 
-              choice_cat = choice_cat, accuracy_cat = accuracy_cat)
+              choice_cat = choice_cat, accuracy_cat = accuracy_cat,
+              project_multi = project_multi)
   return(res)
 }
 
-# doParallel::registerDoParallel(cores = 50)
+doParallel::registerDoParallel(cores = 50)
 # Kelp.cover
-# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 3 seconds with 50 cores
+# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 31 seconds with 50 cores
 # save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 
 # Laminariales
@@ -514,50 +546,14 @@ conf_plot <- function(df, plot_title){
 # load("data/best_rf_agarum.RData")
 # load("data/best_rf_alaria.RData")
 
-# Load top variable choices
-# load("data/top_var_kelpcover.RData")
-# load("data/top_var_laminariales.RData")
-# load("data/top_var_agarum.RData")
-# load("data/top_var_alaria.RData")
-
 # Load the Arctic data
 # load("data/Arctic_env.RData")
-
-# This function changes the variable names in the future layers to match the expected names
-predict_future <- function(model_choice, scenario){
-  
-  # Filter out only columns in chosen scenario
-  Arctic_env_sub <- dplyr::select(Arctic_env, all_of(scenario))
-  
-  # Translate best columns choice from future projections as necessary
-  if(tail(scenario, 1) == "BO2_RCP85_2050_tempmean_ss"){
-    colnames(Arctic_env_sub) <- str_replace(colnames(Arctic_env_sub), "BO2_RCP85_2050_", "BO2_")
-  } else if(tail(scenario, 1) == "BO2_RCP85_2100_tempmean_ss"){
-    colnames(Arctic_env_sub) <- str_replace(colnames(Arctic_env_sub), "BO2_RCP85_2100_", "BO2_")
-  } else {
-  }
-  
-  # Run prediction and exit
-  pred_val <-  predict(model_choice, Arctic_env_sub)
-  return(pred_val)
-}
-
-
-# Convenience function for final step before prediction
-Arctic_cover_predict <- function(model_choice, scenario){
-  pred_df <- data.frame(lon = Arctic_env$lon, lat = Arctic_env$lat,
-                        depth = Arctic_env$bathy,
-                        land_distance = Arctic_env$land_distance,
-                        pred_val = predict_future(model_choice, scenario))
-}
 
 # Predict the covers
 # pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg, base)
 # pred_laminariales <- Arctic_cover_predict(best_rf_laminariales$choice_reg, base)
 # pred_alaria <- Arctic_cover_predict(best_rf_alaria$choice_reg, base)
 # pred_agarum <- Arctic_cover_predict(best_rf_agarum$choice_reg, base)
-# pred_agarum_2050 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2050)
-# pred_agarum_2100 <- Arctic_cover_predict(best_rf_agarum$choice_reg, future_2100)
 
 # Visualise a family of cover
 cover_squiz <- function(df, legend_title, x_nudge, kelp_choice){
