@@ -145,6 +145,9 @@ project_reg_fig(ALL_alaria, "Alaria")
 
 # Category cover figure ---------------------------------------------------
 
+# Chris comments: Instead of circles show the points where the MAXENT data were based on
+# May be better to have more depth or distance from the land
+
 # Create categories for the kelps that are all relative to their own percent covers
 # Use binary models in combination with RF categories to see how well those match
 # Create a RF figure showing the categories, low-high, and panel that next to the binary MAXENT map
@@ -196,6 +199,13 @@ project_cat_fig(ALL_alaria, "Alaria")
 
 # Difference regression ---------------------------------------------------
 
+# These ridgeplot comparison figures need to go. 
+# They are only useful for comparing present to future projections.
+# Change the colour palette to show where they agree, but by how much.
+# Also showing that they agree because they are both low or high, etc.
+# This may require a figure showing how they are similar at certain levels,
+# and a figure showing dissimilarity at similar levels.
+
 project_reg_diff_fig <- function(df, kelp_choice){
   reg_diff_ridge <- df %>% 
     filter(land_distance <= 50 | depth <= 50) %>% 
@@ -239,6 +249,9 @@ project_reg_diff_fig(ALL_alaria, "Alaria")
 
 
 # Difference category -----------------------------------------------------
+
+# Could show the RF categories of low, medium, high but as increasing shades of the same colour
+# And then don't show where they don't agree or both predict none
 
 project_cat_diff_fig <- function(df, kelp_choice){
   # cat_diff_bar <- df %>% 
