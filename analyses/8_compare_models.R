@@ -17,7 +17,7 @@ load("data/Arctic_AM.RData")
 colnames(Arctic_AM)[4] <- "depth"
 
 # Data points for maps
-data_point <- adf %>% 
+RF_points <- adf %>% 
   dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
   left_join(study_site_env, by = c("Campaign", "site")) %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>%
@@ -25,6 +25,20 @@ data_point <- adf %>%
   group_by(lon, lat) %>%
   summarise_all(mean) %>%
   ungroup()
+
+# The coords for the MAXENT data
+MAXENT_points <- rbind(
+  read_csv("metadata/Acla_MaxEnt.csv")[1:4],
+  read_csv("metadata/Aesc_MaxEnt.csv")[1:4],
+  read_csv("metadata/Slat_MaxEnt.csv")[1:4],
+  read_csv("metadata/Ldig_MaxEnt.csv")[1:4],
+  read_csv("metadata/Lsol_MaxEnt.csv")[1:4])
+MAXENT_points <- MAXENT_points %>% 
+  mutate(family = case_when(Sp == "Aesc" ~ "Alaria",
+                            Sp == "Acla" ~ "Agarum",
+                            Sp %in% c("Slat", "Ldig", "Lsol") ~ "Laminariales")) %>% 
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # The MAXENT lon/lat grid
 # NB: Not currently necessary, and too large to save and push to GitHub; ~117 MB
@@ -35,6 +49,14 @@ data_point <- adf %>%
 # load("metadata/Max_grid.RData")
 
 # MAXENT can be verified again by looking at where it predicts suitability and where the field data show high percentage covers
+
+# Consider depths of 60 to 80 metres as a filter after the models
+
+# Run a presence absence random forest to compare to MAXENT. And also the percent cover RF afterwards when the comparisons of the models has been made.
+
+# Build a story around model distribution, and as point B we can talk about percent cover projections.
+
+# Consider knocking out variables and seeing if some regions agreement change based on that one missing variable.
 
 
 # Predict coverage --------------------------------------------------------
@@ -120,11 +142,12 @@ project_reg_fig <- function(df, kelp_choice){
     pivot_longer(cols = c(reg_relative, suitability)) %>% 
     mutate(name = case_when(name == "reg_relative" ~ "RF: relative",
                             name == "suitability" ~ "MAXENT: suitability")) %>% 
-    filter(land_distance <= 50 | depth <= 50) %>% 
+    filter(land_distance <= 100 | depth <= 100) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = value)) +
     borders(fill = "grey70", colour = "black") +
-    geom_point(data = data_point, colour = "red", shape = 21,
+    geom_point(data = filter(MAXENT_points, family == kelp_choice), colour = "red", shape = 15, alpha = 0.5) +
+    geom_point(data = RF_points, colour = "red", shape = 21,
                aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
     scale_fill_viridis_c(option = "D") +
     coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
@@ -145,20 +168,17 @@ project_reg_fig(ALL_alaria, "Alaria")
 
 # Category cover figure ---------------------------------------------------
 
-# Chris comments: Instead of circles show the points where the MAXENT data were based on
-# May be better to have more depth or distance from the land
-
 # Create categories for the kelps that are all relative to their own percent covers
 # Use binary models in combination with RF categories to see how well those match
 # Create a RF figure showing the categories, low-high, and panel that next to the binary MAXENT map
 project_cat_fig <- function(df, kelp_choice){
   cat_val_fig <- df %>% 
-    filter(land_distance <= 50 | depth <= 50) %>% 
+    filter(land_distance <= 100 | depth <= 100) %>% 
     mutate(name = "RF: category") %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = cat_val)) +
     borders(fill = "grey70", colour = "black") +
-    geom_point(data = data_point, colour = "purple", shape = 21,
+    geom_point(data = RF_points, colour = "purple", shape = 21,
                aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
     scale_fill_brewer(palette = "Dark2") +
     coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
@@ -170,15 +190,14 @@ project_cat_fig <- function(df, kelp_choice){
   # cat_val_fig
   
   presence_fig <- df %>% 
-    filter(land_distance <= 50 | depth <= 50) %>% 
+    filter(land_distance <= 100 | depth <= 100) %>% 
     mutate(name = "MAXENT: presence",
            presence = case_when(presence == 1 ~ "yes",
                                 presence == 0 ~ "no")) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = presence)) +
     borders(fill = "grey70", colour = "black") +
-    geom_point(data = data_point, colour = "purple", shape = 21, show.legend = F,
-               aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
+    geom_point(data = filter(MAXENT_points, family == kelp_choice), colour = "purple", shape = 15, alpha = 0.5) +
     scale_fill_brewer(palette = "Set1") +
     coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
     theme(legend.position = "bottom",
@@ -199,35 +218,19 @@ project_cat_fig(ALL_alaria, "Alaria")
 
 # Difference regression ---------------------------------------------------
 
-# These ridgeplot comparison figures need to go. 
-# They are only useful for comparing present to future projections.
 # Change the colour palette to show where they agree, but by how much.
 # Also showing that they agree because they are both low or high, etc.
 # This may require a figure showing how they are similar at certain levels,
 # and a figure showing dissimilarity at similar levels.
 
 project_reg_diff_fig <- function(df, kelp_choice){
-  reg_diff_ridge <- df %>% 
-    filter(land_distance <= 50 | depth <= 50) %>% 
-    dplyr::select(lon:land_distance, suitability, reg_relative, diff_relative) %>% 
-    pivot_longer(cols = suitability:diff_relative) %>% 
-    mutate(name = case_when(name == "reg_relative" ~ "RF: relative",
-                            name == "suitability" ~ "MAXENT: suitability",
-                            name == "diff_relative" ~ "RF - MAXENT")) %>% 
-    mutate(name = factor(name, levels = c("MAXENT: suitability", "RF: relative", "RF - MAXENT"))) %>% 
-    ggplot(aes(x = value, y = name)) +
-    stat_density_ridges(alpha = 0.7) +
-    scale_x_continuous(limits = c(-1, 1)) +
-    labs(y = NULL) +
-    theme(axis.text.y = element_text(angle = 90, hjust = 0.5))
-  reg_diff_ridge
-  
-  reg_diff_map <- ggplot(filter(df, land_distance <= 50 | depth <= 50), aes(x = lon, y = lat)) +
+  reg_diff_map <- ggplot(filter(df, land_distance <= 100 | depth <= 100), aes(x = lon, y = lat)) +
     geom_tile(aes(fill = diff_relative_cat)) +
     # geom_tile(aes(fill = diff_relative_cat)) +
     borders(fill = "white", colour = "grey70", size = 0.1) +
-    geom_point(data = data_point, colour = "black", shape = 21,
+    geom_point(data = RF_points, colour = "black", shape = 21,
                aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
+    geom_point(data = filter(MAXENT_points, family == kelp_choice), colour = "black", shape = 15, alpha = 0.5) +
     # scale_fill_gradient2(low = "blue", mid = "grey30", high = "red", limits = c(-1, 1)) +
     # scale_fill_brewer(palette = "Dark2") +
     scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = 'YlOrRd')[c(2,4,6)]) +
@@ -237,9 +240,9 @@ project_reg_diff_fig <- function(df, kelp_choice){
     labs(x = NULL, y = NULL, size = paste0("cover (%)"), 
          fill = paste0("greater"), title = kelp_choice)
   # reg_diff_map
-  reg_diff_fig <- ggpubr::ggarrange(reg_diff_map, reg_diff_ridge, ncol = 2, nrow = 1, 
-                                    align = "v", widths = c(1.5, 1))
-  ggsave(paste0("graph/map_",tolower(kelp_choice),"_reg_diff.png"), reg_diff_fig)
+  # reg_diff_fig <- ggpubr::ggarrange(reg_diff_map, reg_diff_ridge, ncol = 2, nrow = 1, 
+  #                                   align = "v", widths = c(1.5, 1))
+  ggsave(paste0("graph/map_",tolower(kelp_choice),"_reg_diff.png"), reg_diff_map)
 }
 
 # Create the figures
@@ -248,38 +251,22 @@ project_reg_diff_fig(ALL_agarum, "Agarum")
 project_reg_diff_fig(ALL_alaria, "Alaria")
 
 
-# Difference category -----------------------------------------------------
+s# Difference category -----------------------------------------------------
 
 # Could show the RF categories of low, medium, high but as increasing shades of the same colour
 # And then don't show where they don't agree or both predict none
 
 project_cat_diff_fig <- function(df, kelp_choice){
-  # cat_diff_bar <- df %>% 
-  #   filter(land_distance <= 50 | depth <= 50) %>% 
-  #   mutate(presence = case_when(presence == 1 ~ "yes",
-  #                               presence == 0 ~ "no")) %>% 
-  #   dplyr::select(lon:land_distance, cat_val, presence, diff_cat) %>% 
-  #   pivot_longer(cols = cat_val:diff_cat) %>% 
-  #   mutate(name = case_when(name == "cat_val" ~ "RF: category",
-  #                           name == "presence" ~ "MAXENT: presence",
-  #                           name == "diff_cat" ~ "RF vs. MAXENT")) %>% 
-  #   # mutate(name = factor(name, levels = c("MAXENT: suitability", "RF: relative", "RF - MAXENT"))) %>% 
-  #   ggplot(aes(x = name, y = value)) +
-  #   geom_col(aes(fill = value)) +
-  #   facet_wrap(~name, nrow = 3)
-  #   # labs(y = NULL) +
-  #   # theme(axis.text.y = element_text(angle = 90, hjust = 0.5))
-  # cat_diff_bar
-  
   cat_diff_map <- df %>% 
-    filter(land_distance <= 50 | depth <= 50) %>% 
+    filter(land_distance <= 100 | depth <= 100) %>% 
     mutate(diff_cat = factor(diff_cat, levels = c("both", "MAXENT", "RF", "none"))) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = diff_cat)) +
     # geom_tile(aes(fill = diff_relative_cat)) +
     borders(fill = "white", colour = "grey70", size = 0.1) +
-    geom_point(data = data_point, colour = "black", shape = 21,
+    geom_point(data = RF_points, colour = "black", shape = 21,
                aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
+    geom_point(data = filter(MAXENT_points, family == kelp_choice), colour = "black", shape = 15, alpha = 0.5) +
     scale_fill_brewer(palette = "Accent") +
     coord_quickmap(xlim = bbox_arctic[1:2], ylim = bbox_arctic[3:4], expand = F) +
     theme(legend.position = "bottom",

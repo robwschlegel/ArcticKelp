@@ -33,6 +33,16 @@ Arctic_map <- ggplot() +
                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
   labs(x = NULL, y = NULL)
 
+# Run RF using all Arctic points for just presence absence
+# Calculate means per pixel to get the percent cover that then informs P/A
+# With 0% being missing, and anything greater being absence
+
+# See how well the models perform given the restrictions in range between the different 
+# bounding boxes that can be used
+
+# Run a regression to see in which direction the relationships with percent cover 
+# are with the top variables. e.g. more cover with more iron
+
 
 # Data --------------------------------------------------------------------
 
