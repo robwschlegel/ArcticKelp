@@ -20,7 +20,7 @@ current_bdmax_test <- as.data.frame(current_bdmax_layers, xy = T) %>%
   mutate(max_min = ifelse(BO2_curvelltmax_bdmax > BO2_curvelltmin_bdmax, TRUE, FALSE))
 
 # Visualise pixels where the max and min values are not as expected
-current_bdmax_global <- ggplot(data = current_bd_test, aes(x = lon, y = lat)) +
+current_bdmax_global <- ggplot(data = current_bdmax_test, aes(x = lon, y = lat)) +
   geom_raster(aes(fill = max_min)) +
   coord_quickmap(expand = F) +
   labs(fill = "Max greater than min", x = NULL, y = NULL,
@@ -68,6 +68,28 @@ curvel_bdmax_new <- left_join(curvel_bdmax_min_new, curvel_bdmax_max_new, by = c
   theme(legend.position = "bottom")
 ggsave(plot = curvel_bdmax_new , filename = "tests/current_bdmax_global_new.png", height = 5, width = 8)
 
+# Test the v2.1 layers
+  # Note that these layers are not on GitHub as they are too large
+  # They may be downloaded here: https://www.bio-oracle.org/downloads-to-email.php
+curvel_bdmax_min_21 <- as.data.frame(raster("data/Present.Benthic.Max.Depth.Current.Velocity.Lt.min.asc.BOv2_1.asc"), xy = T) %>% 
+  `colnames<-`(c("lon", "lat", "curvel_bdmax_min"))  %>% 
+  mutate(lon = round(lon, 4),
+         lat = round(lat, 4))
+curvel_bdmax_max_21 <- as.data.frame(raster("data/Present.Benthic.Max.Depth.Current.Velocity.Lt.max.asc.BOv2_1.asc"), xy = T) %>% 
+  `colnames<-`(c("lon", "lat", "curvel_bdmax_max")) %>% 
+  mutate(lon = round(lon, 4),
+         lat = round(lat, 4))
+curvel_bdmax_21 <- left_join(curvel_bdmax_min_21, curvel_bdmax_max_21, by = c("lon", "lat")) %>% 
+  na.omit() %>% 
+  mutate(max_min = ifelse(curvel_bdmax_max >= curvel_bdmax_min, TRUE, FALSE)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = max_min)) +
+  coord_quickmap(expand = F) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL,
+       title = "Bottom currents from v2.1") +
+  theme(legend.position = "bottom")
+ggsave(plot = curvel_bdmax_21 , filename = "tests/current_bdmax_global_21.png", height = 5, width = 8)
+
 
 # Test surface current layer ----------------------------------------------
 
@@ -86,6 +108,26 @@ curvel_ss_global <- ggplot(data = curvel_ss_test, aes(x = lon, y = lat)) +
        title = "Surface currents downloaded via R on May 27th") +
   theme(legend.position = "bottom")
 ggsave(plot = curvel_ss_global, filename = "tests/curvel_ss_global.png", height = 5, width = 8)
+
+# Test surface currents for v2.1
+curvel_ss_min_21 <- as.data.frame(raster("data/Present.Surface.Current.Velocity.Lt.min.asc.BOv2_1.asc"), xy = T) %>% 
+  `colnames<-`(c("lon", "lat", "curvel_ss_min"))  %>% 
+  mutate(lon = round(lon, 4),
+         lat = round(lat, 4))
+curvel_ss_max_21 <- as.data.frame(raster("data/Present.Surface.Current.Velocity.Lt.max.asc.BOv2_1.asc"), xy = T) %>% 
+  `colnames<-`(c("lon", "lat", "curvel_ss_max")) %>% 
+  mutate(lon = round(lon, 4),
+         lat = round(lat, 4))
+curvel_ss_21 <- left_join(curvel_ss_min_21, curvel_ss_max_21, by = c("lon", "lat")) %>% 
+  na.omit() %>% 
+  mutate(max_min = ifelse(curvel_ss_max >= curvel_ss_min, TRUE, FALSE)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = max_min)) +
+  coord_quickmap(expand = F) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL,
+       title = "Surface currents from v2.1") +
+  theme(legend.position = "bottom")
+ggsave(plot = curvel_ss_21, filename = "tests/curvel_ss_global_21.png", height = 5, width = 8)
 
 
 # Test SST layer ----------------------------------------------------------
@@ -127,6 +169,26 @@ SST_mean_diff <- ggplot(SST_mean_manual, aes(x = lon, y = lat)) +
        title = "Difference in SST between layer downloaded in R vs. manually from BO website") +
   theme(legend.position = "bottom")
 ggsave(plot = SST_mean_diff, filename = "tests/SST_global_mean_diff.png", height = 5, width = 8)
+
+# Test future SST for v2.1
+SST_min_21 <- as.data.frame(raster("data/2050AOGCM.RCP85.Surface.Temperature.Lt.min.asc.BOv2_1.asc"), xy = T) %>% 
+  `colnames<-`(c("lon", "lat", "SST_min"))  %>% 
+  mutate(lon = round(lon, 4),
+         lat = round(lat, 4))
+SST_max_21 <- as.data.frame(raster("data/2050AOGCM.RCP85.Surface.Temperature.Lt.max.asc.BOv2_1.asc"), xy = T) %>% 
+  `colnames<-`(c("lon", "lat", "SST_max")) %>% 
+  mutate(lon = round(lon, 4),
+         lat = round(lat, 4))
+SST_21 <- left_join(SST_min_21, SST_max_21, by = c("lon", "lat")) %>% 
+  na.omit() %>% 
+  mutate(max_min = ifelse(SST_max >= SST_min, TRUE, FALSE)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = max_min)) +
+  coord_quickmap(expand = F) +
+  labs(fill = "Max greater than min", x = NULL, y = NULL,
+       title = "SST 2050 RCP 8.5 from v2.1") +
+  theme(legend.position = "bottom")
+ggsave(plot = SST_21, filename = "tests/SST_2050_RCP85_21.png", height = 5, width = 8)
 
 
 # Quick tests of Arctic area only -----------------------------------------

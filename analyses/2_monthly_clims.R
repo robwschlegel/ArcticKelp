@@ -70,6 +70,9 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
                               "BO2_salinityltmin_ss", "BO2_salinitymean_ss", "BO2_salinityltmax_ss", 
                               # Ice thickness
                               "BO2_icethickltmin_ss", "BO2_icethickmean_ss", "BO2_icethickltmax_ss", 
+                              # Current velocity
+                                # Note that the v2.1 files are needed and downloaded here: https://www.bio-oracle.org/downloads-to-email.php
+                              # "BO2_curvelltmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelltmax_bdmax",
                               # Photosynthetically active radiation
                               "BO_parmean", "BO_parmax", 
                               # Dissolve oxygen
