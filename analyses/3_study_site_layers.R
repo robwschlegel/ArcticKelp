@@ -1,6 +1,6 @@
-# analyses/3_study_site_clims
-# The purpose of this script is to pull out the monthly clims and mean states at each study site
-# Whenever new sites are added re-run this script to get the clims for the new pixels.
+# analyses/3_study_site_layers.R
+# The purpose of this script is to pull out the data from the layers at each study site pixel.
+# Whenever new sites are added re-run this script to get the data for the new pixels.
 # Otherwise the analyses properly start from "4_kelp_cover.R".
 
 

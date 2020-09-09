@@ -2,7 +2,7 @@
 # The purpose of this script is to load the study site coordinate data,
 # clean it up and run a test visual on the site coordinates
 
-# NB: The workflow really begins at "analyses/3_study_site_clims.R"
+# NB: The workflow really begins at "analyses/3_study_site_layers.R"
 
 
 # Libraries ---------------------------------------------------------------

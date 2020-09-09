@@ -1,7 +1,7 @@
-# analyses/2_monthly_clims.R
+# analyses/2_study_region_layers.R
 # The purpose of this script is to download and prep Bio-Oracle data
 # This should only need to be run once at the outset of the project.
-# If any sites change/are added, run "analyses/3_study_sites_clims.R" 
+# If any sites change/are added, run "analyses/3_study_site_layers.R" 
 # to get the updated values, not this script
 
 # The Bio-Oracle (http://www.bio-oracle.org/code.php) are downloaded directly 

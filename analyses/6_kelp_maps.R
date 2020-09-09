@@ -1,6 +1,6 @@
 # analyses/6_kelp_maps.R
 # The purpose of this script is to provide a spatial visualisation of kelp coverage
-# It also shows how the kelp ecosystems abiotic properties stack up against the broader arctic
+# It also shows how the kelp ecosystems abiotic properties stack up against the broader Arctic
 
 
 # Source scripts ----------------------------------------------------------
