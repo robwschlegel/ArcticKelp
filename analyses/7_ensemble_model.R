@@ -131,8 +131,8 @@ biomod_pipeline <- function(sps_choice){
     NbRunEval = 5,
     DataSplit = 70,
     VarImport = 0,
-    models.eval.meth = 'TSS', # The fewer evaluation methods used the faster it runs
-    # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
+    # models.eval.meth = 'TSS', # The fewer evaluation methods used the faster it runs
+    models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
     rescal.all.models = TRUE,
     do.full.models = FALSE,
     modeling.id = sps_name)
