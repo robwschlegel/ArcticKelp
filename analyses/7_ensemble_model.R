@@ -23,13 +23,30 @@ library(doParallel)
 registerDoParallel(cores = detectCores()-1)
 
 # The species occurrence data
-sps_files <- dir("data/occurrence", full.names = T)
-sps_names <- str_remove(dir("data/occurrence", full.names = F), pattern = "_near.csv")
+sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
+sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), pattern = "_Arct_rarefied_points.csv")
 
 # The environmental file pathways
+load("data/Arctic_BO.RData")
+
 var_files <- dir("data/present", full.names = T)
 var_2050_files <- dir("data/2050", full.names = T)
 var_2100_files <- dir("data/2100", full.names = T)
+
+Arctic_BO_stack <- rasterFromXYZ(Arctic_BO)
+
+# create spatial points data frame
+spg <- Arctic_BO
+coordinates(spg) <- ~ lon + lat
+# coerce to SpatialPixelsDataFrame
+gridded(spg) <- TRUE
+# coerce to raster
+rasterdf <- raster(spg)
+rasterdf
+dfr <- rasterFromXYZ(Arctic_BO)
+dfr
+dfr_stack <- stack(dfr)
+dfr_stack
 
 # Add the nutrient files to the future files
 var_2050_files <- c(var_2050_files,
@@ -38,8 +55,9 @@ var_2100_files <- c(var_2100_files,
                     var_files[which(!sapply(str_split(var_files, "/"), "[[", 3) %in% sapply(str_split(var_2100_files, "/"), "[[", 3))])
 
 # Global coords from Jesi's data
-global_coords <- as.data.frame(sp::read.asciigrid(var_files[1]), xy = T)
-global_coords$env_index <- 1:nrow(global_coords)
+global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
+  mutate(env_index = 1:nrow(Arctic_BO))
+# global_coords$env_index <- 1:nrow(global_coords)
 
 # The best variables per species
 top_var <- read_csv("metadata/top_var.csv") %>% 
@@ -55,7 +73,7 @@ loadRData <- function(fileName){
 }
 
 # Choose a species
-# sps_choice <- sps_files[21]
+# sps_choice <- sps_files[1]
 # sps <- sps_names[1]
 
 # The full pipeline wrapped into a function
@@ -68,14 +86,14 @@ biomod_pipeline <- function(sps_choice){
   
   # Load the species
   sps <- read_csv(sps_choice) %>% 
-    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("s1", "s2")]),
+    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
                                             as.matrix(.[,2:3]), k = 1))) %>%
     left_join(global_coords, by = "env_index") %>% 
-    dplyr::select(Sps, s1, s2) %>%
-    dplyr::rename(lon = s1, lat = s2)
+    dplyr::select(Sp, lon.y, lat.y) %>%
+    dplyr::rename(lon = lon.y, lat = lat.y)
   
   # The species abbreviation
-  sps_name <- sps$Sps[1]
+  sps_name <- sps$Sp[1]
   
   # Determine number of pseudo-absences to use
   # Looking more closely in the literature this doesn't seem necessary
@@ -86,9 +104,10 @@ biomod_pipeline <- function(sps_choice){
   # }
   
   # Filter out the top variables
-  top_var_sub <- top_var %>% 
-    filter(Code == sps_name) %>% 
-    mutate(value = paste0(value,".asc"))
+    # We don't currently know what these will be before running the models
+  # top_var_sub <- top_var %>% 
+  #   filter(Code == sps_name) %>% 
+  #   mutate(value = paste0(value,".asc"))
   
   # Load the top variables for the species
   expl <- raster::stack(var_files[which(sapply(str_split(var_files, "/"), "[[", 3) %in% top_var_sub$value)])
@@ -104,12 +123,16 @@ biomod_pipeline <- function(sps_choice){
   
   # 3: Prep data ------------------------------------------------------------
   
+  # Subset Arctic data to only points in species sample
+  Arctic_BO_sub <- right_join(Arctic_BO, sps, by = c("lon", "lat")) %>% 
+    dplyr::select(-lon, -lat, -Sp)
+  
   # Prep data for modelling
   biomod_data <- BIOMOD_FormatingData(
     resp.var = rep(1, nrow(sps)),
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
-    expl.var = expl,
+    expl.var = dfr_stack,
     PA.nb.rep = 1, #5, # It seems like 5 runs is unnecessary if 10,000 points are used
     PA.nb.absences = 10000)
   # biomod_data <- readRDS(paste0(sps_name,"/",sps_name,".base.Rds"))

@@ -96,9 +96,9 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
 BO_layers_df <- as.data.frame(BO_layers_dl, xy = T) %>% 
   dplyr::rename(lon = x, lat = y) %>% 
   filter(BO2_icethickmean_ss >= 0,
-         lat >= min(Arctic_boundary$lat)) %>% 
-  mutate(lon = round(lon, 4), 
-         lat = round(lat, 4))
+         lat >= min(Arctic_boundary$lat)) #%>%
+  # mutate(lon = round(lon, 4), 
+         # lat = round(lat, 4))
 rm(BO_layers_dl); gc()
 
 # Join the current velocity v2.1 layers
@@ -118,7 +118,7 @@ save(Arctic_BO, file = "data/Arctic_BO.RData")
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = BO2_templtmax_bdmax)) +
+  geom_raster(aes(fill = BO2_templtmax_bdmax)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   # coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
