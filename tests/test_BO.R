@@ -2,7 +2,7 @@
 # The purpose of this script is to test the BioOracle data
 
 # The study sites and bounding box
-source("analyses/1_study_sites.R")
+source("analyses/1_study_region_sites.R")
 
 # Bio-Oracle access
 library(sdmpredictors)

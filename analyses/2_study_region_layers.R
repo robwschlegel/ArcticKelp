@@ -11,7 +11,7 @@
 # Setup -------------------------------------------------------------------
 
 # The study sites and bounding box
-source("analyses/1_study_sites.R")
+source("analyses/1_study_region_sites.R")
 
 # Bio-Oracle access
 library(sdmpredictors)
@@ -31,6 +31,14 @@ options(scipen = 999)
 
 # A rainbow colour palette was explicitly requested
 rainbow_palette <- c("#fefefe", "#f963fa", "#020135", "#00efe1", "#057400", "#fcfd00", "#ed0000", "#3d0000")
+
+# Convenience function for loading .asc files
+load_asc <- function(file_name, col_name){
+  df <- as.data.frame(raster(file_name), xy = T) %>% 
+    `colnames<-`(c("lon", "lat", col_name))  %>% 
+    mutate(lon = round(lon, 4),
+           lat = round(lat, 4))
+}
 
 
 # Download Bio-ORACLE data ------------------------------------------------
@@ -87,14 +95,25 @@ BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_
 # Convert to dataframe
 BO_layers_df <- as.data.frame(BO_layers_dl, xy = T) %>% 
   dplyr::rename(lon = x, lat = y) %>% 
+  filter(BO2_icethickmean_ss >= 0,
+         lat >= min(Arctic_boundary$lat)) %>% 
   mutate(lon = round(lon, 4), 
          lat = round(lat, 4))
+rm(BO_layers_dl); gc()
+
+# Join the current velocity v2.1 layers
+BO_layers_present <- BO_layers_df %>% 
+  left_join(load_asc("data/Present.Benthic.Max.Depth.Current.Velocity.Lt.min.asc.BOv2_1.asc", "BO21_curvelltmin_bdmax")) %>% 
+  left_join(load_asc("data/Present.Benthic.Max.Depth.Current.Velocity.Mean.asc.BOv2_1.asc", "BO21_curvelmean_bdmax")) %>% 
+  left_join(load_asc("data/Present.Benthic.Max.Depth.Current.Velocity.Lt.max.asc.BOv2_1.asc", "BO21_curvelltmax_bdmax"))
+rm(BO_layers_df); gc()
 
 # Clip to Arctic study region
-Arctic_BO <- BO_layers_df %>%
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3], lat <= bbox_arctic[4],
-         BO2_icethickmean_ss >= 0)
+Arctic_BO <- BO_layers_present %>%
+  mutate(in_grid = sp::point.in.polygon(point.x = BO_layers_present[["lon"]], point.y = BO_layers_present[["lat"]], 
+                                        pol.x = Arctic_boundary[["lon"]], pol.y = Arctic_boundary[["lat"]])) %>% 
+  filter(in_grid >= 1) %>% 
+  dplyr::select(-in_grid)
 save(Arctic_BO, file = "data/Arctic_BO.RData")
 
 # Visualise
@@ -102,9 +121,9 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
   geom_tile(aes(fill = BO2_templtmax_bdmax)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
-  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
-                  expand = F) +
+  # coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+  #                 ylim = c(bbox_arctic[3], bbox_arctic[4]),
+  #                 expand = F) +
   theme(legend.position = "bottom")
 
 

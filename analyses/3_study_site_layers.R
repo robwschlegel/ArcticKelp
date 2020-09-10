@@ -7,7 +7,7 @@
 # Setup -------------------------------------------------------------------
 
 # Load study sites and base packages
-source("analyses/1_study_sites.R")
+source("analyses/1_study_region_sites.R")
 
 # Additional packages
 library(FNN)

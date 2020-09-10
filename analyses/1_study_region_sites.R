@@ -12,7 +12,7 @@
 library(tidyverse)
 library(ggrepel)
 library(measurements)
-library(rgdal) # Used for processing the Arctic shape file
+# library(rgdal) # Used for processing the Arctic shape file
 
 
 # Load site data ----------------------------------------------------------
