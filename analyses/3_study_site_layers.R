@@ -20,10 +20,14 @@ library(FNN)
 # E-mail robert.schlegel@dal.ca for the file
 # Or create them from '2_monthly_clims.R'
 load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
 load("data/Arctic_AM.RData")
+Arctic_AM <- Arctic_AM %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
 Arctic_env <- left_join(Arctic_BO, Arctic_AM)
-rm(Arctic_BO, Arctic_AM); gc()
 Arctic_env$env_index <- 1:nrow(Arctic_env)
+rm(Arctic_BO, Arctic_AM); gc()
 
 # Find the nearest BO points to each site and add bathy data
 study_site_env <- study_sites %>%
