@@ -17,7 +17,10 @@ library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be b
 load("data/study_site_env.RData")
 
 # Load Arctic data for testing variable correlations
-load("data/Arctic_env.RData")
+load("data/Arctic_BO.RData")
+load("data/Arctic_AM.RData")
+Arctic_env <- right_join(Arctic_BO, Arctic_AM)
+rm(Arctic_BO, Arctic_AM); gc()
 
 # Load the BO correlation matrix
 load("data/BO_cor_matrix.RData")

@@ -83,17 +83,28 @@ colnames(CANA_kelp)[3] <- "Year"
 # plot(Arctic_flat)
 
 # Convert that to a data.frame
-# Arctic_boundary <- as.data.frame(Arctic_flat@polygons[[1]]@Polygons[[1]]@coords) %>% 
-#   `colnames<-`(c("lon", "lat")) %>% 
-#   arrange(lon)
-# Arctic_boundary <- rbind(Arctic_boundary, 
-#                          data.frame(lon = rev(Arctic_boundary$lon),
-#                                     lat = rep(90, nrow(Arctic_boundary))))
-# ggplot(Arctic_boundary, aes(x = lon, y = lat)) +
-#   geom_point() +  geom_polygon() +  geom_path() +  borders()
+Arctic_boundary <- as.data.frame(Arctic_flat@polygons[[1]]@Polygons[[1]]@coords) %>%
+  `colnames<-`(c("lon", "lat")) %>%
+  arrange(lon)
+Arctic_boundary <- rbind(Arctic_boundary,
+                         data.frame(lon = rev(Arctic_boundary$lon),
+                                    lat = rep(90, nrow(Arctic_boundary))))
+
+# Manually remove points that are too close to the coast for the filtering of the data layers in "2_study_region_layers.R"
+# The contours of St James Bay confuse the machine when it is looking for points within the polygon
+Arctic_boundary$lat[340:444] <- Arctic_boundary$lat[340:444]-1
+Arctic_boundary$lon[405:444] <- Arctic_boundary$lon[405:444]-1
+Arctic_boundary$lon[445:683] <- NA
+Arctic_boundary <- na.omit(Arctic_boundary)
+
+# Visualise
+ggplot(Arctic_boundary, aes(x = lon, y = lat)) +
+  geom_point() + geom_polygon() + borders() +
+  geom_point(data = Arctic_boundary[405,], colour = "red", size = 5) +
+  coord_quickmap(ylim = c(50, 90), expand = F)
 
 # Save
-# save(Arctic_boundary, file = "metadata/Arctic_boundary.RData")
+save(Arctic_boundary, file = "metadata/Arctic_boundary.RData")
 
 # Load
 load("metadata/Arctic_boundary.RData")

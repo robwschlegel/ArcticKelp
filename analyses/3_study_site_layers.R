@@ -15,11 +15,14 @@ library(FNN)
 
 # Study site BO data ------------------------------------------------------
 
-# NB: The following code chunks require Arctic_env.RData
+# NB: The following code chunks require Arctic_BO.RData and Arctic_AM.RData
 # This is not hosted on GitHub as it is 17.3 MB
 # E-mail robert.schlegel@dal.ca for the file
-# Or create it from '2_monthly_clims.R'
-load("data/Arctic_env.RData")
+# Or create them from '2_monthly_clims.R'
+load("data/Arctic_BO.RData")
+load("data/Arctic_AM.RData")
+Arctic_env <- left_join(Arctic_BO, Arctic_AM)
+rm(Arctic_BO, Arctic_AM); gc()
 Arctic_env$env_index <- 1:nrow(Arctic_env)
 
 # Find the nearest BO points to each site and add bathy data
@@ -31,3 +34,4 @@ study_site_env <- study_sites %>%
   dplyr::rename(lon = lon.x, lat = lat.x, lon_env = lon.y, lat_env = lat.y)
 save(study_site_env, file = "data/study_site_env.RData")
 Arctic_env$env_index <- NULL
+

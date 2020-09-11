@@ -7,7 +7,10 @@
 
 source("analyses/4_kelp_cover.R")
 
-load("data/Arctic_env.RData")
+load("data/Arctic_BO.RData")
+load("data/Arctic_AM.RData")
+
+Arctic_env <- right_join(Arctic_BO, Arctic_AM)
 
 
 # Maps --------------------------------------------------------------------

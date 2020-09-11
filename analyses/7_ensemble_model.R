@@ -16,55 +16,56 @@
 library(tidyverse)
 library(biomod2)
 library(sp)
+library(raster)
 library(FNN)
 library(doParallel) 
-
-# Detect available cores at set accordingly
-registerDoParallel(cores = detectCores()-1)
 
 # The species occurrence data
 sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
 sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), pattern = "_Arct_rarefied_points.csv")
 
-# The environmental file pathways
+# The present data
 load("data/Arctic_BO.RData")
+Arctic_BO_stack <- stack(rasterFromXYZ(Arctic_BO)) # This warning is caused by some layers not having the same number of pixels
+# plot(Arctic_BO_stack)
+# Arctic_BO_stack
 
-var_files <- dir("data/present", full.names = T)
-var_2050_files <- dir("data/2050", full.names = T)
-var_2100_files <- dir("data/2100", full.names = T)
+# Subset of present data used for projections
+Arctic_BO_sub <- Arctic_BO %>% 
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+Arctic_BO_sub_stack <- stack(rasterFromXYZ(Arctic_BO_sub))
+rm(Arctic_BO, Arctic_BO_sub); gc()
 
-Arctic_BO_stack <- rasterFromXYZ(Arctic_BO)
+# The 2050 data
+load("data/Arctic_BO_2050.RData")
+# Note that we do not need the full Arctic data for projections, just the study area
+Arctic_BO_2050_sub <- Arctic_BO_2050 %>% 
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+Arctic_BO_2050_sub_stack <- stack(rasterFromXYZ(Arctic_BO_2050_sub))
+rm(Arctic_BO_2050, Arctic_BO_2050_sub); gc()
 
-# create spatial points data frame
-spg <- Arctic_BO
-coordinates(spg) <- ~ lon + lat
-# coerce to SpatialPixelsDataFrame
-gridded(spg) <- TRUE
-# coerce to raster
-rasterdf <- raster(spg)
-rasterdf
-dfr <- rasterFromXYZ(Arctic_BO)
-dfr
-dfr_stack <- stack(dfr)
-dfr_stack
+# The 2100 data
+load("data/Arctic_BO_2100.RData")
+# Note that we do not need the full Arctic data for projections, just the study area
+Arctic_BO_2100_sub <- Arctic_BO_2100 %>% 
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+Arctic_BO_2100_sub_stack <- stack(rasterFromXYZ(Arctic_BO_2100_sub))
+rm(Arctic_BO_2100, Arctic_BO_2100_sub); gc()
 
-# Add the nutrient files to the future files
-var_2050_files <- c(var_2050_files,
-                    var_files[which(!sapply(str_split(var_files, "/"), "[[", 3) %in% sapply(str_split(var_2050_files, "/"), "[[", 3))])
-var_2100_files <- c(var_2100_files,
-                    var_files[which(!sapply(str_split(var_files, "/"), "[[", 3) %in% sapply(str_split(var_2100_files, "/"), "[[", 3))])
-
-# Global coords from Jesi's data
+# Coordinates only
 global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
   mutate(env_index = 1:nrow(Arctic_BO))
-# global_coords$env_index <- 1:nrow(global_coords)
 
 # The best variables per species
-top_var <- read_csv("metadata/top_var.csv") %>% 
-  dplyr::select(Code:var6) %>% 
-  pivot_longer(cols = var1:var6) %>% 
-  dplyr::select(-name) %>% 
-  na.omit()
+  # Not currently known
+# top_var <- read_csv("metadata/top_var.csv") %>% 
+#   dplyr::select(Code:var6) %>% 
+#   pivot_longer(cols = var1:var6) %>% 
+#   dplyr::select(-name) %>% 
+#   na.omit()
 
 # Function for re-loading .RData files as necessary
 loadRData <- function(fileName){
@@ -95,14 +96,6 @@ biomod_pipeline <- function(sps_choice){
   # The species abbreviation
   sps_name <- sps$Sp[1]
   
-  # Determine number of pseudo-absences to use
-  # Looking more closely in the literature this doesn't seem necessary
-  # if(nrow(sps) <= 1000){
-  #   PA_absence_count <- 1000
-  # } else{
-  #   PA_absence_count <- 10000
-  # }
-  
   # Filter out the top variables
     # We don't currently know what these will be before running the models
   # top_var_sub <- top_var %>% 
@@ -110,9 +103,9 @@ biomod_pipeline <- function(sps_choice){
   #   mutate(value = paste0(value,".asc"))
   
   # Load the top variables for the species
-  expl <- raster::stack(var_files[which(sapply(str_split(var_files, "/"), "[[", 3) %in% top_var_sub$value)])
-  expl_2050 <- raster::stack(var_2050_files[which(sapply(str_split(var_2050_files, "/"), "[[", 3) %in% top_var_sub$value)])
-  expl_2100 <- raster::stack(var_2100_files[which(sapply(str_split(var_2100_files, "/"), "[[", 3) %in% top_var_sub$value)])
+  # expl <- raster::stack(var_files[which(sapply(str_split(var_files, "/"), "[[", 3) %in% top_var_sub$value)])
+  # expl_2050 <- raster::stack(var_2050_files[which(sapply(str_split(var_2050_files, "/"), "[[", 3) %in% top_var_sub$value)])
+  # expl_2100 <- raster::stack(var_2100_files[which(sapply(str_split(var_2100_files, "/"), "[[", 3) %in% top_var_sub$value)])
   
   # Set temp folder save locations
   # http://www.r-forge.r-project.org/forum/forum.php?thread_id=30946&forum_id=995&group_id=302
@@ -123,16 +116,12 @@ biomod_pipeline <- function(sps_choice){
   
   # 3: Prep data ------------------------------------------------------------
   
-  # Subset Arctic data to only points in species sample
-  Arctic_BO_sub <- right_join(Arctic_BO, sps, by = c("lon", "lat")) %>% 
-    dplyr::select(-lon, -lat, -Sp)
-  
   # Prep data for modelling
   biomod_data <- BIOMOD_FormatingData(
     resp.var = rep(1, nrow(sps)),
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
-    expl.var = dfr_stack,
+    expl.var = Arctic_BO_stack,
     PA.nb.rep = 1, #5, # It seems like 5 runs is unnecessary if 10,000 points are used
     PA.nb.absences = 10000)
   # biomod_data <- readRDS(paste0(sps_name,"/",sps_name,".base.Rds"))
@@ -142,6 +131,16 @@ biomod_pipeline <- function(sps_choice){
   
   # Model options
   biomod_option <- BIOMOD_ModelingOptions()
+  
+  # Setting up Maxent run
+  # See here for more: https://gist.github.com/hannahlowens/974066848f8f85554ff7
+  # biomod_option@MAXENT.Phillips$path_to_maxent.jar = paste(system.file(package="dismo"), "/java", sep='')
+  biomod_option@MAXENT.Phillips$memory_allocated = 2048 # Allocates 2048 MB/2 GB of memory to modeling. Be careful not to give too much.
+  biomod_option@MAXENT.Phillips$maximumiterations = 10000
+  # biomod_option@MAXENT.Phillips$threshold = F
+  # biomod_option@MAXENT.Phillips$hinge = F
+  # biomod_option@MAXENT.Phillips$visible = F
+  # biomod_option@MAXENT.Phillips$beta_lqp = .95
   
   
   # 4: Model ----------------------------------------------------------------
@@ -162,8 +161,7 @@ biomod_pipeline <- function(sps_choice){
   # biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
   
   # Build the ensemble models
-  # It looks like the ensembles aren't going to be needed
-  # This is because the projections produce the needed binary output files
+     # RWS: This is currently giving an error but I haven't looked into why
   biomod_ensemble <- BIOMOD_EnsembleModeling(
     modeling.output = biomod_model,
     eval.metric = 'TSS',
@@ -178,13 +176,14 @@ biomod_pipeline <- function(sps_choice){
   # Create projections
   biomod_projection <- BIOMOD_Projection(
     modeling.output = biomod_model,
-    new.env = expl,
+    new.env = Arctic_BO_sub_stack,
     proj.name = 'present',
     binary.meth = 'TSS',
     compress = "xz",
     build.clamping.mask = FALSE)
   
   # Create ensemble projections
+    # RWS: Can't run this until the above error has been addressed
   biomod_ensemble_projection <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
     projection.output = biomod_projection)
@@ -202,7 +201,7 @@ biomod_pipeline <- function(sps_choice){
   # Run 2050 projections
   biomod_projection_2050 <- BIOMOD_Projection(
     modeling.output = biomod_model,
-    new.env = expl_2050,
+    new.env = Arctic_BO_2050_sub_stack,
     proj.name = '2050',
     binary.meth = 'TSS',
     compress = 'xz',
@@ -222,7 +221,7 @@ biomod_pipeline <- function(sps_choice){
   # Run 2100 projections
   biomod_projection_2100 <- BIOMOD_Projection(
     modeling.output = biomod_model,
-    new.env = expl_2100,
+    new.env = Arctic_BO_2100_sub_stack,
     proj.name = '2100',
     binary.meth = 'TSS',
     compress = 'xz',
@@ -245,6 +244,9 @@ biomod_pipeline <- function(sps_choice){
 
 
 # 7: Run the pipeline -----------------------------------------------------
+
+# Detect available cores at set accordingly
+registerDoParallel(cores = detectCores()-1)
 
 # Run one
 registerDoParallel(cores = 1)
