@@ -5,7 +5,7 @@
 
 # Setup -------------------------------------------------------------------
 
-# Load all data nad previous libraries
+# Load all data and previous libraries
 source("analyses/7_random_forests.R")
 library(ggridges) # For ridgeplots
 library(raster)
@@ -222,7 +222,6 @@ project_cat_fig(ALL_alaria, "Alaria")
 # Also showing that they agree because they are both low or high, etc.
 # This may require a figure showing how they are similar at certain levels,
 # and a figure showing dissimilarity at similar levels.
-
 project_reg_diff_fig <- function(df, kelp_choice){
   reg_diff_map <- ggplot(filter(df, land_distance <= 100 | depth <= 100), aes(x = lon, y = lat)) +
     geom_tile(aes(fill = diff_relative_cat)) +
@@ -251,7 +250,7 @@ project_reg_diff_fig(ALL_agarum, "Agarum")
 project_reg_diff_fig(ALL_alaria, "Alaria")
 
 
-s# Difference category -----------------------------------------------------
+# Difference category -----------------------------------------------------
 
 # Could show the RF categories of low, medium, high but as increasing shades of the same colour
 # And then don't show where they don't agree or both predict none

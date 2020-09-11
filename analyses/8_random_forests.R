@@ -18,7 +18,11 @@ load("data/study_site_env.RData")
 
 # Load Arctic data for testing variable correlations
 load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
 load("data/Arctic_AM.RData")
+Arctic_AM <- Arctic_AM %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
 Arctic_env <- right_join(Arctic_BO, Arctic_AM)
 rm(Arctic_BO, Arctic_AM); gc()
 

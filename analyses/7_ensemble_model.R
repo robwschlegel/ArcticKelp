@@ -12,8 +12,10 @@
 
 # 1: Setup ----------------------------------------------------------------
 
-.libPaths(c("~/R-packages", .libPaths()))
-library(tidyverse)
+# Load study sites and base packages
+source("analyses/1_study_region_sites.R")
+
+# Load additional packages
 library(biomod2)
 library(sp)
 library(raster)
@@ -29,6 +31,10 @@ load("data/Arctic_BO.RData")
 Arctic_BO_stack <- stack(rasterFromXYZ(Arctic_BO)) # This warning is caused by some layers not having the same number of pixels
 # plot(Arctic_BO_stack)
 # Arctic_BO_stack
+
+# Coordinates only
+global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
+  mutate(env_index = 1:nrow(Arctic_BO))
 
 # Subset of present data used for projections
 Arctic_BO_sub <- Arctic_BO %>% 
@@ -55,10 +61,6 @@ Arctic_BO_2100_sub <- Arctic_BO_2100 %>%
 Arctic_BO_2100_sub_stack <- stack(rasterFromXYZ(Arctic_BO_2100_sub))
 rm(Arctic_BO_2100, Arctic_BO_2100_sub); gc()
 
-# Coordinates only
-global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
-  mutate(env_index = 1:nrow(Arctic_BO))
-
 # The best variables per species
   # Not currently known
 # top_var <- read_csv("metadata/top_var.csv") %>% 
@@ -73,9 +75,8 @@ loadRData <- function(fileName){
   get(ls()[ls() != "fileName"])
 }
 
-# Choose a species
+# Choose a species for testing the code
 # sps_choice <- sps_files[1]
-# sps <- sps_names[1]
 
 # The full pipeline wrapped into a function
 biomod_pipeline <- function(sps_choice){
@@ -95,17 +96,6 @@ biomod_pipeline <- function(sps_choice){
   
   # The species abbreviation
   sps_name <- sps$Sp[1]
-  
-  # Filter out the top variables
-    # We don't currently know what these will be before running the models
-  # top_var_sub <- top_var %>% 
-  #   filter(Code == sps_name) %>% 
-  #   mutate(value = paste0(value,".asc"))
-  
-  # Load the top variables for the species
-  # expl <- raster::stack(var_files[which(sapply(str_split(var_files, "/"), "[[", 3) %in% top_var_sub$value)])
-  # expl_2050 <- raster::stack(var_2050_files[which(sapply(str_split(var_2050_files, "/"), "[[", 3) %in% top_var_sub$value)])
-  # expl_2100 <- raster::stack(var_2100_files[which(sapply(str_split(var_2100_files, "/"), "[[", 3) %in% top_var_sub$value)])
   
   # Set temp folder save locations
   # http://www.r-forge.r-project.org/forum/forum.php?thread_id=30946&forum_id=995&group_id=302
@@ -158,10 +148,10 @@ biomod_pipeline <- function(sps_choice){
     rescal.all.models = TRUE,
     do.full.models = FALSE,
     modeling.id = sps_name)
-  # biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
+  biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
   
   # Build the ensemble models
-     # RWS: This is currently giving an error but I haven't looked into why
+     # RWS: This is currently giving an error but I haven't looked into why...
   biomod_ensemble <- BIOMOD_EnsembleModeling(
     modeling.output = biomod_model,
     eval.metric = 'TSS',

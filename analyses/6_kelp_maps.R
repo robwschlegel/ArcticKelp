@@ -8,9 +8,14 @@
 source("analyses/4_kelp_cover.R")
 
 load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
 load("data/Arctic_AM.RData")
-
+Arctic_AM <- Arctic_AM %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
 Arctic_env <- right_join(Arctic_BO, Arctic_AM)
+Arctic_env$env_index <- 1:nrow(Arctic_env)
+rm(Arctic_BO, Arctic_AM); gc()
 
 
 # Maps --------------------------------------------------------------------
@@ -49,9 +54,9 @@ map_cover_abiotic <- function(cover = "kelp.cover",
 
 # Visualise some different things
 map_cover_abiotic()
-map_cover_abiotic(cover = "Laminariales", abiotic = "BO2_curvelmean_bdmax")
+map_cover_abiotic(cover = "Laminariales", abiotic = "BO21_curvelmean_bdmax")
 map_cover_abiotic(cover = "Agarum", abiotic = "BO2_icethickmean_ss")
-map_cover_abiotic(cover = "Alaria", abiotic = "BO_damean")
+map_cover_abiotic(cover = "Alaria", abiotic = "BO_parmean")
 
 
 # Distribution figures ----------------------------------------------------
@@ -94,7 +99,7 @@ distribution_cover_abiotic <- function(cover = "kelp.cover",
 
 # Visualise all kelp cover against sst
 distribution_cover_abiotic()
-distribution_cover_abiotic(cover = "Alaria", abiotic = "BO2_curvelltmax_bdmax")
+distribution_cover_abiotic(cover = "Alaria", abiotic = "BO21_curvelltmax_bdmax")
 distribution_cover_abiotic(cover = "Agarum", abiotic = "BO2_salinitymean_bdmax")
 distribution_cover_abiotic(cover = "Laminariales", abiotic = "BO2_icethickmean_ss")
 
