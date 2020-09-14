@@ -34,8 +34,32 @@ study_site_env <- study_sites %>%
   mutate(env_index = as.vector(knnx.index(as.matrix(Arctic_env[,c("lon", "lat")]),
                                           as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>%
   left_join(Arctic_env, by = "env_index") %>%
-  dplyr::select(-Date, -Notes) %>%
-  dplyr::rename(lon = lon.x, lat = lat.x, lon_env = lon.y, lat_env = lat.y)
+  dplyr::select(-Date, -Notes, -env_index) %>%
+  dplyr::rename(lon = lon.x, lat = lat.x, lon_env = lon.y, lat_env = lat.y) %>% 
+  dplyr::select(site:lat_env, bathy, land_distance, everything())
 save(study_site_env, file = "data/study_site_env.RData")
 Arctic_env$env_index <- NULL
+
+
+# Future layers -----------------------------------------------------------
+
+# NB: These layers are not hosted on GitHub, contact Robert for access
+load("data/Arctic_BO_2050.RData")
+Arctic_BO_2050 <- Arctic_BO_2050 %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
+load("data/Arctic_BO_2100.RData")
+Arctic_BO_2100 <- Arctic_BO_2100 %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
+
+# Create 2050 study site data
+study_site_env_2050 <- study_site_env %>% 
+  dplyr::select(site:land_distance) %>% 
+  left_join(Arctic_BO_2050, by = c("lon_env" = "lon", "lat_env" = "lat"))
+save(study_site_env_2050, file = "data/study_site_env_2050.RData")
+
+# Create 2100 study site data
+study_site_env_2100 <- study_site_env %>% 
+  dplyr::select(site:land_distance) %>% 
+  left_join(Arctic_BO_2100, by = c("lon_env" = "lon", "lat_env" = "lat"))
+save(study_site_env_2100, file = "data/study_site_env_2100.RData")
 

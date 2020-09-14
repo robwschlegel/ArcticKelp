@@ -16,7 +16,7 @@ library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be b
 # Environmental data per site
 load("data/study_site_env.RData")
 
-# Load Arctic data for testing variable correlations
+# Load Arctic data for testing variable correlations and for making model projections
 load("data/Arctic_BO.RData")
 Arctic_BO <- Arctic_BO %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))
@@ -24,7 +24,18 @@ load("data/Arctic_AM.RData")
 Arctic_AM <- Arctic_AM %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))
 Arctic_env <- right_join(Arctic_BO, Arctic_AM)
-rm(Arctic_BO, Arctic_AM); gc()
+rm(Arctic_BO); gc()
+
+# Load future layers
+load("data/Arctic_BO_2050.RData")
+Arctic_env_2050 <- Arctic_BO_2050 %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+  right_join(Arctic_AM, by = c("lon", "lat"))
+load("data/Arctic_BO_2100.RData")
+Arctic_env_2100 <- Arctic_BO_2100 %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+  right_join(Arctic_AM, by = c("lon", "lat"))
+rm(Arctic_AM, Arctic_BO_2050, Arctic_BO_2100); gc()
 
 # Load the BO correlation matrix
 load("data/BO_cor_matrix.RData")
@@ -61,7 +72,7 @@ kelp_all <- adf %>%
   dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
   left_join(study_site_env, by = c("Campaign", "site")) %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
-  dplyr::select(-lon_env, -lat_env, -env_index, -lon, -lat) %>%
+  dplyr::select(-lon_env, -lat_env, -lon, -lat) %>%
   dplyr::select(-depth) %>% # This is not used in Jesi's model
   dplyr::select(-bathy, -land_distance) %>% # Decided against these variables
   na.omit() # No missing data
@@ -78,32 +89,18 @@ kelp_all_max <- kelp_all %>%
   summarise_all(max) %>%
   ungroup()
 
-# Scenarios
-  # Rather use the same number of variables for each scenario
-  # This means using the variables that don't have projections
-  # with the projected variables for the two different time tests
-# NB: The future BO layers all have many issues and so are not being used
-base <- colnames(dplyr::select(kelp_all, 
-                               BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax))
-# future_2050 <- colnames(dplyr::select(kelp_all, 
-#                                       BO_parmean:BO2_phosphateltmax_bdmax,
-#                                       BO2_RCP85_2050_curvelltmax_bdmax:BO2_RCP85_2050_tempmean_ss))
-# future_2100 <- colnames(dplyr::select(kelp_all, 
-#                                       BO_parmean:BO2_phosphateltmax_bdmax,
-#                                       BO2_RCP85_2100_curvelltmax_bdmax:BO2_RCP85_2100_tempmean_ss))
-
 
 # Data prep function ------------------------------------------------------
 
 # Convenience function for prepping dataframe for use in the random forest
 # This removes all other kelp cover values
-rf_data_prep <- function(kelp_choice, df = kelp_all, cat_cover = F, scenario = base){
+rf_data_prep <- function(kelp_choice, df = kelp_all, cat_cover = F){
   
   # Trim down data.frame
   df_1 <- data.frame(dplyr::select(df, -c(Campaign:site))) %>% 
     pivot_longer(cols = kelp.cover:Alaria, names_to = "chosen_kelp", values_to = "cover") %>% 
-    filter(chosen_kelp == kelp_choice) %>% 
-    dplyr::select(scenario, cover)
+    filter(chosen_kelp == kelp_choice) #%>% 
+    # dplyr::select(scenario, cover)
   
   # Cut cover into categories if desired
   if(cat_cover){
@@ -226,11 +223,11 @@ cor_var_rm <- function(df){
   return(cor_df)
 }
 
-# We then run this 100 times to increase our certainty in the findings
+# We then run this 1000 times to increase our certainty in the findings
 top_var_multi <- function(kelp_choice, df = kelp_all){
   
   # Run 100 models
-  multi_kelp <- plyr::ldply(.data = 1:100, .fun = top_var, .parallel = T, 
+  multi_kelp <- plyr::ldply(.data = 1:1000, .fun = top_var, .parallel = T, 
                             kelp_choice = kelp_choice, df = df)
   
   # Clean up the results
@@ -563,9 +560,6 @@ conf_plot <- function(df, plot_title){
 # load("data/best_rf_laminariales.RData")
 # load("data/best_rf_agarum.RData")
 # load("data/best_rf_alaria.RData")
-
-# Load the Arctic data
-# load("data/Arctic_env.RData")
 
 # Predict the covers
 # pred_kelpcover <- Arctic_cover_predict(best_rf_kelpcover$choice_reg, base)
