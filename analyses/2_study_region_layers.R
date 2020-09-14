@@ -21,6 +21,7 @@ library(tidync)
 library(stringr)
 library(data.table)
 library(FNN)
+library(correlation)
 
 # Set cores
 doParallel::registerDoParallel(cores = 50)
@@ -265,9 +266,11 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
 
 # Check Pearson correlation coefficient between layers
   # These warnings are fine, we don't 
-BO_cor_matrix <- layers_correlation(colnames(dplyr::select(Arctic_BO, BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax))) %>% 
-  mutate(var = row.names(.)) %>% 
-  dplyr::select(var, everything())
+BO_cor_matrix <- Arctic_BO %>% 
+  dplyr::select(-lon, -lat) %>% 
+  correlation(redundant = T) %>% 
+  dplyr::select(Parameter1:r) %>% 
+  pivot_wider(names_from = Parameter2, values_from = r)
 save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
 write_csv(BO_cor_matrix, "data/BO_cor_matrix.csv")
 
