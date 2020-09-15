@@ -20,7 +20,7 @@ library(biomod2)
 library(sp)
 library(raster)
 library(FNN)
-library(doParallel) 
+library(doParallel)
 
 # The species occurrence data
 sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
