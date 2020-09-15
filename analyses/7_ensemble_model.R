@@ -106,7 +106,7 @@ biomod_pipeline <- function(sps_choice){
   
   # 3: Prep data ------------------------------------------------------------
   
-  # Prep data for modelling
+  # Prep data for modeling
   biomod_data <- BIOMOD_FormatingData(
     resp.var = rep(1, nrow(sps)),
     resp.xy = as.matrix(sps[,2:3]),
@@ -126,7 +126,7 @@ biomod_pipeline <- function(sps_choice){
   # See here for more: https://gist.github.com/hannahlowens/974066848f8f85554ff7
   # biomod_option@MAXENT.Phillips$path_to_maxent.jar = paste(system.file(package="dismo"), "/java", sep='')
   biomod_option@MAXENT.Phillips$memory_allocated = 2048 # Allocates 2048 MB/2 GB of memory to modeling. Be careful not to give too much.
-  biomod_option@MAXENT.Phillips$maximumiterations = 10000
+  # biomod_option@MAXENT.Phillips$maximumiterations = 10000
   # biomod_option@MAXENT.Phillips$threshold = F
   # biomod_option@MAXENT.Phillips$hinge = F
   # biomod_option@MAXENT.Phillips$visible = F
@@ -142,7 +142,7 @@ biomod_pipeline <- function(sps_choice){
     models.options = biomod_option,
     NbRunEval = 5,
     DataSplit = 70,
-    VarImport = 0,
+    VarImport = 5,
     # models.eval.meth = 'TSS', # The fewer evaluation methods used the faster it runs
     models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
     rescal.all.models = TRUE,

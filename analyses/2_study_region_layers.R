@@ -277,3 +277,6 @@ write_csv(BO_cor_matrix, "data/BO_cor_matrix.csv")
 BO_cor_groups <- correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env, BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax))))
 BO_cor_groups
 
+# ANother method of screening vartiables based on correlations
+usdm::vifcor()
+
