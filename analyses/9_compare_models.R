@@ -1,12 +1,11 @@
-# 8_compare_models.R
-# The purpose of this script is to load results from Jesi's
-# MAXENT model and compare them against the RF model
+# analyses/9_compare_models.R
+# The purpose of this script is to compare the outputs of the ensemble and RF models
 
 
 # Setup -------------------------------------------------------------------
 
 # Load all data and previous libraries
-source("analyses/7_random_forests.R")
+source("analyses/8_random_forests.R")
 library(ggridges) # For ridgeplots
 library(raster)
 library(doParallel); registerDoParallel(cores = 50)
