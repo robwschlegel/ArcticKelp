@@ -140,15 +140,15 @@ biomod_pipeline <- function(sps_choice){
     biomod_data,
     models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'),
     models.options = biomod_option,
-    NbRunEval = 5,
+    NbRunEval = 1,
     DataSplit = 70,
-    VarImport = 5,
-    # models.eval.meth = 'TSS', # The fewer evaluation methods used the faster it runs
-    models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
+    VarImport = 10,
+    models.eval.meth = c('TSS', 'ROC'), # The fewer evaluation methods used the faster it runs
+    # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
     rescal.all.models = TRUE,
     do.full.models = FALSE,
     modeling.id = sps_name)
-  biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
+  # biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
   
   # Build the ensemble models
      # RWS: This is currently giving an error but I haven't looked into why...
