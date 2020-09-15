@@ -1,4 +1,4 @@
-# analyses/7_random_forests.R
+# analyses/8_random_forests.R
 # The purpose of this script is to house the code used for the random forest analyses
 
 
@@ -485,11 +485,10 @@ conf_plot <- function(df, plot_title){
 }
 
 # Create the plots
-conf_plot(best_rf_kelpcover$accuracy_reg, "Total cover confidence")
-conf_plot(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
-conf_plot(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
-conf_plot(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
-
+# conf_plot(best_rf_kelpcover$accuracy_reg, "Total cover confidence")
+# conf_plot(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
+# conf_plot(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
+# conf_plot(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
 
 
 # Visualise kelp cover projections ----------------------------------------
@@ -597,8 +596,8 @@ project_compare <- function(best_rf, kelp_choice){
 }
 
 # Visualise the comparisons
-project_compare(best_rf_kelpcover, "Total_cover")
-project_compare(best_rf_laminariales, "Laminariales")
-project_compare(best_rf_agarum, "Agarum")
-project_compare(best_rf_alaria, "Alaria")
+# project_compare(best_rf_kelpcover, "Total_cover")
+# project_compare(best_rf_laminariales, "Laminariales")
+# project_compare(best_rf_agarum, "Agarum")
+# project_compare(best_rf_alaria, "Alaria")
 
