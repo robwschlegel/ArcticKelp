@@ -21,6 +21,8 @@ library(sp)
 library(raster)
 library(FNN)
 library(doParallel)
+library(usdm)
+library(corrplot)
 
 # The species occurrence data
 sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
@@ -41,7 +43,7 @@ Arctic_BO_sub <- Arctic_BO %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 Arctic_BO_sub_stack <- stack(rasterFromXYZ(Arctic_BO_sub))
-rm(Arctic_BO, Arctic_BO_sub); gc()
+#rm(Arctic_BO, Arctic_BO_sub); gc()
 
 # The 2050 data
 load("data/Arctic_BO_2050.RData")
@@ -50,7 +52,7 @@ Arctic_BO_2050_sub <- Arctic_BO_2050 %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 Arctic_BO_2050_sub_stack <- stack(rasterFromXYZ(Arctic_BO_2050_sub))
-rm(Arctic_BO_2050, Arctic_BO_2050_sub); gc()
+#rm(Arctic_BO_2050, Arctic_BO_2050_sub); gc()
 
 # The 2100 data
 load("data/Arctic_BO_2100.RData")
@@ -59,7 +61,7 @@ Arctic_BO_2100_sub <- Arctic_BO_2100 %>%
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 Arctic_BO_2100_sub_stack <- stack(rasterFromXYZ(Arctic_BO_2100_sub))
-rm(Arctic_BO_2100, Arctic_BO_2100_sub); gc()
+#rm(Arctic_BO_2100, Arctic_BO_2100_sub); gc()
 
 # The best variables per species
   # Not currently known
@@ -68,6 +70,19 @@ rm(Arctic_BO_2100, Arctic_BO_2100_sub); gc()
 #   pivot_longer(cols = var1:var6) %>% 
 #   dplyr::select(-name) %>% 
 #   na.omit()
+
+###usdm package can do stepwise elimination of highly inflating variables
+vif(Arctic_BO[, 3:34]) #calculates vif for the variables in Arctic_BO_stack
+v1 <- vifstep(Arctic_BO[, 3:34]) #identify collinear variables that should be excluded (VIF>10)
+v2<- vifcor(Arctic_BO[, 3:34], th= 0.7)#identify collinear variables that should be excluded (correlation >0.7)
+
+excl <- exclude(Arctic_BO[, 3:34], v2) #exclude the collinear variables that were identified previously
+excl_Arctic_stack <- stack(rasterFromXYZ(cbind(Arctic_BO[,1:2], excl)))
+
+excl_VIF_df <- na.omit(as.data.frame(excl)) 
+dataVIF.cor <- cor (excl_VIF_df, method = c('pearson')) ##WHERE DO I SET 0.7?
+corrplot(dataVIF.cor)
+heatmap(x= dataVIF.cor, symm = T)
 
 # Function for re-loading .RData files as necessary
 loadRData <- function(fileName){
@@ -112,8 +127,12 @@ biomod_pipeline <- function(sps_choice){
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
     expl.var = Arctic_BO_stack,
-    PA.nb.rep = 1, #5, # It seems like 5 runs is unnecessary if 10,000 points are used
-    PA.nb.absences = 10000)
+    PA.strategy = 'disk', #leave random for now, but might be 'disk' the one to use
+    PA.dist.min = 10000, #units = meters
+    PA.dist.max = 50000, #units = meters
+    PA.nb.rep = 5, # several runs to prevent sampling bias since moderate number of pseudo-absence
+    PA.nb.absences = 1000
+    )
   # biomod_data <- readRDS(paste0(sps_name,"/",sps_name,".base.Rds"))
   
   # Save the pre-model data for possible later use
@@ -160,6 +179,13 @@ biomod_pipeline <- function(sps_choice){
   )
   # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
   
+  #variable importance (to complete with details but the code is as follows)
+  variables_importance(
+    model =  , ##ensemble models are also supported
+    data= , 
+    method= , 
+    nb_rand=
+  )
   
   # 5. Present projections --------------------------------------------------
   
