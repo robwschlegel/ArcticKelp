@@ -126,13 +126,54 @@ biomod_pipeline <- function(sps_choice){
     resp.var = rep(1, nrow(sps)),
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
-    expl.var = Arctic_BO_stack,
+    expl.var = excl_Arctic_stack,
     PA.strategy = 'disk', #leave random for now, but might be 'disk' the one to use
     PA.dist.min = 10000, #units = meters
     PA.dist.max = 50000, #units = meters
     PA.nb.rep = 5, # several runs to prevent sampling bias since moderate number of pseudo-absence
     PA.nb.absences = 1000
     )
+  
+  biomod_data #object summary
+  plot(biomod_data) #plot selected pseudo-absences
+  
+  #To see where PA points are placed 
+  # from http://rstudio-pubs-static.s3.amazonaws.com/416446_3ef37751ae1e4e569964dabc09a75b56.html
+  #funtion to get PA dataset
+  get_PAtab <- function(bfd) {
+    dplyr::bind_cols(
+      x = bfd@coord[, 1],
+      y = bfd@coord[, 2],
+      status = bfd@data.species,
+      bfd@PA
+    )
+  }
+  #funtion to get background mask
+  get_mask <- function(bfd){
+    bfd@data.mask
+  }
+  #get the coordiantes of presences
+  (pres.xy <- get_PAtab(biomod_data) %>% 
+      filter(status == 1) %>%
+      select(x, y))
+  
+  #get the coordiantes of pseudo - absences
+  #all repetition of pseudo absences sampling merged 
+  (pa.all.xy <- get_PAtab(biomod_data) %>% 
+      filter(is.na(status)) %>%
+      select(x, y)) %>%
+    distinct()
+  
+  #pseudo absences sampling for the first repetition only 
+  (pa.1.xy <- get_PAtab(biomod_data) %>% 
+      filter(is.na(status) & PA1 == TRUE) %>%
+      select(x, y)) %>%
+    distinct()
+  
+  #plot the first PA selection and add the presences on top
+  plot(get_mask(biomod_data)[['PA1']])
+  points(pres.xy, pch = 11) 
+  
   # biomod_data <- readRDS(paste0(sps_name,"/",sps_name,".base.Rds"))
   
   # Save the pre-model data for possible later use
@@ -151,40 +192,60 @@ biomod_pipeline <- function(sps_choice){
   # biomod_option@MAXENT.Phillips$visible = F
   # biomod_option@MAXENT.Phillips$beta_lqp = .95
   
+  ## Creating DataSplitTable (check the code because it gives error of missing values)
+  DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F,
+                              stratified.cv = F, stratify = "both", balance = "pres")
+  DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv=T, stratify="y", k = 2)
+  colnames(DataSplitTable.y)[1:2] <- c("RUN11","RUN12")
+  DataSplitTable <- cbind(DataSplitTable,DataSplitTable.y)
+  head(DataSplitTable)
   
-  # 4: Model ----------------------------------------------------------------
+  
+  
+    # 4: Model ----------------------------------------------------------------
   
   # Run the model
   biomod_model <- BIOMOD_Modeling(
     biomod_data,
-    models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'),
+    models = c('MAXENT.Phillips', 'GLM'), #, 'ANN', 'RF', 'GAM'),
     models.options = biomod_option,
-    NbRunEval = 1,
+    NbRunEval = 1, 
     DataSplit = 70,
-    VarImport = 10,
-    models.eval.meth = c('TSS', 'ROC'), # The fewer evaluation methods used the faster it runs
+    VarImport = 3, #number of permutations to estimate variable importance
+    models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'), # The fewer evaluation methods used the faster it runs
     # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
-    rescal.all.models = TRUE,
+    rescal.all.models = FALSE,
     do.full.models = FALSE,
     modeling.id = sps_name)
-  # biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
+   # biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
+  
+  biomod_model #print summary
+  get_evaluations(biomod_model) #get evaluation scores
   
   # Build the ensemble models
      # RWS: This is currently giving an error but I haven't looked into why...
   biomod_ensemble <- BIOMOD_EnsembleModeling(
     modeling.output = biomod_model,
-    eval.metric = 'TSS',
-    eval.metric.quality.threshold = 0.7,
-    models.eval.meth = 'TSS'
+    chosen.models = 'all', #defines models kept (useful for removing non-preferred models)
+    em.by = 'PA_dataset+repet',
+    eval.metric = c('TSS'),
+    eval.metric.quality.threshold = c(0.7),
+    models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
+    prob.mean = TRUE, #Mean probabilities across predictions
+    prob.cv = TRUE, #Coefficient of variation across predictions
+    prob.ci= TRUE, #confidence interval around prob.mean
+    prob.ci.alpha = 0.05
   )
+  
+  
   # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
   
   #variable importance (to complete with details but the code is as follows)
   variables_importance(
-    model =  , ##ensemble models are also supported
+    model=  biomod_ensemble, ##ensemble models are also supported
     data= , 
-    method= , 
-    nb_rand=
+    method= 'full_rand', 
+    nb_rand= 3
   )
   
   # 5. Present projections --------------------------------------------------
@@ -266,7 +327,7 @@ registerDoParallel(cores = detectCores()-1)
 
 # Run one
 registerDoParallel(cores = 1)
-biomod_pipeline(sps_files[23])
+biomod_pipeline(sps_files[5])
 
 # Run them all
 registerDoParallel(cores = 5)
