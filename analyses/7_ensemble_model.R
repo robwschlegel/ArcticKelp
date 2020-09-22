@@ -18,6 +18,7 @@ source("analyses/1_study_region_sites.R")
 # Load additional packages
 library(biomod2)
 library(sp)
+# remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
 library(raster)
 library(FNN)
 library(doParallel)
@@ -30,59 +31,65 @@ sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), p
 
 # The present data
 load("data/Arctic_BO.RData")
-Arctic_BO_stack <- stack(rasterFromXYZ(Arctic_BO)) # This warning is caused by some layers not having the same number of pixels
-# plot(Arctic_BO_stack)
-# Arctic_BO_stack
 
 # Coordinates only
 global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
   mutate(env_index = 1:nrow(Arctic_BO))
 
+# The usdm package can do stepwise elimination of highly inflating variables
+# Calculate vif for the variables in Arctic_BO_stack
+vif(Arctic_BO[, 3:34])
+
+#identify collinear variables that should be excluded (VIF > 10)
+v1 <- vifstep(Arctic_BO[, 3:34])
+
+# Identify collinear variables that should be excluded (correlation > 0.7)
+v2 <- vifcor(Arctic_BO[, 3:34], th = 0.7)
+
+# Exclude the collinear variables that were identified previously
+Arctic_excl <- Arctic_BO %>% 
+  dplyr::select(lon, lat, v2@results$Variables) %>% 
+  mutate(BO_parmean = replace_na(BO_parmean, 0),
+         BO21_curvelltmin_bdmax = replace_na(BO21_curvelltmin_bdmax, 0)) %>% 
+  arrange(lon, lat)
+Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl))
+# plot(Arctic_excl_stack) # Visualise raster stack
+
+# Correlation plots
+excl_VIF_df <- na.omit(as.data.frame(Arctic_excl))
+dataVIF.cor <- cor(excl_VIF_df, method = c('pearson')) ##WHERE DO I SET 0.7? You don't. This just calculates the correlation values, it doesn't filter by them.
+corrplot(dataVIF.cor)
+heatmap(x = dataVIF.cor, symm = T)
+
 # Subset of present data used for projections
-Arctic_BO_sub <- Arctic_BO %>% 
+Arctic_excl_sub <- Arctic_excl %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-Arctic_BO_sub_stack <- stack(rasterFromXYZ(Arctic_BO_sub))
+Arctic_excl_sub_stack <- stack(rasterFromXYZ(Arctic_excl_sub))
+# plot(Arctic_excl_sub_stack)
 #rm(Arctic_BO, Arctic_BO_sub); gc()
 
 # The 2050 data
 load("data/Arctic_BO_2050.RData")
 # Note that we do not need the full Arctic data for projections, just the study area
-Arctic_BO_2050_sub <- Arctic_BO_2050 %>% 
+Arctic_excl_2050_sub <- Arctic_BO_2050 %>% 
+  dplyr::select(colnames(Arctic_excl)) %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-Arctic_BO_2050_sub_stack <- stack(rasterFromXYZ(Arctic_BO_2050_sub))
+Arctic_excl_2050_sub_stack <- stack(rasterFromXYZ(Arctic_excl_2050_sub))
+# plot(Arctic_excl_2050_sub_stack)
 #rm(Arctic_BO_2050, Arctic_BO_2050_sub); gc()
 
 # The 2100 data
 load("data/Arctic_BO_2100.RData")
 # Note that we do not need the full Arctic data for projections, just the study area
-Arctic_BO_2100_sub <- Arctic_BO_2100 %>% 
+Arctic_excl_2100_sub <- Arctic_BO_2100 %>% 
+  dplyr::select(colnames(Arctic_excl)) %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-Arctic_BO_2100_sub_stack <- stack(rasterFromXYZ(Arctic_BO_2100_sub))
+Arctic_excl_2100_sub_stack <- stack(rasterFromXYZ(Arctic_excl_2100_sub))
+# plot(Arctic_excl_2100_sub_stack)
 #rm(Arctic_BO_2100, Arctic_BO_2100_sub); gc()
-
-# The best variables per species
-  # Not currently known
-# top_var <- read_csv("metadata/top_var.csv") %>% 
-#   dplyr::select(Code:var6) %>% 
-#   pivot_longer(cols = var1:var6) %>% 
-#   dplyr::select(-name) %>% 
-#   na.omit()
-
-###usdm package can do stepwise elimination of highly inflating variables
-vif(Arctic_BO[, 3:34]) #calculates vif for the variables in Arctic_BO_stack
-v1 <- vifstep(Arctic_BO[, 3:34]) #identify collinear variables that should be excluded (VIF>10)
-v2<- vifcor(Arctic_BO[, 3:34], th= 0.7)#identify collinear variables that should be excluded (correlation >0.7)
-
-excl <- exclude(Arctic_BO[, 3:34], v2) #exclude the collinear variables that were identified previously
-excl_Arctic_stack <- stack(rasterFromXYZ(cbind(Arctic_BO[,1:2], excl)))
-
-excl_VIF_df <- na.omit(as.data.frame(excl)) 
-dataVIF.cor <- cor (excl_VIF_df, method = c('pearson')) ##WHERE DO I SET 0.7?
-corrplot(dataVIF.cor)
-heatmap(x= dataVIF.cor, symm = T)
 
 # Function for re-loading .RData files as necessary
 loadRData <- function(fileName){
@@ -126,20 +133,20 @@ biomod_pipeline <- function(sps_choice){
     resp.var = rep(1, nrow(sps)),
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
-    expl.var = excl_Arctic_stack,
-    PA.strategy = 'disk', #leave random for now, but might be 'disk' the one to use
-    PA.dist.min = 10000, #units = meters
-    PA.dist.max = 50000, #units = meters
+    expl.var = Arctic_excl_stack,
+    PA.strategy = 'disk', # leave random for now, but might be 'disk' the one to use
+    PA.dist.min = 10000, # units = meters
+    PA.dist.max = 50000, # units = meters
     PA.nb.rep = 5, # several runs to prevent sampling bias since moderate number of pseudo-absence
     PA.nb.absences = 1000
     )
   
-  biomod_data #object summary
-  plot(biomod_data) #plot selected pseudo-absences
+  biomod_data # object summary
+  plot(biomod_data) # plot selected pseudo-absences
   
-  #To see where PA points are placed 
+  # To see where PA points are placed 
   # from http://rstudio-pubs-static.s3.amazonaws.com/416446_3ef37751ae1e4e569964dabc09a75b56.html
-  #funtion to get PA dataset
+  # function to get PA dataset
   get_PAtab <- function(bfd) {
     dplyr::bind_cols(
       x = bfd@coord[, 1],
@@ -148,29 +155,31 @@ biomod_pipeline <- function(sps_choice){
       bfd@PA
     )
   }
-  #funtion to get background mask
+  
+  # function to get background mask
   get_mask <- function(bfd){
     bfd@data.mask
   }
-  #get the coordiantes of presences
+  
+  # get the coordinates of presences
   (pres.xy <- get_PAtab(biomod_data) %>% 
       filter(status == 1) %>%
-      select(x, y))
+      dplyr::select(x, y))
   
-  #get the coordiantes of pseudo - absences
-  #all repetition of pseudo absences sampling merged 
+  # get the coordiantes of pseudo - absences
+  # all repetition of pseudo absences sampling merged 
   (pa.all.xy <- get_PAtab(biomod_data) %>% 
       filter(is.na(status)) %>%
-      select(x, y)) %>%
-    distinct()
+      dplyr::select(x, y) %>%
+      distinct())
   
-  #pseudo absences sampling for the first repetition only 
+  # pseudo absences sampling for the first repetition only 
   (pa.1.xy <- get_PAtab(biomod_data) %>% 
       filter(is.na(status) & PA1 == TRUE) %>%
-      select(x, y)) %>%
-    distinct()
+      dplyr::select(x, y) %>%
+      distinct())
   
-  #plot the first PA selection and add the presences on top
+  # plot the first PA selection and add the presences on top
   plot(get_mask(biomod_data)[['PA1']])
   points(pres.xy, pch = 11) 
   
