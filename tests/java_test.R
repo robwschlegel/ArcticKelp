@@ -12,7 +12,7 @@
 
 # Set Java home directory for tikoraluk
 # Sys.setenv(PATH = "/software/miniconda3/envs/openjdk/bin:/software/miniconda3/condabin:/software/bin:/software/pgi/linux86-64/2018/bin:/software/pgi/linux86-64/18.4/mpi/openmpi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/software/miniconda3/bin")
-Sys.getenv("PATH")
+# Sys.getenv("PATH")
 
 # Load needed libraries
 library(tidyverse)
@@ -91,8 +91,8 @@ biomod_option@MAXENT.Phillips$memory_allocated = 2048
 # Run model
 biomod_model <- BIOMOD_Modeling(
   biomod_data,
-  # models = c('RF', 'GLM'), # Testing without MAXENT as it doesn't run on my work server
-  models = c('MAXENT.Phillips', 'GLM'), # Testing with MAXENT
+  models = c('RF', 'GLM'), # Testing without MAXENT as it doesn't run on my work server
+  # models = c('MAXENT.Phillips', 'GLM'), # Testing with MAXENT
   models.options = biomod_option,
   NbRunEval = 1, 
   DataSplit = 70,
