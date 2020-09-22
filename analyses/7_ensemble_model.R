@@ -16,6 +16,7 @@
 source("analyses/1_study_region_sites.R")
 
 # Load additional packages
+# devtools::install_github("biomodhub/biomod2", dependencies = TRUE) # Developmental version
 library(biomod2)
 library(sp)
 # remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
@@ -38,10 +39,10 @@ global_coords <- dplyr::select(Arctic_BO, lon, lat) %>%
 
 # The usdm package can do stepwise elimination of highly inflating variables
 # Calculate vif for the variables in Arctic_BO_stack
-vif(Arctic_BO[, 3:34])
+# vif(Arctic_BO[, 3:34])
 
 #identify collinear variables that should be excluded (VIF > 10)
-v1 <- vifstep(Arctic_BO[, 3:34])
+# v1 <- vifstep(Arctic_BO[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
 v2 <- vifcor(Arctic_BO[, 3:34], th = 0.7)
@@ -56,10 +57,10 @@ Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl))
 # plot(Arctic_excl_stack) # Visualise raster stack
 
 # Correlation plots
-excl_VIF_df <- na.omit(as.data.frame(Arctic_excl))
-dataVIF.cor <- cor(excl_VIF_df, method = c('pearson')) ##WHERE DO I SET 0.7? You don't. This just calculates the correlation values, it doesn't filter by them.
-corrplot(dataVIF.cor)
-heatmap(x = dataVIF.cor, symm = T)
+# excl_VIF_df <- na.omit(as.data.frame(Arctic_excl))
+# dataVIF.cor <- cor(excl_VIF_df, method = c('pearson')) ##WHERE DO I SET 0.7? You don't. This just calculates the correlation values, it doesn't filter by them.
+# corrplot(dataVIF.cor)
+# heatmap(x = dataVIF.cor, symm = T)
 
 # Subset of present data used for projections
 Arctic_excl_sub <- Arctic_excl %>% 
@@ -134,54 +135,61 @@ biomod_pipeline <- function(sps_choice){
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
     expl.var = Arctic_excl_stack,
-    PA.strategy = 'disk', # leave random for now, but might be 'disk' the one to use
-    PA.dist.min = 10000, # units = meters
-    PA.dist.max = 50000, # units = meters
-    PA.nb.rep = 5, # several runs to prevent sampling bias since moderate number of pseudo-absence
+    # PA.strategy = 'disk', # leave random for now, but might be 'disk' the one to use
+    # PA.dist.min = 10000, # units = meters
+    # PA.dist.max = 50000, # units = meters
+    PA.nb.rep = 1,#5, # several runs to prevent sampling bias since moderate number of pseudo-absence
     PA.nb.absences = 1000
     )
   
-  biomod_data # object summary
-  plot(biomod_data) # plot selected pseudo-absences
+  # Change the NA absencce values to 0, this makes them true absences... but then CV will run as expected
+  biomod_data@data.species <- replace_na(biomod_data@data.species, 0)
+  
+  # biomod_data # object summary
+  # plot(biomod_data) # plot selected pseudo-absences
+  
+  # The PA points can be visualised using the function in section 8
+    # NB: This requires that the section 8 function be loaded into the environment first
+  # presence_absence_fig(sps_choice)
   
   # To see where PA points are placed 
   # from http://rstudio-pubs-static.s3.amazonaws.com/416446_3ef37751ae1e4e569964dabc09a75b56.html
   # function to get PA dataset
-  get_PAtab <- function(bfd) {
-    dplyr::bind_cols(
-      x = bfd@coord[, 1],
-      y = bfd@coord[, 2],
-      status = bfd@data.species,
-      bfd@PA
-    )
-  }
+  # get_PAtab <- function(bfd) {
+  #   dplyr::bind_cols(
+  #     x = bfd@coord[, 1],
+  #     y = bfd@coord[, 2],
+  #     status = bfd@data.species,
+  #     bfd@PA
+  #   )
+  # }
   
   # function to get background mask
-  get_mask <- function(bfd){
-    bfd@data.mask
-  }
+  # get_mask <- function(bfd){
+  #   bfd@data.mask
+  # }
   
   # get the coordinates of presences
-  (pres.xy <- get_PAtab(biomod_data) %>% 
-      filter(status == 1) %>%
-      dplyr::select(x, y))
+  # (pres.xy <- get_PAtab(biomod_data) %>% 
+  #     filter(status == 1) %>%
+  #     dplyr::select(x, y))
   
   # get the coordiantes of pseudo - absences
   # all repetition of pseudo absences sampling merged 
-  (pa.all.xy <- get_PAtab(biomod_data) %>% 
-      filter(is.na(status)) %>%
-      dplyr::select(x, y) %>%
-      distinct())
+  # (pa.all.xy <- get_PAtab(biomod_data) %>% 
+  #     filter(is.na(status)) %>%
+  #     dplyr::select(x, y) %>%
+  #     distinct())
   
   # pseudo absences sampling for the first repetition only 
-  (pa.1.xy <- get_PAtab(biomod_data) %>% 
-      filter(is.na(status) & PA1 == TRUE) %>%
-      dplyr::select(x, y) %>%
-      distinct())
+  # (pa.1.xy <- get_PAtab(biomod_data) %>% 
+  #     filter(is.na(status) & PA1 == TRUE) %>%
+  #     dplyr::select(x, y) %>%
+  #     distinct())
   
   # plot the first PA selection and add the presences on top
-  plot(get_mask(biomod_data)[['PA1']])
-  points(pres.xy, pch = 11) 
+  # plot(get_mask(biomod_data)[['PA1']])
+  # points(pres.xy, pch = 11) 
   
   # biomod_data <- readRDS(paste0(sps_name,"/",sps_name,".base.Rds"))
   
@@ -193,7 +201,7 @@ biomod_pipeline <- function(sps_choice){
   
   # Setting up Maxent run
   # See here for more: https://gist.github.com/hannahlowens/974066848f8f85554ff7
-  # biomod_option@MAXENT.Phillips$path_to_maxent.jar = paste(system.file(package="dismo"), "/java", sep='')
+  # biomod_option@MAXENT.Phillips$path_to_maxent.jar = paste(system.file(package = "dismo"), "/java", sep = '')
   biomod_option@MAXENT.Phillips$memory_allocated = 2048 # Allocates 2048 MB/2 GB of memory to modeling. Be careful not to give too much.
   # biomod_option@MAXENT.Phillips$maximumiterations = 10000
   # biomod_option@MAXENT.Phillips$threshold = F
@@ -202,21 +210,22 @@ biomod_pipeline <- function(sps_choice){
   # biomod_option@MAXENT.Phillips$beta_lqp = .95
   
   ## Creating DataSplitTable (check the code because it gives error of missing values)
+  # DataSplitTable <- BIOMOD_cv(biomod_data)
   DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F,
                               stratified.cv = F, stratify = "both", balance = "pres")
-  DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv=T, stratify="y", k = 2)
+  DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv = T, stratify = "y", k = 2)
   colnames(DataSplitTable.y)[1:2] <- c("RUN11","RUN12")
   DataSplitTable <- cbind(DataSplitTable,DataSplitTable.y)
-  head(DataSplitTable)
+  # head(DataSplitTable)
   
   
-  
-    # 4: Model ----------------------------------------------------------------
+  # 4: Model ----------------------------------------------------------------
   
   # Run the model
   biomod_model <- BIOMOD_Modeling(
     biomod_data,
-    models = c('MAXENT.Phillips', 'GLM'), #, 'ANN', 'RF', 'GAM'),
+    models = c('RF', 'GLM'), #, 'MAXENT.Phillips', 'ANN', 'GAM'), # Testing without MAXENT as it doesn't run on my work server
+    # models = c('MAXENT.Phillips', 'GLM'), #, 'ANN', 'RF', 'GAM'),
     models.options = biomod_option,
     NbRunEval = 1, 
     DataSplit = 70,
@@ -228,33 +237,31 @@ biomod_pipeline <- function(sps_choice){
     modeling.id = sps_name)
    # biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
   
-  biomod_model #print summary
-  get_evaluations(biomod_model) #get evaluation scores
+  biomod_model # print summary
+  get_evaluations(biomod_model) # get evaluation scores
   
   # Build the ensemble models
-     # RWS: This is currently giving an error but I haven't looked into why...
   biomod_ensemble <- BIOMOD_EnsembleModeling(
     modeling.output = biomod_model,
-    chosen.models = 'all', #defines models kept (useful for removing non-preferred models)
-    em.by = 'PA_dataset+repet',
+    chosen.models = 'all',  # defines models kept (useful for removing non-preferred models)
+    em.by = 'all',
     eval.metric = c('TSS'),
     eval.metric.quality.threshold = c(0.7),
     models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
-    prob.mean = TRUE, #Mean probabilities across predictions
-    prob.cv = TRUE, #Coefficient of variation across predictions
-    prob.ci= TRUE, #confidence interval around prob.mean
-    prob.ci.alpha = 0.05
-  )
-  
+    prob.mean = TRUE, # Mean probabilities across predictions
+    prob.cv = TRUE, # Coefficient of variation across predictions
+    prob.ci = TRUE, # confidence interval around prob.mean
+    prob.ci.alpha = 0.05,
+    )
   
   # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
   
   #variable importance (to complete with details but the code is as follows)
   variables_importance(
-    model=  biomod_ensemble, ##ensemble models are also supported
-    data= , 
-    method= 'full_rand', 
-    nb_rand= 3
+    model = biomod_ensemble, # ensemble models are also supported
+    data = Arctic_excl_stack, # RWS: Not sure what is supposed to go here... 
+    method = 'full_rand', 
+    nb_rand = 3
   )
   
   # 5. Present projections --------------------------------------------------
@@ -262,7 +269,7 @@ biomod_pipeline <- function(sps_choice){
   # Create projections
   biomod_projection <- BIOMOD_Projection(
     modeling.output = biomod_model,
-    new.env = Arctic_BO_sub_stack,
+    new.env = Arctic_excl_sub_stack,
     proj.name = 'present',
     binary.meth = 'TSS',
     compress = "xz",
@@ -287,7 +294,7 @@ biomod_pipeline <- function(sps_choice){
   # Run 2050 projections
   biomod_projection_2050 <- BIOMOD_Projection(
     modeling.output = biomod_model,
-    new.env = Arctic_BO_2050_sub_stack,
+    new.env = Arctic_excl_2050_sub_stack,
     proj.name = '2050',
     binary.meth = 'TSS',
     compress = 'xz',
@@ -307,7 +314,7 @@ biomod_pipeline <- function(sps_choice){
   # Run 2100 projections
   biomod_projection_2100 <- BIOMOD_Projection(
     modeling.output = biomod_model,
-    new.env = Arctic_BO_2100_sub_stack,
+    new.env = Arctic_excl_2100_sub_stack,
     proj.name = '2100',
     binary.meth = 'TSS',
     compress = 'xz',
