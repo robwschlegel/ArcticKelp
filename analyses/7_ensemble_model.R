@@ -16,7 +16,7 @@
 source("analyses/1_study_region_sites.R")
 
 # Load additional packages
-# devtools::install_github("biomodhub/biomod2", dependencies = TRUE) # Developmental version
+# devtools::install_github("biomodhub/biomod2", dependencies = TRUE) # Developmental version. Wasn't needed.
 library(biomod2)
 library(sp)
 # remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
