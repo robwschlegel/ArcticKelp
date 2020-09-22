@@ -17,6 +17,8 @@ Sys.getenv("PATH")
 # Load needed libraries
 library(tidyverse)
 library(biomod2)
+# install.packages("raster") # Checking to see if the CRAN version doesn't cause projection errors. It does. Better to still use development versinn.
+# remotes::install_github("rspatial/raster")
 library(raster)
 library(FNN)
 library(usdm)
@@ -92,7 +94,7 @@ biomod_option@MAXENT.Phillips$memory_allocated = 2048
 biomod_model <- BIOMOD_Modeling(
   biomod_data,
   # models = c('RF', 'GLM'), # Testing without MAXENT as it doesn't run on my work server
-  models = c('MAXENT.Phillips', 'GLM'), # Testing with MAXENT
+  models = c('GLM', 'MAXENT.Phillips'), # Testing with MAXENT
   models.options = biomod_option,
   NbRunEval = 1, 
   DataSplit = 70,
@@ -100,6 +102,7 @@ biomod_model <- BIOMOD_Modeling(
   models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
   rescal.all.models = FALSE,
   do.full.models = FALSE,
+  SaveObj = FALSE,
   modeling.id = sps_name)
 
 # print summary
@@ -107,6 +110,23 @@ biomod_model
 
 # get evaluation scores
 get_evaluations(biomod_model)
+
+# Build the ensemble models
+biomod_ensemble <- BIOMOD_EnsembleModeling(
+  modeling.output = biomod_model,
+  chosen.models = 'all',  # defines models kept (useful for removing non-preferred models)
+  em.by = 'all',
+  eval.metric = c('TSS'),
+  eval.metric.quality.threshold = c(0.7),
+  models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
+  prob.mean = TRUE, # Mean probabilities across predictions
+  prob.cv = TRUE, # Coefficient of variation across predictions
+  prob.ci = TRUE, # confidence interval around prob.mean
+  prob.ci.alpha = 0.05,
+)
+
+# Tetst rasters
+raster(x = "Acla/models/Acla/Acla_PA1_RUN1_GLM")
 
 # Create projections
 biomod_projection <- BIOMOD_Projection(
