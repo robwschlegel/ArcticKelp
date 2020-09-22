@@ -333,3 +333,46 @@ biomod_pipeline(sps_files[5])
 registerDoParallel(cores = 5)
 plyr::l_ply(sps_files, biomod_pipeline, .parallel = TRUE)
 
+
+# 8: Extract pseudo-absence points ----------------------------------------
+
+# There is a need to see where the pseudo-absence points were selected for each species
+# This function saves figures in the "graph/comparison_PA" folder
+
+presence_absence_fig <- function(sps_choice){
+  
+  # Load the presence data
+  sps_presence <- read_csv(sps_choice) %>% 
+    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
+                                            as.matrix(.[,2:3]), k = 1))) %>%
+    left_join(global_coords, by = "env_index") %>% 
+    dplyr::select(Sp, lon.y, lat.y) %>%
+    dplyr::rename(lon = lon.y, lat = lat.y) %>% 
+    mutate(presence = 1)
+  
+  # Load the absence data
+  sps <- str_remove(sps_choice, pattern = "_Arct_rarefied_points.csv")
+  sps <- str_remove(sps, pattern = "metadata/")
+  biomod_data <- readRDS(paste0(sps,"/",sps,".base.Rds"))
+  sps_absence <- data.frame(presence = 0, biomod_data@coord)
+  
+  # Plot
+  PA_fig <- ggplot(data = sps_absence, aes(x = lon, y = lat)) +
+    borders(fill = "grey20", colour = "black") +
+    geom_point(aes(colour = as.factor(presence)), size = 0.01) +
+    geom_point(data = sps_presence, aes(colour = as.factor(presence)), size = 0.01) +
+    labs(x = NULL, y = NULL, colour = "Presence") +
+    scale_colour_manual(values = c("darkred", "forestgreen")) +
+    coord_quickmap(expand = F, ylim = c(50, 85)) +
+    theme(legend.position = "bottom")
+  # PA_fig
+  ggsave(plot = PA_fig, filename = paste0("graph/comparison_PA/",sps,"_PA.png"), width = 5, height = 2)
+}
+
+# Run for one species
+presence_absence_fig(sps_files[1])
+
+# Run for all species
+  # NB: This currently won't run as we haven't modeled all of the species yet
+plyr::l_ply(sps_files, presence_absence_fig, .parallel = TRUE)
+
