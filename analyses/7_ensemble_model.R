@@ -145,7 +145,7 @@ biomod_pipeline <- function(sps_choice){
     PA.nb.absences = 1000
     )
   
-  # Change the NA absencce values to 0, this makes them true absences... but then CV will run as expected
+  # Change the NA absences values to 0, this makes them true absences... but then CV will run as expected
   biomod_data@data.species <- replace_na(biomod_data@data.species, 0)
   
   # biomod_data # object summary
