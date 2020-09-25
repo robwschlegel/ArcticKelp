@@ -18,9 +18,9 @@ source("analyses/1_study_region_sites.R")
 # Load additional packages
 # devtools::install_github("biomodhub/biomod2", dependencies = TRUE) # Developmental version. Wasn't needed.
 library(biomod2)
-library(sp)
-# remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
 library(raster)
+# library(sp)
+# remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
 library(FNN)
 library(doParallel)
 library(usdm)
@@ -53,11 +53,11 @@ Arctic_excl <- Arctic_BO %>%
   mutate(BO_parmean = replace_na(BO_parmean, 0),
          BO21_curvelltmin_bdmax = replace_na(BO21_curvelltmin_bdmax, 0)) %>% 
   arrange(lon, lat)
-Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl))
+Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 # plot(Arctic_excl_stack) # Visualise raster stack
 
 # Correlation plots
-# excl_VIF_df <- na.omit(as.data.frame(Arctic_excl))
+excl_VIF_df <- na.omit(as.data.frame(Arctic_excl))
 # dataVIF.cor <- cor(excl_VIF_df, method = c('pearson')) ##WHERE DO I SET 0.7? You don't. This just calculates the correlation values, it doesn't filter by them.
 # corrplot(dataVIF.cor)
 # heatmap(x = dataVIF.cor, symm = T)
@@ -69,9 +69,17 @@ Pearson_cor <- cor(excl_VIF_df) ## JG: NOT ALL CORRELATED VARIABLES HAVE BEEN EX
 Arctic_excl_sub <- Arctic_excl %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-Arctic_excl_sub_stack <- stack(rasterFromXYZ(Arctic_excl_sub))
+Arctic_excl_sub_stack <- stack(rasterFromXYZ(Arctic_excl_sub, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 # plot(Arctic_excl_sub_stack)
-#rm(Arctic_BO, Arctic_BO_sub); gc()
+rm(Arctic_BO, Arctic_excl_sub); gc()
+
+
+# Very small area for testing
+Arctic_excl_baby <- Arctic_excl %>% 
+  filter(lon >= -90, lon <= -89,
+         lat >= 60, lat <= 61)
+Arctic_excl_baby_stack <- stack(rasterFromXYZ(Arctic_excl_baby, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
+
 
 # The 2050 data
 load("data/Arctic_BO_2050.RData")
@@ -80,9 +88,9 @@ Arctic_excl_2050_sub <- Arctic_BO_2050 %>%
   dplyr::select(colnames(Arctic_excl)) %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-Arctic_excl_2050_sub_stack <- stack(rasterFromXYZ(Arctic_excl_2050_sub))
+Arctic_excl_2050_sub_stack <- stack(rasterFromXYZ(Arctic_excl_2050_sub, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 # plot(Arctic_excl_2050_sub_stack)
-#rm(Arctic_BO_2050, Arctic_BO_2050_sub); gc()
+rm(Arctic_BO_2050, Arctic_excl_2050_sub); gc()
 
 # The 2100 data
 load("data/Arctic_BO_2100.RData")
@@ -91,9 +99,9 @@ Arctic_excl_2100_sub <- Arctic_BO_2100 %>%
   dplyr::select(colnames(Arctic_excl)) %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-Arctic_excl_2100_sub_stack <- stack(rasterFromXYZ(Arctic_excl_2100_sub))
+Arctic_excl_2100_sub_stack <- stack(rasterFromXYZ(Arctic_excl_2100_sub, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 # plot(Arctic_excl_2100_sub_stack)
-#rm(Arctic_BO_2100, Arctic_BO_2100_sub); gc()
+rm(Arctic_BO_2100, Arctic_excl_2100_sub); gc()
 
 # Function for re-loading .RData files as necessary
 # loadRData <- function(fileName){
@@ -125,9 +133,9 @@ biomod_pipeline <- function(sps_choice){
   
   # Set temp folder save locations
   # http://www.r-forge.r-project.org/forum/forum.php?thread_id=30946&forum_id=995&group_id=302
-  dir.create(file.path(sps_name), showWarnings = FALSE)
-  dir.create(file.path(sps_name,"/Temp"), showWarnings = FALSE)
-  rasterOptions(tmpdir = paste0(sps_name,"/Temp"))
+  # dir.create(file.path(sps_name), showWarnings = FALSE)
+  # dir.create(file.path(sps_name,"/Temp"), showWarnings = FALSE)
+  # rasterOptions(tmpdir = paste0(sps_name,"/Temp"))
   
   
   # 3: Prep data ------------------------------------------------------------
@@ -138,6 +146,7 @@ biomod_pipeline <- function(sps_choice){
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
     expl.var = Arctic_excl_stack,
+    # expl.var = Arctic_excl_sub_stack, # The MAXENT raster errors may be due to how large the raster files are
     PA.strategy = 'random', # leave random (tried 'disk' but models were not robust enough)
     PA.dist.min = 0, # units = meters
     PA.dist.max = NULL, # units = meters
@@ -150,10 +159,9 @@ biomod_pipeline <- function(sps_choice){
   
   # biomod_data # object summary
   # plot(biomod_data) # plot selected pseudo-absences
- 
 
-    # Save the pre-model data for possible later use
-  #saveRDS(biomod_data, file = paste0(sps_name,"/",sps_name,".base.Rds"))
+  # Save the pre-model data for possible later use
+  saveRDS(biomod_data, file = paste0(sps_name,"/",sps_name,".base.Rds"))
   
   # The PA points can be visualised using the function in section 8
   # NB: This requires that the section 8 function be loaded into the environment first
@@ -167,21 +175,21 @@ biomod_pipeline <- function(sps_choice){
   # Setting up Maxent run
   # See here for more: https://gist.github.com/hannahlowens/974066848f8f85554ff7
   # biomod_option@MAXENT.Phillips$path_to_maxent.jar = paste(system.file(package = "dismo"), "/java", sep = '')
-  biomod_option@MAXENT.Phillips$memory_allocated = 2048 # Allocates 2048 MB/2 GB of memory to modeling. Be careful not to give too much.
+  biomod_option@MAXENT.Phillips$memory_allocated = 4096 # Allocates 2048 MB/2 GB of memory to modeling. Be careful not to give too much.
   # biomod_option@MAXENT.Phillips$maximumiterations = 10000
   # biomod_option@MAXENT.Phillips$threshold = F
   # biomod_option@MAXENT.Phillips$hinge = F
   # biomod_option@MAXENT.Phillips$visible = F
   # biomod_option@MAXENT.Phillips$beta_lqp = .95
   
-  ## Creating DataSplitTable (it doesn't work when addig DataSplitTable in BIOMOD_Modeling DataSplit )
-  # DataSplitTable <- BIOMOD_cv(biomod_data)
-  # DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F,
-  #                             stratified.cv = F, stratify = "both", balance = "pres")
-  # DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv = T, stratify = "y", k = 2)
-  # colnames(DataSplitTable.y)[1:2] <- c("RUN11","RUN12")
-  # DataSplitTable <- cbind(DataSplitTable,DataSplitTable.y)
-  #head(DataSplitTable)
+  ## Creating DataSplitTable
+  DataSplitTable <- BIOMOD_cv(biomod_data)
+  DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F,
+                              stratified.cv = F, stratify = "both", balance = "pres")
+  DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv = T, stratify = "y", k = 2)
+  colnames(DataSplitTable.y)[1:2] <- c("RUN11","RUN12")
+  DataSplitTable <- cbind(DataSplitTable,DataSplitTable.y)
+  head(DataSplitTable)
   
   
   # 4: Model ----------------------------------------------------------------
@@ -193,9 +201,10 @@ biomod_pipeline <- function(sps_choice){
     models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'),
     models.options = biomod_option,
     NbRunEval = 1, # 5 reps for final models
-    DataSplit = 70,
-    VarImport = 3, #number of permutations to estimate variable importance
-    models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'), # The fewer evaluation methods used the faster it runs
+    DataSplit = 70, # Either chose a 70/30 split
+    # DataSplitTable = DataSplitTable, # Or the cross-validation method. This takes much longer, but does run.
+    VarImport = 3, # Number of permutations to estimate variable importance
+    models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
     # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
     rescal.all.models = TRUE,
     do.full.models = FALSE,
@@ -206,30 +215,35 @@ biomod_pipeline <- function(sps_choice){
   Model_scores <- get_evaluations(biomod_model) # get evaluation scores
   # dim(Model_scores)
   # dimnames(Model_scores)
+  
+  # Model evaluation by algorithm
   models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS'), 
-                      xlim = c(0.5,1), ylim = c(0.5,1)) #Model evaluation by algorithm
+                      xlim = c(0.5,1), ylim = c(0.5,1))
   
+  # Model evaluation by cross-validation
   models_scores_graph(biomod_model, by = "cv_run", metrics = c('ROC','TSS'), 
-                      xlim = c(0.5,1), ylim = c(0.5,1)) #Model evaluation by cross-validation
+                      xlim = c(0.5,1), ylim = c(0.5,1))
   
+  # Model evaluation by dataset
   models_scores_graph(biomod_model, by = "data_set", metrics = c('ROC','TSS'), 
-                      xlim = c(0.5,1), ylim = c(0.5,1)) #Model evaluation by dataset
+                      xlim = c(0.5,1), ylim = c(0.5,1))
   
-  ##Calculate mean of variable importance by algorithm
+  ## Calculate mean of variable importance by algorithm
       # JG: I have read that scores reported are raw in the table (to be easier to interpret, 
-      #it should be normalized on our own - sum to 1 across algorithms)
+      # it should be normalized on our own - sum to 1 across algorithms)
   (models_var_import <- get_variables_importance(biomod_model))
-  apply(models_var_import, c(1,2), mean)  ##CAN A MEAN BETWEEN MODELS BE DONE?
+  apply(models_var_import, c(1,2), mean, na.rm = T)
+  apply(apply(models_var_import, c(1,2), mean, na.rm = T), 1, mean) # Overall mean per variable
   
  # To visualize species' modeled response to the given variables
-    ##JG: MAYBE THIS CAN BE MOVED TO ANOTHER PLACE LATER IF NEED BE AND/OR A WAY TO SUMMARIZE LINES 223-283 IF POSSIBLE
+    ## JG: MAYBE THIS CAN BE MOVED TO ANOTHER PLACE LATER IF NEED BE AND/OR A WAY TO SUMMARIZE LINES 223-283 IF POSSIBLE
   sp_name_Maxent <- BIOMOD_LoadModels(biomod_model, models = 'MAXENT.Phillips') 
   sp_name_GLM <- BIOMOD_LoadModels(biomod_model, models = 'GLM')
   sp_name_ANN <- BIOMOD_LoadModels(biomod_model, models = 'ANN')
   sp_name_RF <- BIOMOD_LoadModels(biomod_model, models = 'RF')
   sp_name_GAM <- BIOMOD_LoadModels(biomod_model, models = 'GAM')
   
-  
+  # Evaluate individual models
   Maxent_eval_strip <- biomod2::response.plot2(
     models = sp_name_Maxent,
     Data = get_formal_data(biomod_model, 'expl.var'),
@@ -285,34 +299,34 @@ biomod_pipeline <- function(sps_choice){
     data_species = get_formal_data(biomod_model, 'resp.var')
   )
   
-  
   # Build the ensemble models
   biomod_ensemble <- BIOMOD_EnsembleModeling(
     modeling.output = biomod_model,
     chosen.models = 'all',  # defines models kept (useful for removing non-preferred models)
     em.by = 'all',
     eval.metric = c('TSS'),
-    eval.metric.quality.threshold = c(0.7),
+    eval.metric.quality.threshold = c(0.7), # Turn this off during testing if the ensemble won't run...
     models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
     prob.mean = TRUE, # Mean probabilities across predictions
     prob.cv = TRUE, # Coefficient of variation across predictions
-    prob.ci = TRUE, # confidence interval around prob.mean
+    prob.ci = TRUE, # Confidence interval around prob.mean
     prob.ci.alpha = 0.05,
     VarImport = 3 #10 for final models
     )
   
   (models_scores_biomod_ensemble <- get_evaluations(biomod_ensemble))
   
-  
-  #biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
+  # Load if the model has already been run
+  # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
   
  get_variables_importance(biomod_ensemble)
  (models_var_import <- get_variables_importance(biomod_ensemble))
- apply(models_var_import, c(1,2), mean) ###I WANT A MEAN BETWEEN randx VALUES AND CAN'T FIND THE WAY TO MAKE IT
- ##JG: THESE VALUES SHOULD ALSO BE NORMALIZED?
+ apply(models_var_import, c(1,2), mean, na.rm = T)
+ apply(apply(models_var_import, c(1,2), mean, na.rm = T), 1, mean) # Overall mean per variable
+ ## JG: THESE VALUES SHOULD ALSO BE NORMALIZED? # RWS: I think they are?
  
- ###The other hint of how this could be than is similar to this, but still struggling to get the list
- #https://r-forge.r-project.org/forum/forum.php?thread_id=31877&forum_id=4342&group_id=302
+ ### The other hint of how this could be than is similar to this, but still struggling to get the list
+ # https://r-forge.r-project.org/forum/forum.php?thread_id=31877&forum_id=4342&group_id=302
  ## get BIOMOD_Modeling output object
  # bm.mod <- get(load(biomod_ensemble@models.out.obj@link))
  # 
@@ -329,8 +343,7 @@ biomod_pipeline <- function(sps_choice){
  #                        variables_importance(get(emn), data = get_formal_data(bm.mod,'expl.var'))
  #                      })
  # names(em.vi.list) <- em.mods.names
- # str(em.vi.list)
- # 
+ # str(em.vi.list )
  # 
  # myBiomodModelEval <- getModelsEvaluations(biomod_ensemble)
  # dimnames(myBiomodModelEval)
@@ -343,7 +356,9 @@ biomod_pipeline <- function(sps_choice){
   # Create projections
   biomod_projection <- BIOMOD_Projection(
     modeling.output = biomod_model,
+    # new.env = Arctic_excl_baby_stack,
     new.env = Arctic_excl_sub_stack,
+    # new.env = Arctic_excl_stack,
     proj.name = 'present',
     selected.models = 'all',
     binary.meth = 'TSS',
@@ -351,21 +366,20 @@ biomod_pipeline <- function(sps_choice){
     compress = "xz",
     build.clamping.mask = FALSE,
     do.stack = TRUE
-  ) ##JG: When I tried to re-run again, it didn't work (Error in .rasterObjectFromFile) with do.stack activated or not
+  )
   
   plot(biomod_projection)
   
   # Create ensemble projections
-    # RWS: Can't run this until the above error has been addressed. JG: do.stack=T solved the error the 1st time
   biomod_ensemble_projection <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
-    projection.output = NULL, #should be biomod_projection when problem fixed
+    projection.output = biomod_projection, # Should be biomod_projection when problem fixed
     binary.meth = 'TSS',
     output.format = '.img',
     do.stack = TRUE)
   
+  # Visualise
   plot(biomod_ensemble_projection)
-  
   
   # Clean out some space
   rm(biomod_projection, biomod_ensemble_projection); gc()
