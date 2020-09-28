@@ -145,12 +145,14 @@ biomod_pipeline <- function(sps_choice){
     resp.var = rep(1, nrow(sps)),
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
-    expl.var = Arctic_excl_stack,
-    # expl.var = Arctic_excl_sub_stack, # The MAXENT raster errors may be due to how large the raster files are
+    #expl.var = Arctic_excl_stack,
+    expl.var = Arctic_excl_sub_stack, # The MAXENT raster errors may be due to how large the raster files are
+    #eval.resp.var, eval.expl.var, eval.resp.xy is for sp data to evaluate models. But we are doing 
+    #the DataSplitTable ##JG= IS THAT ENOUGH?
     PA.strategy = 'random', # leave random (tried 'disk' but models were not robust enough)
     PA.dist.min = 0, # units = meters
     PA.dist.max = NULL, # units = meters
-    PA.nb.rep = 1,#5, # several runs to prevent sampling bias since moderate number of pseudo-absence
+    PA.nb.rep = 2,#5, # several runs to prevent sampling bias since moderate number of pseudo-absence
     PA.nb.absences = 1000
     )
   
@@ -183,8 +185,8 @@ biomod_pipeline <- function(sps_choice){
   # biomod_option@MAXENT.Phillips$beta_lqp = .95
   
   ## Creating DataSplitTable
-  DataSplitTable <- BIOMOD_cv(biomod_data)
-  DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F,
+  # DataSplitTable <- BIOMOD_cv(biomod_data)
+  DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F, #do.full.models=T models calibrated and evaluated with the whole dataset are done
                               stratified.cv = F, stratify = "both", balance = "pres")
   DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv = T, stratify = "y", k = 2)
   colnames(DataSplitTable.y)[1:2] <- c("RUN11","RUN12")
@@ -197,14 +199,16 @@ biomod_pipeline <- function(sps_choice){
   # Run the model
   biomod_model <- BIOMOD_Modeling(
     biomod_data,
-    #models = c('RF', 'GLM'), #, 'MAXENT.Phillips', 'ANN', 'GAM'), # Testing without MAXENT as it doesn't run on my work server
-    models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'),
+    models = c('RF', 'GLM'), #, 'MAXENT.Phillips', 'ANN', 'GAM'), # Testing without MAXENT as it doesn't run on my work server
+    #models = c('RF', 'ANN'), #changed to ANN for testing (GLM Warning: 'glm.fit: fitted probabilities numerically 0 or 1 occurred') 
+    #models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'),
     models.options = biomod_option,
-    NbRunEval = 1, # 5 reps for final models
+    NbRunEval = 2, # 5 reps for final models
     DataSplit = 70, # Either chose a 70/30 split
-    # DataSplitTable = DataSplitTable, # Or the cross-validation method. This takes much longer, but does run.
+    #DataSplitTable = DataSplitTable, # Or the cross-validation method. This takes much longer, but does run.
+    ##JG= although it runs now here, it messes sections below and get the GLM warning
     VarImport = 3, # Number of permutations to estimate variable importance
-    models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
+    models.eval.meth = c('TSS', 'ROC'), #'FAR', 'ACCURACY', 'SR'),
     # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
     rescal.all.models = TRUE,
     do.full.models = FALSE,
@@ -306,7 +310,7 @@ biomod_pipeline <- function(sps_choice){
     em.by = 'all',
     eval.metric = c('TSS'),
     eval.metric.quality.threshold = c(0.7), # Turn this off during testing if the ensemble won't run...
-    models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
+    models.eval.meth = c('TSS', 'ROC'), #, 'FAR', 'ACCURACY', 'SR'),
     prob.mean = TRUE, # Mean probabilities across predictions
     prob.cv = TRUE, # Coefficient of variation across predictions
     prob.ci = TRUE, # Confidence interval around prob.mean
@@ -370,7 +374,9 @@ biomod_pipeline <- function(sps_choice){
   
   plot(biomod_projection)
   
-  # Create ensemble projections
+  # Create ensemble projections  
+  ##25-09 Error in dimnames(x) <- dn : length of 'dimnames' [2] not equal to array extent when usign DataSpiltTable
+  ##When using 70/30 it runs but warnings about projection and WS84 ellipsoid
   biomod_ensemble_projection <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
     projection.output = biomod_projection, # Should be biomod_projection when problem fixed
@@ -442,17 +448,36 @@ biomod_pipeline <- function(sps_choice){
   # Clean out 2100
   rm(biomod_projection_2100); gc()
   
-   stk_biomod_ensemble_projection_2100 <- get_predictions(biomod_ensemble_projection_2100)
-   stk_biomod_ensemble_projection_2100 <- subset(stk_biomod_ensemble_projection_2100,
-                                                 grep("EMca\\EMwmean",
-                                                      names(stk_biomod_ensemble_projection_2100)))
-   names(stk_biomod_ensemble_projection_2100) <- sapply(strsplit(names(stk_biomod_ensemble_projection_2100),
-                                                                 "_"),
-                                                        getElement, 2)
-   
-   levelplot(stk_biomod_ensemble_projection_2100,
-            main = "Future 2100",
-            col.regions = colorRampPalette(c("grey90", "yellow4", "green4"))(100))
+  ##Tests to plot ensemble models current and future conditions but I could not make it work.
+  ##Delete this section if necessary
+  # stk_biomod_ensemble_projection_2100 <- get_predictions(biomod_ensemble_projection_2100)
+  # stk_biomod_ensemble_projection_2100 <- subset(stk_biomod_ensemble_projection_2100,
+  #  grep("EMca/EMwmean", names(stk_biomod_ensemble_projection_2100)))
+  # names(stk_biomod_ensemble_projection_2100) <- sapply(strsplit(names(stk_biomod_ensemble_projection_2100),
+  #           "_"),
+  #  getElement, 2)
+  #  
+  #  levelplot(biomod_ensemble_projection_2100,
+  #           main = "Future 2100",
+  #           col.regions = colorRampPalette(c("grey90", "yellow4", "green4"))(100))
+  # 
+  
+  
+  ##Species Range change
+  binary_2050 <- stack("Acla/proj_2050/proj_2050_Acla_TSSbin.grd")
+  binary_2100 <- raster::stack("Acla/proj_2100/proj_2100_Acla_TSSbin.grd")
+        ##Did not use present, couldn't find the TSSbin.grd file
+        ##There is another way to do this in Guisan book using .img files but was not able to do it
+  
+    RangeSize <- BIOMOD_RangeSize(
+    CurrentPred = binary_2050,
+    FutureProj = binary_2100
+  )
+  
+  RangeSize$Compt.By.Models
+  plot(RangeSize$Diff.By.Pixel)
+  ##Don't know what each layer is
+  
   
   # Flush local tmp drive. Better not to do this if running on mulitple cores
   # unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
