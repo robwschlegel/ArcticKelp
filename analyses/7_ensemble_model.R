@@ -145,8 +145,8 @@ biomod_pipeline <- function(sps_choice){
     resp.var = rep(1, nrow(sps)),
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
-    #expl.var = Arctic_excl_stack,
-    expl.var = Arctic_excl_sub_stack, # The MAXENT raster errors may be due to how large the raster files are
+    expl.var = Arctic_excl_stack,
+    # expl.var = Arctic_excl_sub_stack, # The MAXENT raster errors may be due to how large the raster files are
     #eval.resp.var, eval.expl.var, eval.resp.xy is for sp data to evaluate models. But we are doing 
     #the DataSplitTable ##JG= IS THAT ENOUGH?
     PA.strategy = 'random', # leave random (tried 'disk' but models were not robust enough)
@@ -167,9 +167,9 @@ biomod_pipeline <- function(sps_choice){
   
   # The PA points can be visualised using the function in section 8
   # NB: This requires that the section 8 function be loaded into the environment first
-  #presence_absence_fig(sps_choice)
+  # presence_absence_fig(sps_choice)
   
-  #biomod_data <- readRDS(paste0(sps_name,"/",sps_name,".base.Rds"))
+  # biomod_data <- readRDS(paste0(sps_name,"/",sps_name,".base.Rds"))
   
   # Model options
   biomod_option <- BIOMOD_ModelingOptions()
@@ -205,7 +205,7 @@ biomod_pipeline <- function(sps_choice){
     models.options = biomod_option,
     NbRunEval = 2, # 5 reps for final models
     DataSplit = 70, # Either chose a 70/30 split
-    #DataSplitTable = DataSplitTable, # Or the cross-validation method. This takes much longer, but does run.
+    # DataSplitTable = DataSplitTable, # Or the cross-validation method. This takes much longer, but does run.
     ##JG= although it runs now here, it messes sections below and get the GLM warning
     VarImport = 3, # Number of permutations to estimate variable importance
     models.eval.meth = c('TSS', 'ROC'), #'FAR', 'ACCURACY', 'SR'),
@@ -360,9 +360,9 @@ biomod_pipeline <- function(sps_choice){
   # Create projections
   biomod_projection <- BIOMOD_Projection(
     modeling.output = biomod_model,
-    # new.env = Arctic_excl_baby_stack,
     new.env = Arctic_excl_sub_stack,
-    # new.env = Arctic_excl_stack,
+    # new.env = Arctic_excl_baby_stack, # A very small region for faster testing
+    # new.env = Arctic_excl_stack, # The full Arctic region. Not necessary.
     proj.name = 'present',
     selected.models = 'all',
     binary.meth = 'TSS',
@@ -376,7 +376,7 @@ biomod_pipeline <- function(sps_choice){
   
   # Create ensemble projections  
   ##25-09 Error in dimnames(x) <- dn : length of 'dimnames' [2] not equal to array extent when usign DataSpiltTable
-  ##When using 70/30 it runs but warnings about projection and WS84 ellipsoid
+  ##When using 70/30 it runs but warnings about projection and WS84 ellipsoid # RWS: I no longer receive this warning.
   biomod_ensemble_projection <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
     projection.output = biomod_projection, # Should be biomod_projection when problem fixed
@@ -440,8 +440,6 @@ biomod_pipeline <- function(sps_choice){
     binary.meth = 'TSS',
     output.format = '.img',
     do.stack = TRUE)
-  
-  
   
   plot(biomod_ensemble_projection_2100)
   
