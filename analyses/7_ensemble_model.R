@@ -406,6 +406,7 @@ biomod_pipeline <- function(sps_choice){
     new.env = Arctic_excl_2050_sub_stack,
     proj.name = '2050',
     binary.meth = 'TSS',
+    output.format = '.RData',
     compress = 'xz',
     build.clamping.mask = FALSE)
   
@@ -433,6 +434,7 @@ biomod_pipeline <- function(sps_choice){
     new.env = Arctic_excl_2100_sub_stack,
     proj.name = '2100',
     binary.meth = 'TSS',
+    output.format = '.RData',
     compress = 'xz',
     build.clamping.mask = FALSE)
   
