@@ -3,9 +3,63 @@
 .Ruserdata
 .Renviron
 talk/asm2019-abstracts.pdf
-Acla
-Aesc
-Ldig
-Lsol
-Slat
-Gulo
+# Acla models
+Acla/*.out
+Acla/.BIOMOD_DATA/*
+Acla/models/*
+Acla/proj_present/*
+!Acla/proj_present/*.RData
+Acla/proj_2050/*
+!Acla/proj_2050/*.RData
+Acla/proj_2100/*
+!Acla/proj_2100/*.RData
+# Aesc models
+Aesc/*.out
+Aesc/.BIOMOD_DATA/*
+Aesc/models/*
+Aesc/proj_present/*
+!Aesc/proj_present/*.RData
+Aesc/proj_2050/*
+!Aesc/proj_2050/*.RData
+Aesc/proj_2100/*
+!Aesc/proj_2100/*.RData
+# Ldig models
+Ldig/*.out
+Ldig/.BIOMOD_DATA/*
+Ldig/models/*
+Ldig/proj_present/*
+!Ldig/proj_present/*.RData
+Ldig/proj_2050/*
+!Ldig/proj_2050/*.RData
+Ldig/proj_2100/*
+!Ldig/proj_2100/*.RData
+# Lsol models
+Lsol/*.out
+Lsol/.BIOMOD_DATA/*
+Lsol/models/*
+Lsol/proj_present/*
+!Lsol/proj_present/*.RData
+Lsol/proj_2050/*
+!Lsol/proj_2050/*.RData
+Lsol/proj_2100/*
+!Lsol/proj_2100/*.RData
+# Slat models
+Slat/*.out
+Slat/.BIOMOD_DATA/*
+Slat/models/*
+Slat/proj_present/*
+!Slat/proj_present/*.RData
+Slat/proj_2050/*
+!Slat/proj_2050/*.RData
+Slat/proj_2100/*
+!Slat/proj_2100/*.RData
+# Gulo models
+Gulo/*.out
+Gulo/.BIOMOD_DATA/*
+Gulo/models/*
+Gulo/proj_present/*
+!Gulo/proj_present/*.RData
+Gulo/proj_2050/*
+!Gulo/proj_2050/*.RData
+Gulo/proj_2100/*
+!Gulo/proj_2100/*.RData
