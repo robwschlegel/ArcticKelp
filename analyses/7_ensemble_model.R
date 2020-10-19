@@ -18,9 +18,8 @@ source("analyses/1_study_region_sites.R")
 # Load additional packages
 # devtools::install_github("biomodhub/biomod2", dependencies = TRUE) # Developmental version. Wasn't needed.
 library(biomod2)
-library(raster)
-# library(sp)
 # remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
+library(raster)
 library(FNN)
 library(doParallel)
 library(usdm)
@@ -149,13 +148,11 @@ biomod_pipeline <- function(sps_choice){
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
     expl.var = Arctic_excl_stack,
-    # expl.var = Arctic_excl_sub_stack, # The MAXENT raster errors may be due to how large the raster files are
-    #eval.resp.var, eval.expl.var, eval.resp.xy is for sp data to evaluate models. But we are doing 
-    #the DataSplitTable ##JG= IS THAT ENOUGH?
+    #eval.resp.var, eval.expl.var, eval.resp.xy is for sp data to evaluate models. But we are doing the DataSplitTable
     PA.strategy = 'random', # leave random (tried 'disk' but models were not robust enough)
-    PA.dist.min = 0, # units = meters
-    PA.dist.max = NULL, # units = meters
-    PA.nb.rep = 5,#5, # several runs to prevent sampling bias since moderate number of pseudo-absence
+    # PA.dist.min = 0, # units = meters
+    # PA.dist.max = NULL, # units = meters
+    PA.nb.rep = 5, # several runs to prevent sampling bias since moderate number of pseudo-absence
     PA.nb.absences = 1000
     )
   
@@ -180,12 +177,6 @@ biomod_pipeline <- function(sps_choice){
   # Setting up Maxent run
   # See here for more: https://gist.github.com/hannahlowens/974066848f8f85554ff7
   # biomod_option@MAXENT.Phillips$path_to_maxent.jar = paste(system.file(package = "dismo"), "/java", sep = '')
-  # biomod_option@MAXENT.Phillips$memory_allocated = 4096 # Allocates 2048 MB/2 GB of memory to modeling. Be careful not to give too much.
-  # biomod_option@MAXENT.Phillips$maximumiterations = 10000
-  # biomod_option@MAXENT.Phillips$threshold = F
-  # biomod_option@MAXENT.Phillips$hinge = F
-  # biomod_option@MAXENT.Phillips$visible = F
-  # biomod_option@MAXENT.Phillips$beta_lqp = .95
   
   ## Creating DataSplitTable
   # DataSplitTable <- BIOMOD_cv(biomod_data)
@@ -209,7 +200,7 @@ biomod_pipeline <- function(sps_choice){
     NbRunEval = 5, # 5 reps for final models
     DataSplit = 70, # Either chose a 70/30 split
     # DataSplitTable = DataSplitTable, # Or the cross-validation method. This takes much longer, but does run.
-    ##JG= although it runs now here, it messes sections below and get the GLM warning
+    ## JG = although it runs now here, it messes sections below and get the GLM warning
     VarImport = 5, # Number of permutations to estimate variable importance
     models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
     # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
@@ -217,94 +208,6 @@ biomod_pipeline <- function(sps_choice){
     do.full.models = FALSE,
     modeling.id = sps_name)
   #biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
-  
-  # biomod_model # print summary
-  # Model_scores <- get_evaluations(biomod_model) # get evaluation scores
-  # dim(Model_scores)
-  # dimnames(Model_scores)
-  
-  # Model evaluation by algorithm
-  # models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS'), 
-  #                     xlim = c(0.5,1), ylim = c(0.5,1))
-  
-  # Model evaluation by cross-validation
-  # models_scores_graph(biomod_model, by = "cv_run", metrics = c('ROC','TSS'), 
-  #                     xlim = c(0.5,1), ylim = c(0.5,1))
-  
-  # Model evaluation by dataset
-  # models_scores_graph(biomod_model, by = "data_set", metrics = c('ROC','TSS'), 
-  #                     xlim = c(0.5,1), ylim = c(0.5,1))
-  
-  ## Calculate mean of variable importance by algorithm
-      # JG: I have read that scores reported are raw in the table (to be easier to interpret, 
-      # it should be normalized on our own - sum to 1 across algorithms)
-  # (models_var_import <- get_variables_importance(biomod_model))
-  # apply(models_var_import, c(1,2), mean, na.rm = T)
-  # apply(apply(models_var_import, c(1,2), mean, na.rm = T), 1, mean) # Overall mean per variable
-  
- # To visualize species' modeled response to the given variables
-    ## JG: MAYBE THIS CAN BE MOVED TO ANOTHER PLACE LATER IF NEED BE AND/OR A WAY TO SUMMARIZE LINES 223-283 IF POSSIBLE
-  # sp_name_Maxent <- BIOMOD_LoadModels(biomod_model, models = 'MAXENT.Phillips') 
-  # sp_name_GLM <- BIOMOD_LoadModels(biomod_model, models = 'GLM')
-  # sp_name_ANN <- BIOMOD_LoadModels(biomod_model, models = 'ANN')
-  # sp_name_RF <- BIOMOD_LoadModels(biomod_model, models = 'RF')
-  # sp_name_GAM <- BIOMOD_LoadModels(biomod_model, models = 'GAM')
-  
-  # Evaluate individual models
-  # Maxent_eval_strip <- biomod2::response.plot2(
-  #   models = sp_name_Maxent,
-  #   Data = get_formal_data(biomod_model, 'expl.var'),
-  #   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
-  #   do.bivariate = F,
-  #   fixed.var.metric = 'mean',
-  #   legend = F,
-  #   display_title = F,
-  #   data_species = get_formal_data(biomod_model, 'resp.var')
-  # )
-  
-  # GLM_eval_strip <- biomod2::response.plot2(
-  #   models = sp_name_GLM,
-  #   Data = get_formal_data(biomod_model, 'expl.var'),
-  #   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
-  #   do.bivariate = F,
-  #   fixed.var.metric = 'mean',
-  #   legend = F,
-  #   display_title = F,
-  #   data_species = get_formal_data(biomod_model, 'resp.var')
-  # )
-  
-  # ANN_eval_strip <- biomod2::response.plot2(
-  #   models = sp_name_ANN,
-  #   Data = get_formal_data(biomod_model, 'expl.var'),
-  #   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
-  #   do.bivariate = F,
-  #   fixed.var.metric = 'mean',
-  #   legend = F,
-  #   display_title = F,
-  #   data_species = get_formal_data(biomod_model, 'resp.var')
-  # )
-  
-  # RF_eval_strip <- biomod2::response.plot2(
-  #   models = sp_name_RF,
-  #   Data = get_formal_data(biomod_model, 'expl.var'),
-  #   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
-  #   do.bivariate = F,
-  #   fixed.var.metric = 'mean',
-  #   legend = F,
-  #   display_title = F,
-  #   data_species = get_formal_data(biomod_model, 'resp.var')
-  # )
-  
-  # GAM_eval_strip <- biomod2::response.plot2(
-  #   models = sp_name_GAM,
-  #   Data = get_formal_data(biomod_model, 'expl.var'),
-  #   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
-  #   do.bivariate = F,
-  #   fixed.var.metric = 'mean',
-  #   legend = F,
-  #   display_title = F,
-  #   data_species = get_formal_data(biomod_model, 'resp.var')
-  # )
   
   # Build the ensemble models
   biomod_ensemble <- BIOMOD_EnsembleModeling(
@@ -318,44 +221,11 @@ biomod_pipeline <- function(sps_choice){
     prob.cv = TRUE, # Coefficient of variation across predictions
     prob.ci = TRUE, # Confidence interval around prob.mean
     prob.ci.alpha = 0.05,
-    VarImport = 10 #10 for final models
+    VarImport = 10
     )
-  
-  # (models_scores_biomod_ensemble <- get_evaluations(biomod_ensemble))
   
   # Load if the model has already been run
   # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
-  
- # get_variables_importance(biomod_ensemble)
- # (models_var_import <- get_variables_importance(biomod_ensemble))
- # apply(models_var_import, c(1,2), mean, na.rm = T)
- # apply(apply(models_var_import, c(1,2), mean, na.rm = T), 1, mean) # Overall mean per variable
- ## JG: THESE VALUES SHOULD ALSO BE NORMALIZED? # RWS: I think they are?
- 
- ### The other hint of how this could be than is similar to this, but still struggling to get the list
- # https://r-forge.r-project.org/forum/forum.php?thread_id=31877&forum_id=4342&group_id=302
- ## get BIOMOD_Modeling output object
- # bm.mod <- get(load(biomod_ensemble@models.out.obj@link))
- # 
- # ## load ensemble models
- # em.mods.names <- BIOMOD_LoadModels(biomod_ensemble)
- # em.mods.names
- # 
- # ## by default variable importance is not computed with ensemble models
- # get_variables_importance(biomod_ensemble)
- # 
- # ## but you can do it a posteriori
- # em.vi.list <- lapply(em.mods.names,
- #                      function(emn) {
- #                        variables_importance(get(emn), data = get_formal_data(bm.mod,'expl.var'))
- #                      })
- # names(em.vi.list) <- em.mods.names
- # str(em.vi.list )
- # 
- # myBiomodModelEval <- getModelsEvaluations(biomod_ensemble)
- # dimnames(myBiomodModelEval)
- # myBiomodModelEval["TSS"]
- # getModelsVarImport(myBiomodEM)
  
 
   # 5. Present projections --------------------------------------------------
@@ -377,12 +247,10 @@ biomod_pipeline <- function(sps_choice){
   
   # plot(biomod_projection)
   
-  # Create ensemble projections  
-  ##25-09 Error in dimnames(x) <- dn : length of 'dimnames' [2] not equal to array extent when usign DataSpiltTable
-  ##When using 70/30 it runs but warnings about projection and WS84 ellipsoid # RWS: I no longer receive this warning.
+  # Create ensemble projections
   biomod_ensemble_projection <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
-    projection.output = biomod_projection, # Should be biomod_projection when problem fixed
+    projection.output = biomod_projection,
     binary.meth = 'TSS',
     output.format = '.RData',
     do.stack = TRUE)
@@ -420,12 +288,12 @@ biomod_pipeline <- function(sps_choice){
     output.format = '.RData',
     do.stack = TRUE)
   
-  plot(biomod_ensemble_projection_2050)
+  # plot(biomod_ensemble_projection_2050)
   
   # Clean out 2050
   rm(biomod_projection_2050, biomod_ensemble_projection_2050); gc()
   
-  # Flush local tmp drive. Better not to do this if running on mulitple cores
+  # Flush local tmp drive. Better not to do this if running on multiple cores
   # unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
   
   # Run 2100 projections
@@ -450,36 +318,6 @@ biomod_pipeline <- function(sps_choice){
   
   # Clean out 2100
   rm(biomod_projection_2100); gc()
-  
-  ##Tests to plot ensemble models current and future conditions but I could not make it work.
-  ##Delete this section if necessary
-  # stk_biomod_ensemble_projection_2100 <- get_predictions(biomod_ensemble_projection_2100)
-  # stk_biomod_ensemble_projection_2100 <- subset(stk_biomod_ensemble_projection_2100,
-  #  grep("EMca/EMwmean", names(stk_biomod_ensemble_projection_2100)))
-  # names(stk_biomod_ensemble_projection_2100) <- sapply(strsplit(names(stk_biomod_ensemble_projection_2100),
-  #           "_"),
-  #  getElement, 2)
-  #  
-  #  levelplot(biomod_ensemble_projection_2100,
-  #           main = "Future 2100",
-  #           col.regions = colorRampPalette(c("grey90", "yellow4", "green4"))(100))
-  # 
-  
-  ##Species Range change
-  # binary_2050 <- stack("Acla/proj_2050/proj_2050_Acla_TSSbin.grd")
-  # binary_2100 <- raster::stack("Acla/proj_2100/proj_2100_Acla_TSSbin.grd")
-  #       ##Did not use present, couldn't find the TSSbin.grd file
-  #       ##There is another way to do this in Guisan book using .img files but was not able to do it
-  # 
-  #   RangeSize <- BIOMOD_RangeSize(
-  #   CurrentPred = binary_2050,
-  #   FutureProj = binary_2100
-  # )
-  # 
-  # RangeSize$Compt.By.Models
-  # plot(RangeSize$Diff.By.Pixel)
-  ##Don't know what each layer is
-  
   
   # Flush local tmp drive. Better not to do this if running on mulitple cores
   # unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
@@ -542,6 +380,158 @@ presence_absence_fig <- function(sps_choice){
 # presence_absence_fig(sps_files[1])
 
 # Run for all species
-  # NB: This currently won't run as we haven't modeled all of the species yet
 # plyr::l_ply(sps_files, presence_absence_fig, .parallel = TRUE)
+
+
+# 9: Full model analysis --------------------------------------------------
+
+# biomod_model # print summary
+# Model_scores <- get_evaluations(biomod_model) # get evaluation scores
+# dim(Model_scores)
+# dimnames(Model_scores)
+
+# Model evaluation by algorithm
+# models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS'), 
+#                     xlim = c(0.5,1), ylim = c(0.5,1))
+
+# Model evaluation by cross-validation
+# models_scores_graph(biomod_model, by = "cv_run", metrics = c('ROC','TSS'), 
+#                     xlim = c(0.5,1), ylim = c(0.5,1))
+
+# Model evaluation by dataset
+# models_scores_graph(biomod_model, by = "data_set", metrics = c('ROC','TSS'), 
+#                     xlim = c(0.5,1), ylim = c(0.5,1))
+
+## Calculate mean of variable importance by algorithm
+# JG: I have read that scores reported are raw in the table (to be easier to interpret, 
+# it should be normalized on our own - sum to 1 across algorithms)
+# (models_var_import <- get_variables_importance(biomod_model))
+# apply(models_var_import, c(1,2), mean, na.rm = T)
+# apply(apply(models_var_import, c(1,2), mean, na.rm = T), 1, mean) # Overall mean per variable
+
+# To visualize species' modeled response to the given variables
+## JG: MAYBE THIS CAN BE MOVED TO ANOTHER PLACE LATER IF NEED BE AND/OR A WAY TO SUMMARIZE LINES 223-283 IF POSSIBLE
+# sp_name_Maxent <- BIOMOD_LoadModels(biomod_model, models = 'MAXENT.Phillips') 
+# sp_name_GLM <- BIOMOD_LoadModels(biomod_model, models = 'GLM')
+# sp_name_ANN <- BIOMOD_LoadModels(biomod_model, models = 'ANN')
+# sp_name_RF <- BIOMOD_LoadModels(biomod_model, models = 'RF')
+# sp_name_GAM <- BIOMOD_LoadModels(biomod_model, models = 'GAM')
+
+# Evaluate individual models
+# Maxent_eval_strip <- biomod2::response.plot2(
+#   models = sp_name_Maxent,
+#   Data = get_formal_data(biomod_model, 'expl.var'),
+#   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
+#   do.bivariate = F,
+#   fixed.var.metric = 'mean',
+#   legend = F,
+#   display_title = F,
+#   data_species = get_formal_data(biomod_model, 'resp.var')
+# )
+
+# GLM_eval_strip <- biomod2::response.plot2(
+#   models = sp_name_GLM,
+#   Data = get_formal_data(biomod_model, 'expl.var'),
+#   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
+#   do.bivariate = F,
+#   fixed.var.metric = 'mean',
+#   legend = F,
+#   display_title = F,
+#   data_species = get_formal_data(biomod_model, 'resp.var')
+# )
+
+# ANN_eval_strip <- biomod2::response.plot2(
+#   models = sp_name_ANN,
+#   Data = get_formal_data(biomod_model, 'expl.var'),
+#   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
+#   do.bivariate = F,
+#   fixed.var.metric = 'mean',
+#   legend = F,
+#   display_title = F,
+#   data_species = get_formal_data(biomod_model, 'resp.var')
+# )
+
+# RF_eval_strip <- biomod2::response.plot2(
+#   models = sp_name_RF,
+#   Data = get_formal_data(biomod_model, 'expl.var'),
+#   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
+#   do.bivariate = F,
+#   fixed.var.metric = 'mean',
+#   legend = F,
+#   display_title = F,
+#   data_species = get_formal_data(biomod_model, 'resp.var')
+# )
+
+# GAM_eval_strip <- biomod2::response.plot2(
+#   models = sp_name_GAM,
+#   Data = get_formal_data(biomod_model, 'expl.var'),
+#   show.variables = get_formal_data(biomod_model, 'expl.var.names'),
+#   do.bivariate = F,
+#   fixed.var.metric = 'mean',
+#   legend = F,
+#   display_title = F,
+#   data_species = get_formal_data(biomod_model, 'resp.var')
+# )
+
+# (models_scores_biomod_ensemble <- get_evaluations(biomod_ensemble))
+
+# get_variables_importance(biomod_ensemble)
+# (models_var_import <- get_variables_importance(biomod_ensemble))
+# apply(models_var_import, c(1,2), mean, na.rm = T)
+# apply(apply(models_var_import, c(1,2), mean, na.rm = T), 1, mean) # Overall mean per variable
+## JG: THESE VALUES SHOULD ALSO BE NORMALIZED? # RWS: I think they are?
+
+### The other hint of how this could be than is similar to this, but still struggling to get the list
+# https://r-forge.r-project.org/forum/forum.php?thread_id=31877&forum_id=4342&group_id=302
+## get BIOMOD_Modeling output object
+# bm.mod <- get(load(biomod_ensemble@models.out.obj@link))
+# 
+# ## load ensemble models
+# em.mods.names <- BIOMOD_LoadModels(biomod_ensemble)
+# em.mods.names
+# 
+# ## by default variable importance is not computed with ensemble models
+# get_variables_importance(biomod_ensemble)
+# 
+# ## but you can do it a posteriori
+# em.vi.list <- lapply(em.mods.names,
+#                      function(emn) {
+#                        variables_importance(get(emn), data = get_formal_data(bm.mod,'expl.var'))
+#                      })
+# names(em.vi.list) <- em.mods.names
+# str(em.vi.list )
+# 
+# myBiomodModelEval <- getModelsEvaluations(biomod_ensemble)
+# dimnames(myBiomodModelEval)
+# myBiomodModelEval["TSS"]
+# getModelsVarImport(myBiomodEM)
+
+##Tests to plot ensemble models current and future conditions but I could not make it work.
+##Delete this section if necessary
+# stk_biomod_ensemble_projection_2100 <- get_predictions(biomod_ensemble_projection_2100)
+# stk_biomod_ensemble_projection_2100 <- subset(stk_biomod_ensemble_projection_2100,
+#  grep("EMca/EMwmean", names(stk_biomod_ensemble_projection_2100)))
+# names(stk_biomod_ensemble_projection_2100) <- sapply(strsplit(names(stk_biomod_ensemble_projection_2100),
+#           "_"),
+#  getElement, 2)
+#  
+#  levelplot(biomod_ensemble_projection_2100,
+#           main = "Future 2100",
+#           col.regions = colorRampPalette(c("grey90", "yellow4", "green4"))(100))
+# 
+
+##Species Range change
+# binary_2050 <- stack("Acla/proj_2050/proj_2050_Acla_TSSbin.grd")
+# binary_2100 <- raster::stack("Acla/proj_2100/proj_2100_Acla_TSSbin.grd")
+#       ##Did not use present, couldn't find the TSSbin.grd file
+#       ##There is another way to do this in Guisan book using .img files but was not able to do it
+# 
+#   RangeSize <- BIOMOD_RangeSize(
+#   CurrentPred = binary_2050,
+#   FutureProj = binary_2100
+# )
+# 
+# RangeSize$Compt.By.Models
+# plot(RangeSize$Diff.By.Pixel)
+##Don't know what each layer is
 

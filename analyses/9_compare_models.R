@@ -8,6 +8,7 @@
 source("analyses/8_random_forests.R")
 library(ggridges) # For ridgeplots
 library(raster)
+library(biomod2)
 library(doParallel); registerDoParallel(cores = 50)
 # library(sp) # For reading ASCII files
 
@@ -24,6 +25,27 @@ RF_points <- adf %>%
   group_by(lon, lat) %>%
   summarise_all(mean) %>%
   ungroup()
+
+# Load Ensemble TSS bin results
+load("Acla/proj_present/proj_present_Acla_ensemble_TSSbin.RData")
+plot(proj_present_Acla_ensemble_TSSbin)
+
+load("Acla/proj_present/proj_present_Acla_ensemble.RData")
+plot(proj_present_Acla_ensemble_TSSbin)
+
+# Write function to load these .RData files and save them as .grd files
+
+# Save as a raster file
+writeRaster(proj_present_Acla_ensemble_TSSbin, "test.grd")
+test_raster <- raster("test.grd")
+plot(test_raster)
+
+# Load model
+base_Acla <- readRDS("Acla/Acla.base.Rds")
+
+# Extract the data
+TSS_bin_Acla <- as.data.frame(proj_present_Acla_ensemble_TSSbin, xyz = T)
+brick(proj_present_Acla_ensemble_TSSbin)
 
 # The coords for the MAXENT data
 MAXENT_points <- rbind(
