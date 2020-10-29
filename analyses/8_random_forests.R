@@ -532,21 +532,21 @@ cover_squiz <- function(best_rf, legend_title, x_nudge, kelp_choice, pred_choice
 
 ## Visualisations
 # Total cover
-cover_squiz(best_rf_kelpcover, "Total cover (%)", 0.785, "kelp.cover", "pred_present_mean")
-cover_squiz(best_rf_kelpcover, "Total cover (%)", 0.785, "kelp.cover", "pred_2050_mean")
-cover_squiz(best_rf_kelpcover, "Total cover (%)", 0.785, "kelp.cover", "pred_2100_mean")
+# cover_squiz(best_rf_kelpcover, "Total cover (%)", 0.785, "kelp.cover", "pred_present_mean")
+# cover_squiz(best_rf_kelpcover, "Total cover (%)", 0.785, "kelp.cover", "pred_2050_mean")
+# cover_squiz(best_rf_kelpcover, "Total cover (%)", 0.785, "kelp.cover", "pred_2100_mean")
 # Laminariales
-cover_squiz(best_rf_laminariales, "Laminariales cover (%)", 0.745, "Laminariales", "pred_present_mean")
-cover_squiz(best_rf_laminariales, "Laminariales cover (%)", 0.745, "Laminariales", "pred_2050_mean")
-cover_squiz(best_rf_laminariales, "Laminariales cover (%)", 0.745, "Laminariales", "pred_2100_mean")
+# cover_squiz(best_rf_laminariales, "Laminariales cover (%)", 0.745, "Laminariales", "pred_present_mean")
+# cover_squiz(best_rf_laminariales, "Laminariales cover (%)", 0.745, "Laminariales", "pred_2050_mean")
+# cover_squiz(best_rf_laminariales, "Laminariales cover (%)", 0.745, "Laminariales", "pred_2100_mean")
 # Alaria
-cover_squiz(best_rf_alaria, "Alaria cover (%)", 0.78, "Alaria", "pred_present_mean")
-cover_squiz(best_rf_alaria, "Alaria cover (%)", 0.78, "Alaria", "pred_2050_mean")
-cover_squiz(best_rf_alaria, "Alaria cover (%)", 0.78, "Alaria", "pred_2100_mean")
+# cover_squiz(best_rf_alaria, "Alaria cover (%)", 0.78, "Alaria", "pred_present_mean")
+# cover_squiz(best_rf_alaria, "Alaria cover (%)", 0.78, "Alaria", "pred_2050_mean")
+# cover_squiz(best_rf_alaria, "Alaria cover (%)", 0.78, "Alaria", "pred_2100_mean")
 # Agarum
-cover_squiz(best_rf_agarum, "Agarum cover (%)", 0.77, "Agarum", "pred_present_mean")
-cover_squiz(best_rf_agarum, "Agarum cover (%)", 0.77, "Agarum", "pred_2050_mean")
-cover_squiz(best_rf_agarum, "Agarum cover (%)", 0.77, "Agarum", "pred_2100_mean")
+# cover_squiz(best_rf_agarum, "Agarum cover (%)", 0.77, "Agarum", "pred_present_mean")
+# cover_squiz(best_rf_agarum, "Agarum cover (%)", 0.77, "Agarum", "pred_2050_mean")
+# cover_squiz(best_rf_agarum, "Agarum cover (%)", 0.77, "Agarum", "pred_2100_mean")
 
 
 # Compare future projections to present -----------------------------------

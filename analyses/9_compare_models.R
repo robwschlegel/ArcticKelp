@@ -33,22 +33,15 @@ plot(proj_present_Acla_ensemble_TSSbin)
 load("Acla/proj_present/proj_present_Acla_ensemble.RData")
 plot(proj_present_Acla_ensemble_TSSbin)
 
-# Write function to load these .RData files and save them as .grd files
-
-# Save as a raster file
-writeRaster(proj_present_Acla_ensemble_TSSbin, "test.grd")
-test_raster <- raster("test.grd")
-plot(test_raster)
-
 # Load model
 base_Acla <- readRDS("Acla/Acla.base.Rds")
 
 # Extract the data
-TSS_bin_Acla <- as.data.frame(proj_present_Acla_ensemble_TSSbin, xyz = T)
+TSS_bin_Acla <- as.data.frame(proj_present_Acla_ensemble_TSSbin, xy = T)
 brick(proj_present_Acla_ensemble_TSSbin)
 
-# The coords for the MAXENT data
-MAXENT_points <- rbind(
+# The coords for the ensemble model data
+ensemble_points <- rbind(
   read_csv("metadata/Acla_MaxEnt.csv")[1:4],
   read_csv("metadata/Aesc_MaxEnt.csv")[1:4],
   read_csv("metadata/Slat_MaxEnt.csv")[1:4],
@@ -89,7 +82,7 @@ load("data/best_rf_agarum.RData")
 load("data/best_rf_alaria.RData")
 
 
-# Load MAXENT data --------------------------------------------------------
+# Load ensemble models ----------------------------------------------------
 
 # Function for loading MAXENT .tif files as data.frames in the study area
 load_MAX_sub <- function(file_name){
@@ -119,7 +112,7 @@ MAX_Laminariales <- plyr::ldply(c("data/Ldig_avg.asc", "data/Lsol_avg.asc", "dat
   plyr::ddply(.data = ., .variables = c("lon", "lat"), .parallel = T,
               .fun = plyr::summarise, suitability = mean(suitability), presence = ceiling(mean(presence)))
 
-# Alaria Aesc - 0.233
+# Alaria; Aesc - 0.233
 MAX_Alaria <- load_MAX_sub("data/Aesc_avg.asc" ) %>% 
   mutate(presence = case_when(suitability >= 0.233 ~ 1, TRUE ~ 0))
 
