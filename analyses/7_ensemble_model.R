@@ -505,144 +505,117 @@ str(em.vi.list)
 # 10: Visualise ensemble models -------------------------------------------
 
 # Load data used for maps etc.
-source("analyses/4_kelp_cover.R")
-# load("data/Arctic_BO.RData")
-# Arctic_BO <- Arctic_BO %>% 
-  # mutate(lon = round(lon, 4), lat = round(lat, 4))
 load("data/Arctic_AM.RData")
 colnames(Arctic_AM)[4] <- "depth"
 Arctic_AM <- Arctic_AM %>%
   mutate(lon = round(lon, 4), lat = round(lat, 4))
-# Arctic_env <- right_join(Arctic_BO, Arctic_AM)
-# Arctic_env$env_index <- 1:nrow(Arctic_env)
-# rm(Arctic_BO, Arctic_AM); gc()
 
 # Choose a species
-sps_choice <- sps_names[1]
+# sps_choice <- sps_names[1]
 
 # Function that outputs BIOMOD projection comparison figures
 plot_biomod <- function(sps_choice){
+  # Load the species points
+  sps_points <- read_csv(sps_files[str_which(sps_files,sps_choice)]) %>% 
+    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
+                                            as.matrix(.[,2:3]), k = 1))) %>%
+    left_join(global_coords, by = "env_index") %>% 
+    dplyr::select(Sp, lon.y, lat.y) %>%
+    dplyr::rename(lon = lon.y, lat = lat.y)
   
+  # Load the ensemble projections
+  biomod_project_present <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,"_ensemble_TSSbin.RData"))
+  biomod_project_2050 <- loadRData(paste0(sps_choice,"/proj_2050/proj_2050_",sps_choice,"_ensemble_TSSbin.RData"))
+  biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
+  
+  # Convert to data.frames
+  rast_df <- function(rast){
+    df_out <- as.data.frame(rast[[1]], xy = T) %>% 
+      `colnames<-`(c("lon", "lat", "presence")) %>% 
+      mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+      left_join(Arctic_AM, by = c("lon", "lat")) %>% 
+      na.omit() 
+  }
+  df_project_present <- rast_df(biomod_project_present[[1]])
+  df_project_2050 <- rast_df(biomod_project_2050[[1]])
+  df_project_2100 <- rast_df(biomod_project_2100[[1]])
+  
+  # Visualise present data
+  plot_present <- df_project_present %>% 
+    filter(land_distance <= 100 | depth <= 100) %>% 
+    ggplot(aes(x = lon, y = lat)) +
+    geom_tile(aes(fill = presence)) +
+    borders(fill = "grey90", colour = "black") +
+    geom_point(data = sps_points, colour = "yellow", size = 0.5) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    scale_fill_manual(values = c("grey20", "forestgreen")) +
+    labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present")) +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  
+  # Function for visualising changes over time
+  plot_diff <- function(df_future){
+    plot_out <- left_join(df_project_present, df_future, 
+                          by = c("lon", "lat", "land_distance", "depth")) %>% 
+      mutate(change = factor(presence.x - presence.y, 
+                             levels = c("-1", "0", "1"),
+                             labels = c("increase", "same", "decrease"))) %>% 
+      na.omit() %>% 
+      filter(land_distance <= 100 | depth <= 100) %>% 
+      ggplot(aes(x = lon, y = lat)) +
+      geom_tile(aes(fill = change)) +
+      borders(fill = "grey90", colour = "black") +
+      scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+      scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+      coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                     ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+      scale_fill_brewer(palette = "Set1", direction = -1) +
+      labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present - 2050")) +
+      theme_bw() +
+      theme(legend.position = "bottom",
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank())
+  }
+  
+  # Visualise present - 2050
+  plot_2050 <- plot_diff(df_project_2050)
+  
+  # Visualise present - 2100
+  plot_2100 <- plot_diff(df_project_2100)
+  
+  # Combine and save
+  plot_ALL <- cowplot::plot_grid(
+    cowplot::plot_grid(
+      plot_present + theme(legend.position = "none"),
+      plot_2050 + theme(legend.position = "none"),
+      plot_2100 + theme(legend.position = "none"),
+      ncol = 3,
+      align = "v"),
+    cowplot::plot_grid(
+      cowplot::get_legend(plot_present),
+      ggplot() + theme_void(),
+      cowplot::get_legend(plot_2100),
+      ncol = 3, rel_widths = c(1, 0, 1.5)),
+    nrow = 2, rel_heights = c(10,1)
+  )
+  ggsave(paste0("graph/biomod_diff_",sps_choice,".png"), plot_ALL, width = 8, height = 4.7)
 }
 
-# Load the species points
-sps_points <- read_csv(sps_files[str_which(sps_files,sps_choice)]) %>% 
-  mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
-                                          as.matrix(.[,2:3]), k = 1))) %>%
-  left_join(global_coords, by = "env_index") %>% 
-  dplyr::select(Sp, lon.y, lat.y) %>%
-  dplyr::rename(lon = lon.y, lat = lat.y)
-
-# Load the ensemble projections
-biomod_project_present <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,"_ensemble_TSSbin.RData"))
-biomod_project_2050 <- loadRData(paste0(sps_choice,"/proj_2050/proj_2050_",sps_choice,"_ensemble_TSSbin.RData"))
-biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
-
-# Convert to data.frames
-rast_df <- function(rast){
-  df_out <- as.data.frame(rast[[1]], xy = T) %>% 
-    `colnames<-`(c("lon", "lat", "presence")) %>% 
-    mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
-    left_join(Arctic_AM, by = c("lon", "lat")) %>% 
-    na.omit() 
-}
-df_project_present <- rast_df(biomod_project_present[[1]])
-df_project_2050 <- rast_df(biomod_project_2050[[1]])
-df_project_2100 <- rast_df(biomod_project_2100[[1]])
-
-# Visualise present data
-plot_present <- df_project_present %>% 
-  filter(land_distance <= 100 | depth <= 100) %>% 
-  ggplot(aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = presence)) +
-  borders(fill = "grey90", colour = "black") +
-  geom_point(data = sps_points, colour = "yellow", size = 0.5) +
-  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_manual(values = c("grey20", "forestgreen")) +
-  labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present")) +
-  theme_bw() +
-  theme(legend.position = "bottom")
-# plot_present
-
-# Visualise present - 2050
-plot_2050 <- left_join(df_project_present, df_project_2050, 
-                       by = c("lon", "lat", "land_distance", "depth")) %>% 
-  mutate(change = factor(presence.x - presence.y, 
-                         levels = c("-1", "0", "1"),
-                         labels = c("increase", "same", "decrease"))) %>% 
-  na.omit() %>% 
-  filter(land_distance <= 100 | depth <= 100) %>% 
-  ggplot(aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = change)) +
-  borders(fill = "grey90", colour = "black") +
-  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_brewer(palette = "Set1", direction = -1) +
-  labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present - 2050")) +
-  theme_bw() +
-  theme(legend.position = "bottom")#,
-        # legend.margin = margin(0,0,0,0),
-        # legend.box.margin = margin(-10,-10,-10,-10))
-# plot_2050
-
-# Visualise present - 2100
-plot_2100 <- left_join(df_project_present, df_project_2100, 
-                       by = c("lon", "lat", "land_distance", "depth")) %>% 
-  mutate(change = factor(presence.x - presence.y, 
-                         levels = c("-1", "0", "1"),
-                         labels = c("increase", "same", "decrease"))) %>% 
-  na.omit() %>% 
-  filter(land_distance <= 100 | depth <= 100) %>% 
-  ggplot(aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = change)) +
-  borders(fill = "grey90", colour = "black") +
-  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_brewer(palette = "Set1", direction = -1) +
-  labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present - 2100")) +
-  theme_bw() +
-  theme(legend.position = "bottom")#,
-        # legend.margin = margin(0,0,0,0),
-        # legend.box.margin = margin(-10,-10,-10,-10))
-# plot_2100
-
-# Combine and save
-plot_future <- ggpubr::ggarrange(plot_2050, plot_2100, legend = "bottom", common.legend = T, align = "hv")
-# plot_future <- cowplot::plot_grid(plot_2050, plot_2100, align = "hv")
-plot_ALL <- ggpubr::ggarrange(plot_present, plot_future, widths = c(1.2, 2))#, nrow = 1, ncol = 2, widths = c(1.1, 2), align = "v")
-plot_ALL <- ggpubr::ggarrange(plot_present, plot_2050, plot_2100, legend = "bottom", common.legend = T, nrow = 1, ncol = 3, align = "hv")
-# plot_ALL
-
-
-plot_ALL <- cowplot::plot_grid(
-  cowplot::plot_grid(
-    plot_present + theme(legend.position = "none"),
-    plot_2050 + theme(legend.position = "none"),
-    plot_2100 + theme(legend.position = "none"),
-    ncol = 3,
-    align = "hv"),
-  cowplot::plot_grid(
-    cowplot::get_legend(plot_present),
-    ggplot() + theme_void(),
-    cowplot::get_legend(plot_2100),
-    ncol = 3, rel_widths = c(1, 0, 1.5)),
-  nrow = 2, rel_heights = c(7,1)
-)
-ggsave(paste0("graph/biomod_diff_",sps_choice,".png"), plot_ALL, width = 8, height = 5)
+# Create all visuals
+registerDoParallel(cores = 5)
+plyr::l_ply(sps_names, plot_biomod, .parallel = T)
 
 
 # 11: Save ensemble models as .grd files ----------------------------------
 
 # Write function to load these .RData files and save them as .grd files
 
-# Save as a raster file
-writeRaster(proj_present_Acla_ensemble_TSSbin, "test.grd")
-test_raster <- raster("test.grd")
-plot(test_raster)
+# Save as a raster file # NB: Still testing
+# load("Acla/proj_present/proj_present_Acla_ensemble_TSSbin.RData")
+# writeRaster(proj_present_Acla_ensemble_TSSbin, "test.grd")
+# test_raster <- raster("test.grd")
+# plot(test_raster)
+
