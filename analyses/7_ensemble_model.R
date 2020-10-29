@@ -582,10 +582,12 @@ plot_2050 <- left_join(df_project_present, df_project_2050,
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                  ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_brewer(palette = "Set1") +
+  scale_fill_brewer(palette = "Set1", direction = -1) +
   labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present - 2050")) +
   theme_bw() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom")#,
+        # legend.margin = margin(0,0,0,0),
+        # legend.box.margin = margin(-10,-10,-10,-10))
 # plot_2050
 
 # Visualise present - 2100
@@ -603,21 +605,36 @@ plot_2100 <- left_join(df_project_present, df_project_2100,
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                  ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_brewer(palette = "Set1") +
+  scale_fill_brewer(palette = "Set1", direction = -1) +
   labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present - 2100")) +
   theme_bw() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom")#,
+        # legend.margin = margin(0,0,0,0),
+        # legend.box.margin = margin(-10,-10,-10,-10))
 # plot_2100
 
 # Combine and save
-plot_future <- ggpubr::ggarrange(plot_2050, plot_2100, legend = "bottom", common.legend = T, align = "hv") +
-  theme(legend.margin = margin(0,0,0,0),
-        legend.box.margin = margin(-10,-10,-10,-10),
-        legend.key.size = unit(10, "points"))
+plot_future <- ggpubr::ggarrange(plot_2050, plot_2100, legend = "bottom", common.legend = T, align = "hv")
 # plot_future <- cowplot::plot_grid(plot_2050, plot_2100, align = "hv")
-# plot_ALL <- ggpubr::ggarrange(plot_present, plot_future, widths = c(1.2, 2))#, nrow = 1, ncol = 2, widths = c(1.1, 2), align = "v")
-plot_ALL <- ggpubr::ggarrange(plot_present, plot_2050, plot_2100, nrow = 1, ncol = 3, align = "hv")
+plot_ALL <- ggpubr::ggarrange(plot_present, plot_future, widths = c(1.2, 2))#, nrow = 1, ncol = 2, widths = c(1.1, 2), align = "v")
+plot_ALL <- ggpubr::ggarrange(plot_present, plot_2050, plot_2100, legend = "bottom", common.legend = T, nrow = 1, ncol = 3, align = "hv")
 # plot_ALL
+
+
+plot_ALL <- cowplot::plot_grid(
+  cowplot::plot_grid(
+    plot_present + theme(legend.position = "none"),
+    plot_2050 + theme(legend.position = "none"),
+    plot_2100 + theme(legend.position = "none"),
+    ncol = 3,
+    align = "hv"),
+  cowplot::plot_grid(
+    cowplot::get_legend(plot_present),
+    ggplot() + theme_void(),
+    cowplot::get_legend(plot_2100),
+    ncol = 3, rel_widths = c(1, 0, 1.5)),
+  nrow = 2, rel_heights = c(7,1)
+)
 ggsave(paste0("graph/biomod_diff_",sps_choice,".png"), plot_ALL, width = 8, height = 5)
 
 
