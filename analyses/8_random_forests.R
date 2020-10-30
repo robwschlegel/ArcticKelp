@@ -13,32 +13,40 @@ library(OneR) # For single rule machine learning
 # library(caret) # For cross validation option
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
+# Load BO layer names used for the ensemble models
+load("metadata/BO_vars.RData")
+
 # Environmental data per site
 load("data/study_site_env.RData")
+study_site_env <- study_site_env %>% 
+  dplyr::select(site:land_distance, all_of(BO_vars))
 
 # Load Arctic data for testing variable correlations and for making model projections
 load("data/Arctic_BO.RData")
 Arctic_BO <- Arctic_BO %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4))
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+  dplyr::select(lon, lat, all_of(BO_vars))
 load("data/Arctic_AM.RData")
 Arctic_AM <- Arctic_AM %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))
-Arctic_env <- right_join(Arctic_BO, Arctic_AM)
+Arctic_env <- right_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
 rm(Arctic_BO); gc()
 
 # Load future layers
 load("data/Arctic_BO_2050.RData")
 Arctic_env_2050 <- Arctic_BO_2050 %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
-  right_join(Arctic_AM, by = c("lon", "lat"))
+  dplyr::select(lon, lat, all_of(BO_vars)) %>% 
+  right_join(Arctic_AM, by = c("lon", "lat")) 
 load("data/Arctic_BO_2100.RData")
 Arctic_env_2100 <- Arctic_BO_2100 %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
-  right_join(Arctic_AM, by = c("lon", "lat"))
+  dplyr::select(lon, lat, all_of(BO_vars)) %>% 
+  right_join(Arctic_AM, by = c("lon", "lat")) 
 rm(Arctic_AM, Arctic_BO_2050, Arctic_BO_2100); gc()
 
 # Load the BO correlation matrix
-load("data/BO_cor_matrix.RData")
+# load("data/BO_cor_matrix.RData")
 
 # Remove scientific notation from data.frame displays in RStudio
 options(scipen = 9999)
@@ -53,9 +61,6 @@ Arctic_map <- ggplot() +
 
 # See how well the models perform given the restrictions in range between the different 
 # bounding boxes that can be used
-
-# Run a regression to see in which direction the relationships with percent cover 
-# are with the top variables. e.g. more cover with more iron
 
 
 # Data --------------------------------------------------------------------
@@ -170,30 +175,30 @@ top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
 # top_var(kelp_choice = "Agarum", df = kelp_all)
 
 # Convenience wrapper to remove correlated variables
-cor_var_rm <- function(df_multi){
-  
-  # Order the dataframe based on the Increase in MSE
-  df_ordered <- arrange(df_multi, -X.IncMSE)
-  
-  # Remove variables that correlate with better predictors
-  row_i <- 2
-  cor_df <- df_ordered
-  while(row_i < nrow(cor_df)){
-    cor_cols <- cor_df[1:row_i-1, "var"]
-    cor_check <- cor_df[row_i, "var"]
-    BO_cor_check <- BO_cor_matrix %>% 
-      dplyr::select(Parameter1, cor_cols$var) %>% 
-      filter(Parameter1 == cor_check$var) %>% 
-      pivot_longer(cols = -Parameter1) %>% 
-      filter(abs(value) >= 0.7)
-    if(nrow(BO_cor_check) > 0){
-      cor_df <- cor_df[-row_i,]
-    } else{
-      row_i <- row_i+1
-    }
-  }
-  return(cor_df)
-}
+# cor_var_rm <- function(df_multi){
+#   
+#   # Order the dataframe based on the Increase in MSE
+#   df_ordered <- arrange(df_multi, -X.IncMSE)
+#   
+#   # Remove variables that correlate with better predictors
+#   row_i <- 2
+#   cor_df <- df_ordered
+#   while(row_i < nrow(cor_df)){
+#     cor_cols <- cor_df[1:row_i-1, "var"]
+#     cor_check <- cor_df[row_i, "var"]
+#     BO_cor_check <- BO_cor_matrix %>% 
+#       dplyr::select(Parameter1, cor_cols$var) %>% 
+#       filter(Parameter1 == cor_check$var) %>% 
+#       pivot_longer(cols = -Parameter1) %>% 
+#       filter(abs(value) >= 0.7)
+#     if(nrow(BO_cor_check) > 0){
+#       cor_df <- cor_df[-row_i,]
+#     } else{
+#       row_i <- row_i+1
+#     }
+#   }
+#   return(cor_df)
+# }
 
 # We then run this 1000 times to increase our certainty in the findings
 top_var_multi <- function(kelp_choice, df = kelp_all){
@@ -206,11 +211,12 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
   multi_kelp_mean <- multi_kelp %>% 
     group_by(var) %>% 
     summarise_all(mean) %>% 
-    ungroup()
+    ungroup() %>% 
+    arrange(-X.IncMSE)
   
   # Remove correlated variables and exit
-  res <- cor_var_rm(multi_kelp_mean)
-  return(res)
+  # res <- cor_var_rm(multi_kelp_mean)
+  return(multi_kelp_mean)
 }
 
 ## Find the top variables for the different kelp covers
@@ -222,7 +228,7 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 # top_var_laminariales <- top_var_multi("Laminariales")
 # save(top_var_laminariales, file = "data/top_var_laminariales.RData")
 
-# Agarum
+# # Agarum
 # top_var_agarum <- top_var_multi("Agarum")
 # save(top_var_agarum, file = "data/top_var_agarum.RData")
 
@@ -600,4 +606,10 @@ project_compare <- function(best_rf, kelp_choice){
 # project_compare(best_rf_laminariales, "Laminariales")
 # project_compare(best_rf_agarum, "Agarum")
 # project_compare(best_rf_alaria, "Alaria")
+
+
+# Relationship between cover and physical variables -----------------------
+
+# Run a regression to see in which direction the relationships with percent cover 
+# are with the top variables. e.g. more cover with more iron
 

@@ -78,6 +78,10 @@ Arctic_excl <- Arctic_excl_pre %>%
 Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 # plot(Arctic_excl_stack) # Visualise raster stack
 
+# Save column names for use with Random Forest variable screening
+BO_vars <- colnames(Arctic_excl)[c(-1, -2)]
+save(BO_vars, file = "metadata/BO_vars.RData")
+
 # Subset of present data used for projections
 Arctic_excl_sub <- Arctic_excl %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
@@ -557,7 +561,7 @@ plot_biomod <- function(sps_choice){
     theme(legend.position = "bottom")
   
   # Function for visualising changes over time
-  plot_diff <- function(df_future){
+  plot_diff <- function(df_future, year_label){
     plot_out <- left_join(df_project_present, df_future, 
                           by = c("lon", "lat", "land_distance", "depth")) %>% 
       mutate(change = factor(presence.x - presence.y, 
@@ -573,7 +577,7 @@ plot_biomod <- function(sps_choice){
       coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                      ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
       scale_fill_brewer(palette = "Set1", direction = -1) +
-      labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present - 2050")) +
+      labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present - ",year_label)) +
       theme_bw() +
       theme(legend.position = "bottom",
             axis.text.y = element_blank(),
@@ -581,10 +585,10 @@ plot_biomod <- function(sps_choice){
   }
   
   # Visualise present - 2050
-  plot_2050 <- plot_diff(df_project_2050)
+  plot_2050 <- plot_diff(df_project_2050, "2050")
   
   # Visualise present - 2100
-  plot_2100 <- plot_diff(df_project_2100)
+  plot_2100 <- plot_diff(df_project_2100, "2100")
   
   # Combine and save
   plot_ALL <- cowplot::plot_grid(
