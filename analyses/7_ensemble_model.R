@@ -484,27 +484,6 @@ biomod_ensemble <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,"en
 apply(models_var_import, c(1,2), mean, na.rm = T)
 apply(apply(models_var_import, c(1,2), mean, na.rm = T), 1, mean) # Overall mean per variable
 
-### The other hint of how this could be done is similar to this, but still struggling to get the list
-# https://r-forge.r-project.org/forum/forum.php?thread_id=31877&forum_id=4342&group_id=302
-## get BIOMOD_Modeling output object
-bm.mod <- get(load(biomod_ensemble@models.out.obj@link))
-
-## load ensemble models
-em.mods.names <- BIOMOD_LoadModels(biomod_ensemble)
-em.mods.names
-
-## by default variable importance is not computed with ensemble models
-get_variables_importance(biomod_ensemble)
-
-## but you can do it a posteriori
-  # NB: This takes over an hour to run
-em.vi.list <- lapply(em.mods.names,
-                     function(emn) {
-                       variables_importance(get(emn), data = get_formal_data(bm.mod,'expl.var'))
-                     })
-names(em.vi.list) <- em.mods.names
-str(em.vi.list)
-
 
 # 10: Visualise ensemble models -------------------------------------------
 
