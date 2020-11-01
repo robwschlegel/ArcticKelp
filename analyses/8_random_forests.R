@@ -14,7 +14,10 @@ library(OneR) # For single rule machine learning
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
 # Load BO layer names used for the ensemble models
+  # NB: Somehow the ensembles were given a different salinity variable
+  # This will need to be corrected later
 load("metadata/BO_vars.RData")
+BO_vars[4] <- "BO2_salinityltmax_ss" 
 
 # Environmental data per site
 load("data/study_site_env.RData")
@@ -220,6 +223,8 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 }
 
 ## Find the top variables for the different kelp covers
+# registerDoParallel(cores = 50)
+
 # kelp.cover
 # system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~16 seconds on 50 cores
 # save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
@@ -380,7 +385,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
 }
 
 # Set cores
-# doParallel::registerDoParallel(cores = 50)
+doParallel::registerDoParallel(cores = 50)
 
 # Kelp.cover
 # system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 230 seconds with 50 cores

@@ -1,12 +1,6 @@
 ---
 title: "**Current and future habitat suitability and abundance of kelps in the Eastern Canadian Arctic**"
 author: "**_Robert W Schlegel_**^1^, _Jésica Goldsmit_^2,3,4^, Karen Filbee-Dexter^2,5^, Kathleen A MacGregor^2,3^, Ladd E Johnson^2^, Christopher J Mundy^6^, Amanda Savoie^7^, Christopher W McKindsey^2,3^, Kimberly L Howland^2,4^, Philippe Archambault^2^"
-# author:
-#   - name: "**_Robert W Schlegel_**"
-#     affiliation: Dalhousie
-#   - name: "**_Robert W Schlegel_**"
-#     affiliation: Dalhousie
-# institute: "^1^Australia, ^2^Dalhousie, ^3^WHOI, ^4^Oher places"
 date: "December 8th, 2020"
 output:
   html_document:
@@ -39,8 +33,6 @@ bibliography: ArcticKelp.bib
 ^6^Center of Earth Observation Science, University of Manitoba, Winnipeg, Manitoba, Canada  
 ^7^Centre for Arctic Knowledge and Exploration, Canadian Museum of Nature, Ottawa, ON, Canada  
 
-![](figure/ArcticKelp logo.png){ width=100% }
-
 ***
 
 # Introduction
@@ -61,41 +53,47 @@ bibliography: ArcticKelp.bib
 
 ### Existing database
 
-![](figure/kelp_question.png){ width=90% }
+- Canadian Museum of Nature (CANA)
+- Global Biodiversity Information Facility (GBIF; www.gbif.org)
+- Ocean Biogeographic Information System (OBIS; www.obis.org) 
+- Literature [@Borum2002; @Hop2016; @Schoenrock2018; @Filbee2019; @Ronowicz2020]
+- ArcticKelp project
 
-### _Arctic_**Kelp** project{.tabset}
+### ArcticKelp project {.tabset}
 
-- This dive research conducted throughout the Canadian Arctic in 2014 - 2019 
+![](figure/ArcticKelp logo.png){ width=100% }
+
+- Dive research conducted throughout the Canadian Arctic in 2014 - 2019 
     - 5 - 20 m photograph quadrats
 
 #### Campaigns
 
 ![](figure/study_site_campaign.png){ width=90% }
 
-***
-
 #### Mean cover
 
 ![](figure/study_site_mean_cover.png){ width=90% }
 
-***
-
 ## Questions
 
 - Is it possible to model the distribution (suitability + abundance) of different functional groups of kelps in the Arctic given our current knowledge?
-  - Total kelp cover
+  <!-- - Total kelp cover -->
   - Laminariales (_Laminaria_ sp. + _Sacharina_ sp.)
   - _Agarum_
   - _Alaria_
 - How accurate are the models?
 - Which environmental variables are the most important?
-- What might future distributions look like?
+- What do present + future distributions look like?
 
 ***
 
 # Methods
 
-## Data {.tabset}
+## Study region
+
+![](figure/Arctic_region_map.png){ width=100% }
+
+## Environmental data {.tabset}
 
 ![](figure/BO_logo.png){ width=90% }  
 [@Tyberghein2012; @Assis2018b]  
@@ -105,10 +103,8 @@ bibliography: ArcticKelp.bib
 - Collection from many different datasets
 - Surface and benthic coverage
 - Data from 2000 - 2014 for most
-- Single values per pixel; min, mean, max, and range for most
+- Single values per pixel: min, mean, max, and range for most
 - 5 arcdegree spatial resolution (~9.2 km at the equator)
-
-***
 
 ### Variables (32)
 - Temperature
@@ -116,19 +112,17 @@ bibliography: ArcticKelp.bib
 - Ice thickness (surface only)
 - Current velocity
 - Photosynthetically active radiation (PAR; surface only)
-- Dissolve oxygen
+- Dissolved oxygen
 - Iron
 - Nitrate
 - Phosphate
-
-***
 
 ### Final variables (8)
 
 - Bottom temperature; long-term minimum
 - Bottom temperature; long-term maximum
 - Surface temperature; long-term maximum
-- Bottom salinity; long-term maximum
+- Surface salinity; long-term maximum
 - Ice thickness; long-term minimum
 - Bottom iron; long-term maximum
 - Bottom phosphate; long-term maximum
@@ -143,151 +137,262 @@ bibliography: ArcticKelp.bib
 - Ice thickness; long-term minimum
 - Bottom current velocity; long-term minimum
 
-***
-
 ## Ensemble model (suitability)
 
-- Ensemble performed with default BIOMOD2 settings [@biomod2020]  
+- Presnce data
+- Ensemble performed with default BIOMOD2 R package settings [@biomod2020]  
 - Models: MAXENT (Phillips), GLM, ANN, RF, GAM [@Goldsmit2020]  
-- Random-pseudo absence (PA); 1000 points; 5 repetitions  
+- Random pseudo-absence (PA); 1000 points; 5 repetitions  
 - 70/30 train test split  
+- 0.7 TSS cutoff  
 - Modeled for entire Arctic ecoregion  
 - Results cropped to Eastern Canadian Arctic  
 
 ## Random forest model (abundance)
 
+- Percent cover data
 - 200 trees; 1000 repetitions  
 - 70/30 train test split  
 - Modeled only for Eastern Canadian Arctic
 
 ***
 
-# Results
+# Results {.tabset}
 
-## Ensemble
+## Ensemble {.tabset}
 
-## Random Forest
+### Confidence {.tabset -}
 
-### Confidence {.tabset}
+#### Laminariales {.tabset -}
 
-#### Laminariales
+##### _digitata_ {-}
 
-![](figure/conf_laminariales.png){ width=90% }
-
-***
-
-#### _Agarum_
-
-![](figure/conf_agarum.png){ width=90% }
+![](figure/conf_ensemble_Ldig.png){ width=100% }
 
 ***
 
-#### _Alaria_
+##### _solidungula_ {-}
 
-![](figure/conf_alaria.png){ width=90% }
-
-***
-
-#### Total cover
-
-![](figure/conf_kelpcover.png){ width=90% }
+![](figure/conf_ensemble_Lsol.png){ width=100% }
 
 ***
 
-### Top variables {.tabset}
+##### _latissima_ {-}
 
-<!-- Show top five and bottom five. Show the average Inc MSE/1000 -->
+![](figure/conf_ensemble_Slat.png){ width=100% }
 
-#### Laminariales
+***
+
+#### _Agarum_ {-}
+
+![](figure/conf_ensemble_Acla.png){ width=90% }
+
+***
+
+#### _Alaria_ {-}
+
+![](figure/conf_ensemble_Aesc.png){ width=90% }
+
+***
+
+### Variables {.tabset -}
+
+#### Laminariales {.tabset -}
+
+##### _digitata_ {-}
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(dplyr)
-load("data/top_full_laminariales.RData")
-knitr::kable(x = top_full_laminariales, format = "html") %>%
+load("data/var_imp_ensemble_Ldig.RData")
+knitr::kable(x = var_import, format = "html") %>%
   kableExtra::kable_styling(full_width = T, font_size = 20)
 ```
 
 ***
 
-#### _Agarum_
+##### _solidungula_ {-}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+load("data/var_imp_ensemble_Lsol.RData")
+knitr::kable(x = var_import, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+##### _latissima_ {-}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+load("data/var_imp_ensemble_Slat.RData")
+knitr::kable(x = var_import, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+#### _Agarum_  {-}
 
 ```{r, echo=FALSE}
-load("data/top_full_agarum.RData")
-knitr::kable(x = top_full_agarum, format = "html") %>%
+load("data/var_imp_ensemble_Acla.RData")
+knitr::kable(x = var_import, format = "html") %>%
   kableExtra::kable_styling(full_width = T, font_size = 20)
 ```
 
 ***
 
-#### _Alaria_
+#### _Alaria_  {-}
 
 ```{r, echo=FALSE}
-load("data/top_full_alaria.RData")
-knitr::kable(x = top_full_alaria, format = "html") %>%
+load("data/var_imp_ensemble_Aesc.RData")
+knitr::kable(x = var_import, format = "html") %>%
   kableExtra::kable_styling(full_width = T, font_size = 20)
 ```
 
-#### Total kelp
+***
+
+### Projections {.tabset -}
+
+#### Laminariales {.tabset -}
+
+##### _digitata_ {-}
+
+![](figure/future_diff_ensemble_Ldig.png){ width=100% }
+
+***
+
+##### _solidungula_ {-}
+
+![](figure/future_diff_ensemble_Lsol.png){ width=100% }
+
+***
+
+##### _latissima_ {-}
+
+![](figure/future_diff_ensemble_Slat.png){ width=100% }
+
+***
+
+#### _Agarum_ {-}
+
+![](figure/future_diff_ensemble_Acla.png){ width=100% }
+
+***
+
+#### _Alaria_ {-}
+
+![](figure/future_diff_ensemble_Aesc.png){ width=100% }
+
+***
+
+## Random Forest {.tabset}
+
+### Confidence {.tabset -}
+
+#### Laminariales {-}
+
+![](figure/conf_RF_laminariales.png){ width=90% }
+
+***
+
+#### _Agarum_ {-}
+
+![](figure/conf_RF_agarum.png){ width=90% }
+
+***
+
+#### _Alaria_ {-}
+
+![](figure/conf_RF_alaria.png){ width=90% }
+
+***
+
+<!-- #### Total cover -->
+
+<!-- ![](figure/conf_kelpcover.png){ width=90% } -->
+
+### Variables {.tabset -}
+
+#### Laminariales {-}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+load("data/var_imp_RF_laminariales.RData")
+knitr::kable(x = var_imp_RF_laminariales, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+#### _Agarum_ {-}
 
 ```{r, echo=FALSE}
-suppressMessages(library(magrittr))
-load("data/top_full_kelpcover.RData")
-knitr::kable(x = top_full_kelpcover, format = "html") %>%
+load("data/var_imp_RF_agarum.RData")
+knitr::kable(x = var_imp_RF_agarum, format = "html") %>%
   kableExtra::kable_styling(full_width = T, font_size = 20)
 ```
 
 ***
 
-### Projections {.tabset}
+#### _Alaria_ {-}
 
-- Note that the colour scales are not the same between figures
-
-#### Laminariales
-
-![](figure/prediction_laminariales.png){ width=90% }
-
-***
-
-#### _Agarum_
-
-![](figure/prediction_agarum.png){ width=90% }
+```{r, echo=FALSE}
+load("data/var_imp_RF_alaria.RData")
+knitr::kable(x = var_imp_RF_alaria, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
 
 ***
 
-#### _Alaria_
+<!-- #### Total kelp -->
 
-![](figure/prediction_alaria.png){ width=90% }
+<!-- ```{r, echo=FALSE} -->
+<!-- suppressMessages(library(magrittr)) -->
+<!-- load("data/top_full_kelpcover.RData") -->
+<!-- knitr::kable(x = top_full_kelpcover, format = "html") %>% -->
+<!--   kableExtra::kable_styling(full_width = T, font_size = 20) -->
+<!-- ``` -->
 
-#### Total cover
+### Projections {.tabset -}
 
-![](figure/prediction_kelpcover.png){ width=90% }
+#### Laminariales {-}
+
+![](figure/future_diff_RF_Laminariales.png){ width=100% }
 
 ***
 
-### Linear regression
+#### _Agarum_ {-}
+
+![](figure/future_diff_RF_Agarum.png){ width=100% }
 
 ***
+
+#### _Alaria_ {-}
+
+![](figure/future_diff_RF_Alaria.png){ width=100% }
+
+***
+
+<!-- #### Total cover -->
+
+<!-- ![](figure/prediction_kelpcover.png){ width=90% } -->
 
 # Conclusions
 
-- Ensemble
-- RF
-- Contrast
-- Why
-  
-- There should be quite a lot of kelp in the Arctic
-- There are different spatial projections for different groups
-- Alaria projections are likely incorrect and require more data
+- Confidence in MAXENT models in the ensembles is low
+- Random forests tend to underestimate large values, and overestimate small ones
+- Temperature is usually one of the most important variables for both models
+- Ice is always the least important for the random forest
+- Laminariales are projected to decline in the future in both models
+- _Agarum_ and _Alaria_ show a mix of increase and decline in both models
 - These projections provide a good platform for deciding future sampling locations
 
 ***
 
 # Further work
 
-<!-- - Better screening of variables used in model -->
-<!-- - More thorough model testing -->
-<!-- - Increase resolution of data -->
-<!-- - Introduce substrate data -->
+- Improve MAXENT models
+- More experimentation with variable choice
+- Comparisons of ensemble and random forest outputs
 
 ***
 
@@ -297,7 +402,35 @@ knitr::kable(x = top_full_kelpcover, format = "html") %>%
 <br>
   
 ![](figure/ofi_logo.jpg){ width=50% }  
-  
+
+***
+
+# Questions ? {.tabset}
+
+## Alaria {-}
+
+![](photo/alaria_1.jpg){ width=70% }
+
+***
+
+## Linear regression {.tabset -}
+
+### Laminariales {-}
+
+![](figure/var_scatter_Laminariales.png){ width=100% }
+
+***
+
+### _Agarum_ {-}
+
+![](figure/var_scatter_Agarum.png){ width=100% }
+
+***
+
+### _Alaria_ {-}
+
+![](figure/var_scatter_Alaria.png){ width=100% }
+
 ***
 
 # References
