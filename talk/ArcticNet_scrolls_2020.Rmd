@@ -78,7 +78,7 @@ bibliography: ArcticKelp.bib
 
 - Is it possible to model the distribution (suitability + abundance) of different functional groups of kelps in the Arctic given our current knowledge?
   <!-- - Total kelp cover -->
-  - Laminariales (_Laminaria_ sp. + _Sacharina_ sp.)
+  - Laminariales (_Laminaria_ sp. + _Saccharina_ sp.)
   - _Agarum_
   - _Alaria_
 - How accurate are the models?
@@ -139,7 +139,7 @@ bibliography: ArcticKelp.bib
 
 ## Ensemble model (suitability)
 
-- Presnce data
+- Presence data
 - Ensemble performed with default BIOMOD2 R package settings [@biomod2020]  
 - Models: MAXENT (Phillips), GLM, ANN, RF, GAM [@Goldsmit2020]  
 - Random pseudo-absence (PA); 1000 points; 5 repetitions  
@@ -165,9 +165,9 @@ bibliography: ArcticKelp.bib
 
 #### Laminariales {.tabset -}
 
-##### _digitata_ {-}
+##### _latissima_ {-}
 
-![](figure/conf_ensemble_Ldig.png){ width=100% }
+![](figure/conf_ensemble_Slat.png){ width=100% }
 
 ***
 
@@ -177,9 +177,9 @@ bibliography: ArcticKelp.bib
 
 ***
 
-##### _latissima_ {-}
+##### _digitata_ {-}
 
-![](figure/conf_ensemble_Slat.png){ width=100% }
+![](figure/conf_ensemble_Ldig.png){ width=100% }
 
 ***
 
@@ -199,11 +199,11 @@ bibliography: ArcticKelp.bib
 
 #### Laminariales {.tabset -}
 
-##### _digitata_ {-}
+##### _latissima_ {-}
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(dplyr)
-load("data/var_imp_ensemble_Ldig.RData")
+load("data/var_imp_ensemble_Slat.RData")
 knitr::kable(x = var_import, format = "html") %>%
   kableExtra::kable_styling(full_width = T, font_size = 20)
 ```
@@ -220,10 +220,10 @@ knitr::kable(x = var_import, format = "html") %>%
 
 ***
 
-##### _latissima_ {-}
+##### _digitata_ {-}
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
-load("data/var_imp_ensemble_Slat.RData")
+load("data/var_imp_ensemble_Ldig.RData")
 knitr::kable(x = var_import, format = "html") %>%
   kableExtra::kable_styling(full_width = T, font_size = 20)
 ```
@@ -254,9 +254,9 @@ knitr::kable(x = var_import, format = "html") %>%
 
 #### Laminariales {.tabset -}
 
-##### _digitata_ {-}
+##### _latissima_ {-}
 
-![](figure/future_diff_ensemble_Ldig.png){ width=100% }
+![](figure/future_diff_ensemble_Slat.png){ width=100% }
 
 ***
 
@@ -266,9 +266,9 @@ knitr::kable(x = var_import, format = "html") %>%
 
 ***
 
-##### _latissima_ {-}
+##### _digitata_ {-}
 
-![](figure/future_diff_ensemble_Slat.png){ width=100% }
+![](figure/future_diff_ensemble_Ldig.png){ width=100% }
 
 ***
 
@@ -392,6 +392,7 @@ knitr::kable(x = var_imp_RF_alaria, format = "html") %>%
 
 - Improve MAXENT models
 - More experimentation with variable choice
+- More model validation
 - Comparisons of ensemble and random forest outputs
 
 ***
@@ -402,6 +403,12 @@ knitr::kable(x = var_imp_RF_alaria, format = "html") %>%
 <br>
   
 ![](figure/ofi_logo.jpg){ width=50% }  
+<br>
+
+- Funding support was also received from DFO
+<br>
+
+![](figure/DFO_Logo.png)
 
 ***
 
