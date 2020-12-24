@@ -566,8 +566,14 @@ project_compare <- function(best_rf, kelp_choice){
   
   # Calculate differences
   project_diff <- best_rf$project_multi %>% 
-    mutate(pred_diff_2050 = pred_2050_mean - pred_present_mean,
-           pred_diff_2100 = pred_2100_mean - pred_present_mean)
+    mutate(pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 20),
+           pred_diff_2100 = pred_2100_mean - pred_present_mean) %>% 
+    mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050))
+    # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
+    # filter(name == "pred_diff_2050" & value != 0) %>% 
+    # pivot_wider()
+    # mutate(pred_diff_2050 = base::cut(pred_2050_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)),
+    #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
   
   # Scale for difference plots
   diff_range <- range(c(project_diff$pred_diff_2050, project_diff$pred_diff_2100), na.rm = T)
@@ -585,7 +591,8 @@ project_compare <- function(best_rf, kelp_choice){
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff, depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_diff_2050)) +
-    scale_fill_gradient2("2050 - present", low = "blue", high = "red", limits = diff_range) +
+    scale_fill_gradient2("2050 - present (%)", low = "blue", high = "red", limits = diff_range, guide = "legend", na.value = NA) +
+    # scale_fill_discrete("2050 - present (%)") +
     theme(legend.position = "bottom",
           axis.ticks.y = element_blank(),
           axis.text.y = element_blank())
@@ -595,7 +602,8 @@ project_compare <- function(best_rf, kelp_choice){
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff, depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_diff_2100)) +
-    scale_fill_gradient2("2100 - present", low = "blue", high = "red", limits = diff_range) +
+    scale_fill_gradient2("2100 - present (%)", low = "blue", high = "red", limits = diff_range) +
+    # scale_fill_discrete("2100 - present (%)") +
     theme(legend.position = "bottom",
           axis.ticks.y = element_blank(),
           axis.text.y = element_blank())
@@ -607,10 +615,10 @@ project_compare <- function(best_rf, kelp_choice){
 }
 
 # Visualise the comparisons
-# project_compare(best_rf_kelpcover, "Total_cover")
+project_compare(best_rf_kelpcover, "Total_cover")
 # project_compare(best_rf_laminariales, "Laminariales")
 # project_compare(best_rf_agarum, "Agarum")
-# project_compare(best_rf_alaria, "Alaria")
+project_compare(best_rf_alaria, "Alaria")
 
 
 # Relationship between cover and physical variables -----------------------
