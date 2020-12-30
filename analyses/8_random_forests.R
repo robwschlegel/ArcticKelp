@@ -615,10 +615,10 @@ project_compare <- function(best_rf, kelp_choice){
 }
 
 # Visualise the comparisons
-project_compare(best_rf_kelpcover, "Total_cover")
+# project_compare(best_rf_kelpcover, "Total_cover")
 # project_compare(best_rf_laminariales, "Laminariales")
 # project_compare(best_rf_agarum, "Agarum")
-project_compare(best_rf_alaria, "Alaria")
+# project_compare(best_rf_alaria, "Alaria")
 
 
 # Relationship between cover and physical variables -----------------------
