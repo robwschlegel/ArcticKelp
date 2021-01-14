@@ -82,10 +82,10 @@ bbox_df <- data.frame(lon = c(bbox_arctic[c(1,1,2,2)]),
                       lat = bbox_arctic[c(3,4,4,3)], id = "bbox")
 
 # make a list
-bbox_list <- split(bbox_df, bbox_df$id)
+# bbox_list <- split(bbox_df, bbox_df$id)
 
 # only want lon-lats in the list, not the names
-bbox_list <- lapply(bbox_list, function(x) { x["id"] <- NULL; x })
+bbox_list <- lapply(split(bbox_df, bbox_df$id), function(x) { x["id"] <- NULL; x })
 
 #  make data.frame into spatial polygon, cf. http://jwhollister.com/iale_open_science/2015/07/05/03-Spatial-Data-In-R/
 
@@ -100,7 +100,6 @@ my_spatial_polys <- SpatialPolygons(list(p1), proj4string = CRS("+proj=longlat +
 
 # let's see them
 plot(my_spatial_polys)
-
 
 # Load the Arctic study region shape file
 Arctic_poly <- readOGR(dsn = "metadata/", layer = "amaplim_lam_poly")
@@ -119,57 +118,25 @@ Arctic_boundary <- rbind(Arctic_boundary,
                                     lat = rep(90, nrow(Arctic_boundary))))
 
 # Overall regions
-fig_1a <- ggplot(data = Arctic_boundary, aes(x = lon, y = lat)) +
-  geom_rect(aes(xmin = bbox_arctic[1], xmax = bbox_arctic[2],
-                ymin = bbox_arctic[3], ymax = bbox_arctic[4]),
-            fill = "forestgreen", colour = "black", alpha = 0.2) +
-  geom_polygon(data = map_base, aes(group = group)) +
-  geom_polygon(fill = "cadetblue1", colour = "black", alpha = 0.2) +
-  geom_point(data = CANA_kelp, aes(x = Longitude, y = Latitude), colour = "red") +
-  coord_quickmap(ylim = c(40, 90), expand = F) +
-  scale_y_continuous(breaks = c(60, 80), labels = c("60°N", "80°N")) +
-  scale_x_continuous(breaks = c(-100, 0, 100), labels = c("100°W", "0°E", "100°E")) +
-  labs(x = NULL, y = NULL) +
-  theme_bw()
-fig_1a
-
-# ArcticKelp campaign map
-basemap(limits = c(-180, 180, 40, 90)) +
+fig_1a <- basemap(limits = c(-180, 180, 40, 90)) +
   annotation_spatial(my_spatial_polys, fill = "forestgreen", alpha = 0.2) +
   annotation_spatial(Arctic_poly, fill = "cadetblue1", alpha = 0.2) +
   geom_spatial_point(data = filter(CANA_kelp, Latitude > 40), 
-                     aes(x = Longitude, y = Latitude), colour = "red") 
+                     aes(x = Longitude, y = Latitude), colour = "red")
+fig_1a
 
-basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
+# ArcticKelp campaign map
+fig_1b <- basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
                    bbox_arctic[3], bbox_arctic[4]), 
         glaciers = TRUE, bathymetry = TRUE, rotate = TRUE) +
-  geom_spatial_point(data = study_sites,
+  geom_spatial_point(data = study_sites, crs = "+init=epsg:4326",
                      aes(x = lon, y = lat, colour = Campaign), size = 4) +
   labs(x = NULL, y = NULL)
-
-fig_1b <- Arctic_map +
-  geom_point(data = study_sites,
-             aes(x = lon, y = lat, colour = Campaign), size = 4) +
-  guides(colour = guide_legend(nrow = 2, byrow = TRUE)) +
-  labs(colour = "Campaign") +
-  theme_bw() +
-  theme(strip.background = element_rect(colour = "white", fill = "white"),
-        legend.position = c(0.55, 0.96),
-        legend.direction = "horizontal",
-        legend.spacing.y = unit(0, "mm"))
 fig_1b
 
-study_site_mean_cover <- Arctic_map +
-  geom_point(data = adf_summary_mean_coords,
-             aes(x = lon, y = lat, colour = mean_cover, shape = Campaign), size = 4) +
-  scale_colour_viridis_c() +
-  labs(colour = "Mean cover (%)", shape = "Depth (m)") +
-  # guides(color = guide_colourbar(order = 1)) +
-  theme(strip.background = element_rect(colour = "white", fill = "white"),
-        legend.position = c(0.55, 0.96),
-        legend.direction = "horizontal",
-        legend.spacing.y = unit(0, "mm"))
-study_site_mean_cover
+# Combine and save
+fig_1 <- ggpubr::ggarrange(fig_1a, fig_1b, nrow = 1, labels = c("A)", "B)"))
+ggsave("figures/fig_1.png", fig_1, height = 6, width = 16)
 
 
 # Table 1 -----------------------------------------------------------------
