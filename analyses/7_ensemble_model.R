@@ -600,8 +600,24 @@ plyr::l_ply(sps_names, plot_biomod, .parallel = T)
 # Write function to load these .RData files and save them as .grd files
 
 # Save as a raster file # NB: Still testing
-# load("Acla/proj_present/proj_present_Acla_ensemble_TSSbin.RData")
-# writeRaster(proj_present_Acla_ensemble_TSSbin, "test.grd")
-# test_raster <- raster("test.grd")
-# plot(test_raster)
+# testers...
+# sps_choice = "Acla"
+# proj_choice = "2050"
+RData_to_grd <- function(df){
+  sps_choice <- df$sps_choice; proj_choice <- df$proj_choice
+  proj_data <- loadRData(paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
+                                "_",sps_choice,"_ensemble_TSSbin.RData"))
+  outfile <- writeRaster(proj_data, format = "GTiff", overwrite = TRUE, 
+                         options = c("INTERLEAVE=BAND", "COMPRESS=LZW"),
+                         # suffix = c("EMmeanByTSS", "EMcvByTSS", "EMciInfByTSS", "EMciSupByTSS"),
+                         filename = paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
+                                           "_",sps_choice,"_ensemble_TSSbin.tif"))
+}
+
+# Run them all
+quick_grid <- expand.grid(sps_choice = sps_names, 
+                          proj_choice = c("present", "2050", "2100"), stringsAsFactors = F) %>% 
+  mutate(plyr_id = 1:n()) %>% 
+  data.frame()
+plyr::d_ply(quick_grid, c("plyr_id"), RData_to_grd, .parallel = T)
 

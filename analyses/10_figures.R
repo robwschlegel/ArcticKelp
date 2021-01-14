@@ -9,10 +9,11 @@ source("analyses/1_study_region_sites.R")
 source("analyses/4_kelp_cover.R")
 
 # Other libraries
-library(ggOceanMaps)
+library(ggOceanMaps) # https://mikkovihtakari.github.io/ggOceanMaps/index.html
 library(raster)
 library(FNN)
 library(sdmpredictors)
+library(sf)
 
 # Function for re-loading .RData files as necessary
 loadRData <- function(fileName){
@@ -50,19 +51,15 @@ Arctic_map <- ggplot() +
 # The base global map with some corrections
 load("metadata/map_base.Rdata")
 
+# MEOW
+MEOW <- read_sf("metadata/MEOW/meow_ecos.shp") %>% 
+  filter(REALM == "Arctic")
+
 
 # Figure 1 ----------------------------------------------------------------
 # The map of the study area with the sample points
-# Also add colour points for abundance (%)
-# From Jesi: What about adding some depth contours on the figure to show 
-# that region is characterized by being relatively shallow in a great extension? 
-# Also add the names of the main regions: Hudson Bay, Hudson Strait, Lancaster Sound, 
-# Davis Strait, etc... And I would delete the name of the stations and just leave the points
-# And I can also include all of the data points from the different sources and show those as colours in a legend.
-# Also add the MEOW as coloured line polygons. Or labels if too much colour is already being used.
-# It may actually be better to show the full Arctic with the study area as a highlighted box 
-# or standalone second panel with a reference arrow or such.
-# Check the code used in the ArcticNet 2020 talk for the map figure as a starting point
+
+# Add the MEOW as coloured line polygons. Or labels if too much colour is already being used.
 
 # Site coordinates
 adf_summary_coords <- left_join(adf_summary, study_sites, by = c("Campaign", "site"))
@@ -74,38 +71,25 @@ adf_summary_mean_coords <- filter(adf_summary_coords, family == "kelp.cover") %>
             range_cover = max(mean_cover)-min(mean_cover), .groups = "drop")
 
 # Create spatial polygon data frame from Arctic bounding box
-test1 <- Polygon(cbind(bbox_arctic[c(1,2,1,2)], bbox_arctic[c(3,4,4,3)]), hole = as.logical(NA))
-test2 <- Polygons(test1, ID)
-SpatialPolygons(test1, pO = 1:length(test1), proj4string = CRS(as.character("+init=epsg:4326")))
-
 bbox_df <- data.frame(lon = c(bbox_arctic[c(1,1,2,2)]), 
                       lat = bbox_arctic[c(3,4,4,3)], id = "bbox")
-
-# make a list
-# bbox_list <- split(bbox_df, bbox_df$id)
 
 # only want lon-lats in the list, not the names
 bbox_list <- lapply(split(bbox_df, bbox_df$id), function(x) { x["id"] <- NULL; x })
 
-#  make data.frame into spatial polygon, cf. http://jwhollister.com/iale_open_science/2015/07/05/03-Spatial-Data-In-R/
+#  COnvert to polygon and add id variable 
+bbox_poly <- Polygons(sapply(bbox_list, Polygon), ID = 1)
 
-# create SpatialPolygons Object, convert coords to polygon
-ps <- sapply(bbox_list, Polygon)
-
-# add id variable 
-p1 <- Polygons(ps, ID = 1) 
-
-# create SpatialPolygons object
-my_spatial_polys <- SpatialPolygons(list(p1), proj4string = CRS("+proj=longlat +datum=WGS84") ) 
-
-# let's see them
-plot(my_spatial_polys)
+# Create SpatialPolygons object
+bbox_spatial <- SpatialPolygons(list(bbox_poly), 
+                                proj4string = CRS("+init=epsg:4326 +proj=longlat")) 
+# plot(bbox_spatial)
 
 # Load the Arctic study region shape file
 Arctic_poly <- readOGR(dsn = "metadata/", layer = "amaplim_lam_poly")
-plot(Arctic_poly)
+# plot(Arctic_poly)
 
-# Convert to a more useful coordinate system
+# Convert to a square coordinate system
 Arctic_flat <- spTransform(Arctic_poly, "+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
 plot(Arctic_flat)
 
@@ -119,24 +103,33 @@ Arctic_boundary <- rbind(Arctic_boundary,
 
 # Overall regions
 fig_1a <- basemap(limits = c(-180, 180, 40, 90)) +
-  annotation_spatial(my_spatial_polys, fill = "forestgreen", alpha = 0.2) +
+  annotation_spatial(bbox_spatial, fill = "forestgreen", alpha = 0.2) +
   annotation_spatial(Arctic_poly, fill = "cadetblue1", alpha = 0.2) +
+  annotation_spatial(MEOW, aes(colour = ECOREGION), fill = NA) +
   geom_spatial_point(data = filter(CANA_kelp, Latitude > 40), 
                      aes(x = Longitude, y = Latitude), colour = "red")
 fig_1a
 
+# Add the names of the main regions: Hudson Bay, Hudson Strait, Lancaster Sound
+label_df <- data.frame(lon = c(-85, -75.17, -82.92),
+                       lat = c(60, 62.544, 74.425),
+                       loc = c("Hudson Bay", "Hudson Straight", "Lancaster Sound"))
+
 # ArcticKelp campaign map
 fig_1b <- basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
                    bbox_arctic[3], bbox_arctic[4]), 
-        glaciers = TRUE, bathymetry = TRUE, rotate = TRUE) +
+        glaciers = TRUE, bathymetry = TRUE,
+        rotate = TRUE) +
+  geom_spatial_label(data = label_df, crs = "+init=epsg:4326",
+                     aes(x = lon, y = lat, label = loc)) +
   geom_spatial_point(data = study_sites, crs = "+init=epsg:4326",
                      aes(x = lon, y = lat, colour = Campaign), size = 4) +
   labs(x = NULL, y = NULL)
 fig_1b
 
 # Combine and save
-fig_1 <- ggpubr::ggarrange(fig_1a, fig_1b, nrow = 1, labels = c("A)", "B)"))
-ggsave("figures/fig_1.png", fig_1, height = 6, width = 16)
+fig_1 <- ggpubr::ggarrange(fig_1a, fig_1b, ncol = 1, labels = c("A)", "B)"))
+ggsave("figures/fig_1.png", fig_1, height = 12, width = 8)
 
 
 # Table 1 -----------------------------------------------------------------
