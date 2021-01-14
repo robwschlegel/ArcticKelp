@@ -1,6 +1,10 @@
 # analyses/9_compare_models.R
 # The purpose of this script is to compare the outputs of the ensemble and RF models
 
+# TO DO
+# Split the results by ecoregions to see how well the models work per region
+# Make a figure showing the accuracy per region polygon
+
 
 # Setup -------------------------------------------------------------------
 
