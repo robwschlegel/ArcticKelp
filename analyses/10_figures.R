@@ -6,10 +6,13 @@
 
 # Load study sites and base packages
 source("analyses/1_study_region_sites.R")
+source("analyses/4_kelp_cover.R")
 
 # Other libraries
+library(ggOceanMaps)
 library(raster)
 library(FNN)
+library(sdmpredictors)
 
 # Function for re-loading .RData files as necessary
 loadRData <- function(fileName){
@@ -37,18 +40,140 @@ sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), p
 # The base map to use for everything else
 Arctic_map <- ggplot() +
   borders(fill = "grey70", colour = "black") +
-  coord_quickmap(expand = F,
-                 xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4])) +
-  labs(x = NULL, y = NULL)
+  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+  labs(x = NULL, y = NULL) +
+  theme(panel.border = element_rect(colour = "black", fill = NA))
 
-# Table 1 -----------------------------------------------------------------
-# Importance of variables by kelps and models
+# The base global map with some corrections
+load("metadata/map_base.Rdata")
 
 
 # Figure 1 ----------------------------------------------------------------
 # The map of the study area with the sample points
 # Also add colour points for abundance (%)
+# From Jesi: What about adding some depth contours on the figure to show 
+# that region is characterized by being relatively shallow in a great extension? 
+# Also add the names of the main regions: Hudson Bay, Hudson Strait, Lancaster Sound, 
+# Davis Strait, etc... And I would delete the name of the stations and just leave the points
+# And I can also include all of the data points from the different sources and show those as colours in a legend.
+# Also add the MEOW as coloured line polygons. Or labels if too much colour is already being used.
+# It may actually be better to show the full Arctic with the study area as a highlighted box 
+# or standalone second panel with a reference arrow or such.
+# Check the code used in the ArcticNet 2020 talk for the map figure as a starting point
+
+# Site coordinates
+adf_summary_coords <- left_join(adf_summary, study_sites, by = c("Campaign", "site"))
+
+# Mean values per site
+adf_summary_mean_coords <- filter(adf_summary_coords, family == "kelp.cover") %>% 
+  group_by(lon, lat, Campaign) %>%
+  summarise(mean_cover = mean(mean_cover),
+            range_cover = max(mean_cover)-min(mean_cover), .groups = "drop")
+
+# Create spatial polygon data frame from Arctic bounding box
+test1 <- Polygon(cbind(bbox_arctic[c(1,2,1,2)], bbox_arctic[c(3,4,4,3)]), hole = as.logical(NA))
+test2 <- Polygons(test1, ID)
+SpatialPolygons(test1, pO = 1:length(test1), proj4string = CRS(as.character("+init=epsg:4326")))
+
+bbox_df <- data.frame(lon = c(bbox_arctic[c(1,1,2,2)]), 
+                      lat = bbox_arctic[c(3,4,4,3)], id = "bbox")
+
+# make a list
+bbox_list <- split(bbox_df, bbox_df$id)
+
+# only want lon-lats in the list, not the names
+bbox_list <- lapply(bbox_list, function(x) { x["id"] <- NULL; x })
+
+#  make data.frame into spatial polygon, cf. http://jwhollister.com/iale_open_science/2015/07/05/03-Spatial-Data-In-R/
+
+# create SpatialPolygons Object, convert coords to polygon
+ps <- sapply(bbox_list, Polygon)
+
+# add id variable 
+p1 <- Polygons(ps, ID = 1) 
+
+# create SpatialPolygons object
+my_spatial_polys <- SpatialPolygons(list(p1), proj4string = CRS("+proj=longlat +datum=WGS84") ) 
+
+# let's see them
+plot(my_spatial_polys)
+
+
+# Load the Arctic study region shape file
+Arctic_poly <- readOGR(dsn = "metadata/", layer = "amaplim_lam_poly")
+plot(Arctic_poly)
+
+# Convert to a more useful coordinate system
+Arctic_flat <- spTransform(Arctic_poly, "+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
+plot(Arctic_flat)
+
+# Convert that to a data.frame
+Arctic_boundary <- as.data.frame(Arctic_flat@polygons[[1]]@Polygons[[1]]@coords) %>%
+  `colnames<-`(c("lon", "lat")) %>%
+  arrange(lon)
+Arctic_boundary <- rbind(Arctic_boundary,
+                         data.frame(lon = rev(Arctic_boundary$lon),
+                                    lat = rep(90, nrow(Arctic_boundary))))
+
+# Overall regions
+fig_1a <- ggplot(data = Arctic_boundary, aes(x = lon, y = lat)) +
+  geom_rect(aes(xmin = bbox_arctic[1], xmax = bbox_arctic[2],
+                ymin = bbox_arctic[3], ymax = bbox_arctic[4]),
+            fill = "forestgreen", colour = "black", alpha = 0.2) +
+  geom_polygon(data = map_base, aes(group = group)) +
+  geom_polygon(fill = "cadetblue1", colour = "black", alpha = 0.2) +
+  geom_point(data = CANA_kelp, aes(x = Longitude, y = Latitude), colour = "red") +
+  coord_quickmap(ylim = c(40, 90), expand = F) +
+  scale_y_continuous(breaks = c(60, 80), labels = c("60°N", "80°N")) +
+  scale_x_continuous(breaks = c(-100, 0, 100), labels = c("100°W", "0°E", "100°E")) +
+  labs(x = NULL, y = NULL) +
+  theme_bw()
+fig_1a
+
+# ArcticKelp campaign map
+basemap(limits = c(-180, 180, 40, 90)) +
+  annotation_spatial(my_spatial_polys, fill = "forestgreen", alpha = 0.2) +
+  annotation_spatial(Arctic_poly, fill = "cadetblue1", alpha = 0.2) +
+  geom_spatial_point(data = filter(CANA_kelp, Latitude > 40), 
+                     aes(x = Longitude, y = Latitude), colour = "red") 
+
+basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
+                   bbox_arctic[3], bbox_arctic[4]), 
+        glaciers = TRUE, bathymetry = TRUE, rotate = TRUE) +
+  geom_spatial_point(data = study_sites,
+                     aes(x = lon, y = lat, colour = Campaign), size = 4) +
+  labs(x = NULL, y = NULL)
+
+fig_1b <- Arctic_map +
+  geom_point(data = study_sites,
+             aes(x = lon, y = lat, colour = Campaign), size = 4) +
+  guides(colour = guide_legend(nrow = 2, byrow = TRUE)) +
+  labs(colour = "Campaign") +
+  theme_bw() +
+  theme(strip.background = element_rect(colour = "white", fill = "white"),
+        legend.position = c(0.55, 0.96),
+        legend.direction = "horizontal",
+        legend.spacing.y = unit(0, "mm"))
+fig_1b
+
+study_site_mean_cover <- Arctic_map +
+  geom_point(data = adf_summary_mean_coords,
+             aes(x = lon, y = lat, colour = mean_cover, shape = Campaign), size = 4) +
+  scale_colour_viridis_c() +
+  labs(colour = "Mean cover (%)", shape = "Depth (m)") +
+  # guides(color = guide_colourbar(order = 1)) +
+  theme(strip.background = element_rect(colour = "white", fill = "white"),
+        legend.position = c(0.55, 0.96),
+        legend.direction = "horizontal",
+        legend.spacing.y = unit(0, "mm"))
+study_site_mean_cover
+
+
+# Table 1 -----------------------------------------------------------------
+# Importance of variables by kelps and models
 
 
 # Figure 2 ----------------------------------------------------------------
@@ -111,17 +236,19 @@ ensemble_diff_plot <- function(df_project, year_label){
     filter(land_distance <= 100 | depth <= 100) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes_string(fill = paste0("change_",year_label))) +
-    borders(fill = "grey90", colour = "black") +
+    borders(fill = "grey60", colour = "black") +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    scale_fill_brewer(palette = "Set1", direction = -1) +
+    # scale_fill_brewer(palette = "Set1", direction = -1) +
+    scale_fill_manual(values = c("forestgreen", "white", "red")) +
     labs(x = NULL, y = NULL, fill = "change", title = paste0(year_label," - present")) +
-    theme_bw() +
+    # theme_bw() +
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
-          axis.ticks.y = element_blank())
+          axis.ticks.y = element_blank(),
+          panel.border = element_rect(colour = "black", fill = NA))
   # diff_plot
 }
 
@@ -173,7 +300,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     mutate(presence = as.logical(presence)) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = presence)) +
-    borders(fill = "grey90", colour = "black") +
+    borders(fill = "grey60", colour = "black") +
     geom_point(data = sps_points, colour = "yellow", size = 0.5) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
@@ -182,7 +309,8 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     scale_fill_manual(values = c("forestgreen")) +
     labs(x = NULL, y = NULL, title = paste0(sps_title)) +
     theme_bw() +
-    theme(legend.position = "bottom")
+    theme(legend.position = "bottom",
+          panel.border = element_rect(colour = "black", fill = NA))
   # plot_present
   
   # Visualise present - 2050 and 2100
@@ -244,10 +372,11 @@ rf_plot <- function(kelp_choice, add_legend = F){
   
   # Calculate differences
   project_diff <- best_rf$project_multi %>% 
-    mutate(pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 10),
-           pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10)) %>% 
-    mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050),
-           pred_diff_2100 = ifelse(pred_diff_2100 == 0, NA, pred_diff_2100))#,
+    mutate(pred_present_round = plyr::round_any(pred_present_mean, 10),
+           pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 10),
+           pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10)) #%>% 
+    # mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050),
+           # pred_diff_2100 = ifelse(pred_diff_2100 == 0, NA, pred_diff_2100))#,
            # pred_diff_2050 = as.factor(pred_diff_2050),
            # pred_diff_2100 = as.factor(pred_diff_2100))
   # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
@@ -257,24 +386,28 @@ rf_plot <- function(kelp_choice, add_legend = F){
   #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
   
   # Scale for difference plots
-  diff_range <- range(c(project_diff$pred_diff_2050, project_diff$pred_diff_2100), na.rm = T)
+  # diff_range <- range(c(project_diff$pred_diff_2050, project_diff$pred_diff_2100), na.rm = T)
   
   # Present plot
   p_present <-  ggplot() +
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff,
-                            pred_present_mean >= 10,
+                            pred_present_round >= 10,
                             depth <= 100 | land_distance <= 100),
-              aes(x = lon, y = lat, fill = pred_present_mean)) +
-    scale_fill_viridis_c(paste0("cover (%)"), limits = c(10, 70)) +
-    borders(fill = "grey90", colour = "black") +
+              aes(x = lon, y = lat, fill = pred_present_round)) +
+    # scale_fill_viridis_c(paste0("cover (%)"), limits = c(10, 70)) +
+    # scale_fill_distiller(palette = "Greens", direction = 1, limits = c(10, 70)) +
+    scale_fill_gradient("cover (%)", low = "white", high = "forestgreen", 
+                        limits = c(0, 70), breaks = c(10, 20, 30, 40, 50, 60), guide = "legend") +
+    borders(fill = "grey60", colour = "black") +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
     labs(x = NULL, y = NULL, title = paste0(sps_title)) +
     theme_bw() +
-    theme(legend.position = "bottom")
+    theme(legend.position = "bottom",
+          panel.border = element_rect(colour = "black", fill = NA))
   # p_present
   
   # 2050 plot
@@ -282,41 +415,43 @@ rf_plot <- function(kelp_choice, add_legend = F){
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff, depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_diff_2050)) +
-    scale_fill_gradient2("change (%)", low = "blue", high = "red", 
-                         limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 10, 20, 30, 40),
+    scale_fill_gradient2("change (%)", low = "red", high = "forestgreen",
+                         limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
                          guide = "legend", na.value = NA) +
     # scale_fill_discrete("2050 - present (%)") +
-    borders(fill = "grey90", colour = "black") +
+    borders(fill = "grey60", colour = "black") +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
     labs(x = NULL, y = NULL, title = "2050 - present") +
-    theme_bw() +
+    # theme_bw() +
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
-          axis.ticks.y = element_blank())
-  # sp_2050
+          axis.ticks.y = element_blank(),
+          panel.border = element_rect(colour = "black", fill = NA))
+  # p_2050
   
   # 2050 plot
   p_2100 <-  ggplot() +
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff, depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_diff_2100)) +
-    scale_fill_gradient2("change (%)", low = "blue", high = "red", 
-                         limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 10, 20, 30, 40), 
+    scale_fill_gradient2("change (%)", low = "red", high = "forestgreen", 
+                         limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40), 
                          guide = "legend", na.value = NA) +
     # scale_fill_discrete("2100 - present (%)") +
-    borders(fill = "grey90", colour = "black") +
+    borders(fill = "grey60", colour = "black") +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
     labs(x = NULL, y = NULL, title = "2100 - present") +
-    theme_bw() +
+    # theme_bw() +
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
-          axis.ticks.y = element_blank())
+          axis.ticks.y = element_blank(),
+          panel.border = element_rect(colour = "black", fill = NA))
   # p_2100
   
   # Combine and exit
