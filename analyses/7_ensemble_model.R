@@ -526,6 +526,7 @@ plot_biomod <- function(sps_choice){
   # Visualise present data
   plot_present <- df_project_present %>% 
     filter(land_distance <= 100 | depth <= 100) %>% 
+    filter(presence == TRUE) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = presence)) +
     borders(fill = "grey90", colour = "black") +
@@ -534,7 +535,7 @@ plot_biomod <- function(sps_choice){
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    scale_fill_manual(values = c("grey20", "forestgreen")) +
+    scale_fill_manual(values = c("forestgreen")) +
     labs(x = NULL, y = NULL, title = paste0(sps_choice,": Present")) +
     theme_bw() +
     theme(legend.position = "bottom")
@@ -543,9 +544,11 @@ plot_biomod <- function(sps_choice){
   plot_diff <- function(df_future, year_label){
     plot_out <- left_join(df_project_present, df_future, 
                           by = c("lon", "lat", "land_distance", "depth")) %>% 
-      mutate(change = factor(presence.x - presence.y, 
-                             levels = c("-1", "0", "1"),
-                             labels = c("increase", "same", "decrease"))) %>% 
+      mutate(change = presence.x - presence.y,
+             change = ifelse(presence.x == F & presence.y == F, NA, change),
+             change =  factor(change, 
+                              levels = c("-1", "0", "1"),
+                              labels = c("gain", "no change", "loss"))) %>% 
       na.omit() %>% 
       filter(land_distance <= 100 | depth <= 100) %>% 
       ggplot(aes(x = lon, y = lat)) +
@@ -597,8 +600,24 @@ plyr::l_ply(sps_names, plot_biomod, .parallel = T)
 # Write function to load these .RData files and save them as .grd files
 
 # Save as a raster file # NB: Still testing
-# load("Acla/proj_present/proj_present_Acla_ensemble_TSSbin.RData")
-# writeRaster(proj_present_Acla_ensemble_TSSbin, "test.grd")
-# test_raster <- raster("test.grd")
-# plot(test_raster)
+# testers...
+# sps_choice = "Acla"
+# proj_choice = "2050"
+RData_to_grd <- function(df){
+  sps_choice <- df$sps_choice; proj_choice <- df$proj_choice
+  proj_data <- loadRData(paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
+                                "_",sps_choice,"_ensemble_TSSbin.RData"))
+  outfile <- writeRaster(proj_data, format = "GTiff", overwrite = TRUE, 
+                         options = c("INTERLEAVE=BAND", "COMPRESS=LZW"),
+                         # suffix = c("EMmeanByTSS", "EMcvByTSS", "EMciInfByTSS", "EMciSupByTSS"),
+                         filename = paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
+                                           "_",sps_choice,"_ensemble_TSSbin.tif"))
+}
+
+# Run them all
+quick_grid <- expand.grid(sps_choice = sps_names, 
+                          proj_choice = c("present", "2050", "2100"), stringsAsFactors = F) %>% 
+  mutate(plyr_id = 1:n()) %>% 
+  data.frame()
+plyr::d_ply(quick_grid, c("plyr_id"), RData_to_grd, .parallel = T)
 

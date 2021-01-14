@@ -177,32 +177,6 @@ top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
 }
 # top_var(kelp_choice = "Agarum", df = kelp_all)
 
-# Convenience wrapper to remove correlated variables
-# cor_var_rm <- function(df_multi){
-#   
-#   # Order the dataframe based on the Increase in MSE
-#   df_ordered <- arrange(df_multi, -X.IncMSE)
-#   
-#   # Remove variables that correlate with better predictors
-#   row_i <- 2
-#   cor_df <- df_ordered
-#   while(row_i < nrow(cor_df)){
-#     cor_cols <- cor_df[1:row_i-1, "var"]
-#     cor_check <- cor_df[row_i, "var"]
-#     BO_cor_check <- BO_cor_matrix %>% 
-#       dplyr::select(Parameter1, cor_cols$var) %>% 
-#       filter(Parameter1 == cor_check$var) %>% 
-#       pivot_longer(cols = -Parameter1) %>% 
-#       filter(abs(value) >= 0.7)
-#     if(nrow(BO_cor_check) > 0){
-#       cor_df <- cor_df[-row_i,]
-#     } else{
-#       row_i <- row_i+1
-#     }
-#   }
-#   return(cor_df)
-# }
-
 # We then run this 1000 times to increase our certainty in the findings
 top_var_multi <- function(kelp_choice, df = kelp_all){
   
@@ -226,8 +200,8 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 # registerDoParallel(cores = 50)
 
 # kelp.cover
-# system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~16 seconds on 50 cores
-# save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
+system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~16 seconds on 50 cores
+save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
 
 # Laminariales
 # top_var_laminariales <- top_var_multi("Laminariales")
@@ -566,8 +540,14 @@ project_compare <- function(best_rf, kelp_choice){
   
   # Calculate differences
   project_diff <- best_rf$project_multi %>% 
-    mutate(pred_diff_2050 = pred_2050_mean - pred_present_mean,
-           pred_diff_2100 = pred_2100_mean - pred_present_mean)
+    mutate(pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 20),
+           pred_diff_2100 = pred_2100_mean - pred_present_mean) %>% 
+    mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050))
+    # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
+    # filter(name == "pred_diff_2050" & value != 0) %>% 
+    # pivot_wider()
+    # mutate(pred_diff_2050 = base::cut(pred_2050_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)),
+    #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
   
   # Scale for difference plots
   diff_range <- range(c(project_diff$pred_diff_2050, project_diff$pred_diff_2100), na.rm = T)
@@ -585,7 +565,8 @@ project_compare <- function(best_rf, kelp_choice){
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff, depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_diff_2050)) +
-    scale_fill_gradient2("2050 - present", low = "blue", high = "red", limits = diff_range) +
+    scale_fill_gradient2("2050 - present (%)", low = "blue", high = "red", limits = diff_range, guide = "legend", na.value = NA) +
+    # scale_fill_discrete("2050 - present (%)") +
     theme(legend.position = "bottom",
           axis.ticks.y = element_blank(),
           axis.text.y = element_blank())
@@ -595,7 +576,8 @@ project_compare <- function(best_rf, kelp_choice){
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff, depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_diff_2100)) +
-    scale_fill_gradient2("2100 - present", low = "blue", high = "red", limits = diff_range) +
+    scale_fill_gradient2("2100 - present (%)", low = "blue", high = "red", limits = diff_range) +
+    # scale_fill_discrete("2100 - present (%)") +
     theme(legend.position = "bottom",
           axis.ticks.y = element_blank(),
           axis.text.y = element_blank())
