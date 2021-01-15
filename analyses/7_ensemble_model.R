@@ -607,11 +607,14 @@ RData_to_grd <- function(df){
   sps_choice <- df$sps_choice; proj_choice <- df$proj_choice
   proj_data <- loadRData(paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
                                 "_",sps_choice,"_ensemble_TSSbin.RData"))
-  outfile <- writeRaster(proj_data, format = "GTiff", overwrite = TRUE, 
-                         options = c("INTERLEAVE=BAND", "COMPRESS=LZW"),
-                         # suffix = c("EMmeanByTSS", "EMcvByTSS", "EMciInfByTSS", "EMciSupByTSS"),
-                         filename = paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
-                                           "_",sps_choice,"_ensemble_TSSbin.tif"))
+  proj_names <- sapply(strsplit(names(proj_data), "_"), "[[", 2)
+  writeRaster(x = proj_data, bylayer = TRUE, suffix = proj_names, overwrite = TRUE,
+              filename = paste0("data/ascii_results/proj_",proj_choice,"_",sps_choice,"_ensemble_TSSbin.asc"))
+  # outfile <- writeRaster(proj_data, format = "ascii", overwrite = TRUE, 
+  #                        options = c("INTERLEAVE=BAND", "COMPRESS=LZW"),
+  #                        # suffix = c("EMmeanByTSS", "EMcvByTSS", "EMciInfByTSS", "EMciSupByTSS"),
+  #                        filename = paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
+  #                                          "_",sps_choice,"_ensemble_TSSbin.asc"))
 }
 
 # Run them all
@@ -620,4 +623,8 @@ quick_grid <- expand.grid(sps_choice = sps_names,
   mutate(plyr_id = 1:n()) %>% 
   data.frame()
 plyr::d_ply(quick_grid, c("plyr_id"), RData_to_grd, .parallel = T)
+
+# Check the output
+test_rast <- raster("data/ascii_results/proj_2050_Acla_ensemble_TSSbin_EMmeanByTSS.asc")
+plot(test_rast)
 

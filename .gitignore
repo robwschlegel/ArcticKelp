@@ -63,3 +63,4 @@ Gulo/proj_2050/*
 !Gulo/proj_2050/*.RData
 Gulo/proj_2100/*
 !Gulo/proj_2100/*.RData
+data/ascii_results
