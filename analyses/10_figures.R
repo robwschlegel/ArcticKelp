@@ -61,6 +61,12 @@ MEOW <- read_sf("metadata/MEOW/meow_ecos.shp") %>%
 
 # Add the MEOW as coloured line polygons. Or labels if too much colour is already being used.
 
+# Load all species points
+sps_data <- map_df(sps_files, read_csv) %>% 
+  # mutate(Sp = case_when(Sp == "Slat" ~ "Aaa",
+  #                       TRUE ~ Sp)) %>% 
+  mutate(Sp = factor(Sp, levels = c("Acla", "Aesc", "Ldig", "Lsol", "Slat")))
+
 # Site coordinates
 adf_summary_coords <- left_join(adf_summary, study_sites, by = c("Campaign", "site"))
 
@@ -71,6 +77,7 @@ adf_summary_mean_coords <- filter(adf_summary_coords, family == "kelp.cover") %>
             range_cover = max(mean_cover)-min(mean_cover), .groups = "drop")
 
 # Create spatial polygon data frame from Arctic bounding box
+# NB: Need 
 bbox_df <- data.frame(lon = c(bbox_arctic[c(1,1,2,2)]), 
                       lat = bbox_arctic[c(3,4,4,3)], id = "bbox")
 
@@ -105,9 +112,11 @@ Arctic_boundary <- rbind(Arctic_boundary,
 fig_1a <- basemap(limits = c(-180, 180, 40, 90)) +
   annotation_spatial(bbox_spatial, fill = "forestgreen", alpha = 0.2) +
   annotation_spatial(Arctic_poly, fill = "cadetblue1", alpha = 0.2) +
-  annotation_spatial(MEOW, aes(colour = ECOREGION), fill = NA) +
-  geom_spatial_point(data = filter(CANA_kelp, Latitude > 40), 
-                     aes(x = Longitude, y = Latitude), colour = "red")
+  # annotation_spatial(MEOW, aes(colour = ECOREGION), fill = NA) +
+  # NB: This overplotting of Slat needs to be addressed
+  # This may be due to the points needing to be converted to a spatial points file first
+  geom_spatial_point(data = sps_data, crs = 4326, shape = 21,
+                     aes(x = lon, y = lat), fill = "hotpink", colour = "black")
 fig_1a
 
 # Add the names of the main regions: Hudson Bay, Hudson Strait, Lancaster Sound
@@ -117,14 +126,32 @@ label_df <- data.frame(lon = c(-85, -75.17, -82.92),
 
 # ArcticKelp campaign map
 fig_1b <- basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
-                   bbox_arctic[3], bbox_arctic[4]), 
+                   bbox_arctic[3], bbox_arctic[4]),
         glaciers = TRUE, bathymetry = TRUE,
-        rotate = TRUE) +
-  geom_spatial_label(data = label_df, crs = "+init=epsg:4326",
+        rotate = TRUE, projection.grid = F) +
+  geom_spatial_label(data = label_df, crs = 4326,
                      aes(x = lon, y = lat, label = loc)) +
-  geom_spatial_point(data = study_sites, crs = "+init=epsg:4326",
-                     aes(x = lon, y = lat, colour = Campaign), size = 4) +
+  geom_spatial_point(data = study_sites, crs = 4326, shape = 21,
+                     aes(x = lon, y = lat), colour = "black", fill = "magenta", size = 4) +
   labs(x = NULL, y = NULL)
+fig_1b <- ggplot() +
+  # geom_tile(aes(fill = presence)) +
+  borders(fill = "white", colour = "black") +
+  geom_point(data = study_sites, shape = 21, colour = "black", 
+             fill = "magenta", size = 2,
+             aes(x = lon, y = lat)) +
+  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+  labs(y = NULL, x = NULL) +
+  # scale_fill_manual("Suitable", values = c("grey40")) +
+  # labs(x = NULL, y = NULL, title = sps_title) +
+  # theme_bw() +
+  theme(legend.position = "bottom",
+        plot.title = element_text(face = "italic"),
+        panel.background = element_rect(fill = "grey95"),
+        panel.border = element_rect(colour = "black", fill = NA))
 fig_1b
 
 # Combine and save
@@ -196,18 +223,19 @@ ensemble_diff_plot <- function(df_project, year_label){
     filter(land_distance <= 100 | depth <= 100) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes_string(fill = paste0("change_",year_label))) +
-    borders(fill = "grey60", colour = "black") +
+    borders(fill = "white", colour = "black") +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
     # scale_fill_brewer(palette = "Set1", direction = -1) +
-    scale_fill_manual(values = c("forestgreen", "white", "red")) +
-    labs(x = NULL, y = NULL, fill = "change", title = paste0(year_label," - present")) +
+    scale_fill_manual(values = c("blue", "grey40", "red")) +
+    labs(x = NULL, y = NULL, fill = "Change", title = paste0(year_label," - present")) +
     # theme_bw() +
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
+          panel.background = element_rect(fill = "grey95"),
           panel.border = element_rect(colour = "black", fill = NA))
   # diff_plot
 }
@@ -217,8 +245,10 @@ ensemble_diff_plot <- function(df_project, year_label){
 ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Create full species name
-  if(sps_choice %in% c("Ldig", "Lsol", "Slat")){
-    sps_title <- "Laminariales spp."
+  if(sps_choice == "Lsol"){
+    sps_title <- "Laminaria solidungula"
+  } else if(sps_choice == "Slat"){
+    sps_title <- "Saccharina latissima"
   } else if(sps_choice == "Acla"){
     sps_title <- "Agarum clathratum"
   } else if(sps_choice == "Aesc"){
@@ -228,15 +258,15 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   }
   
   # Prep data for plotting
-  if(sps_choice %in% c("Ldig", "Lsol", "Slat")){
-    sps_choice <- c("Ldig", "Lsol", "Slat") # This is used by 'sps_points' below to get all three species data
-    df_project <- plyr::ddply(data.frame(sps_name = c("Ldig", "Lsol", "Slat")), c("sps_name"), ensemble_prep) %>% 
-      pivot_wider(values_from = presence, names_from = sps_name) %>% 
-      mutate(presence = ifelse(Ldig + Lsol + Slat >= 2, TRUE, FALSE)) %>% 
-      dplyr::select(lon, lat, presence, land_distance, depth, projection)
-  } else{
+  # if(sps_choice %in% c("Ldig", "Lsol", "Slat")){
+  #   sps_choice <- c("Ldig", "Lsol", "Slat") # This is used by 'sps_points' below to get all three species data
+  #   df_project <- plyr::ddply(data.frame(sps_name = c("Ldig", "Lsol", "Slat")), c("sps_name"), ensemble_prep) %>% 
+  #     pivot_wider(values_from = presence, names_from = sps_name) %>% 
+  #     mutate(presence = ifelse(Ldig + Lsol + Slat >= 2, TRUE, FALSE)) %>% 
+  #     dplyr::select(lon, lat, presence, land_distance, depth, projection)
+  # } else{
     df_project <- ensemble_prep(sps_choice)
-  }
+  # }
   
   # test <- df_project %>% 
   #   dplyr::select(lon, lat) %>% 
@@ -257,19 +287,21 @@ ensemble_plot <- function(sps_choice, add_legend = F){
            projection == "proj_pres") %>%
     # dplyr::select(lon, lat) %>% 
     # distinct()
-    mutate(presence = as.logical(presence)) %>% 
+    mutate(presence = "") %>%
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = presence)) +
-    borders(fill = "grey60", colour = "black") +
-    geom_point(data = sps_points, colour = "yellow", size = 0.5) +
+    borders(fill = "white", colour = "black") +
+    geom_point(data = sps_points, shape = 21, colour = "black", fill = "yellow", size = 0.5) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    scale_fill_manual(values = c("forestgreen")) +
-    labs(x = NULL, y = NULL, title = paste0(sps_title)) +
-    theme_bw() +
+    scale_fill_manual("Suitable", values = c("grey40")) +
+    labs(x = NULL, y = NULL, title = sps_title) +
+    # theme_bw() +
     theme(legend.position = "bottom",
+          plot.title = element_text(face = "italic"),
+          panel.background = element_rect(fill = "grey95"),
           panel.border = element_rect(colour = "black", fill = NA))
   # plot_present
   
@@ -298,13 +330,14 @@ ensemble_plot <- function(sps_choice, add_legend = F){
 # Create all visuals
 ensemble_Acla <- ensemble_plot("Acla")
 ensemble_Aesc <- ensemble_plot("Aesc")
-ensemble_Lam <- ensemble_plot("Ldig")# NB: This automagically combines all the Laminariales
+ensemble_Lsol <- ensemble_plot("Lsol")
+ensemble_Slat <- ensemble_plot("Slat")
 ensemble_legend <- ensemble_plot("Acla", add_legend = T)
 
 # Combine into one mecha-figure
-ensemble_ALL <- ggpubr::ggarrange(ensemble_Acla, ensemble_Aesc, ensemble_Lam, ensemble_legend,
-                                  ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
-ggsave("figures/fig_3.png", ensemble_ALL, width = 7, height = 11)
+ensemble_ALL <- ggpubr::ggarrange(ensemble_Acla, ensemble_Aesc, ensemble_Lsol, ensemble_Slat, ensemble_legend,
+                                  ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
+ggsave("figures/fig_3.png", ensemble_ALL, width = 7, height = 14)
 
 
 # Figure 4 ----------------------------------------------------------------
@@ -332,7 +365,7 @@ rf_plot <- function(kelp_choice, add_legend = F){
   
   # Calculate differences
   project_diff <- best_rf$project_multi %>% 
-    mutate(pred_present_round = plyr::round_any(pred_present_mean, 10),
+    mutate(pred_present_round = plyr::round_any(pred_present_mean, 20),
            pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 10),
            pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10)) #%>% 
     # mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050),
@@ -357,29 +390,39 @@ rf_plot <- function(kelp_choice, add_legend = F){
               aes(x = lon, y = lat, fill = pred_present_round)) +
     # scale_fill_viridis_c(paste0("cover (%)"), limits = c(10, 70)) +
     # scale_fill_distiller(palette = "Greens", direction = 1, limits = c(10, 70)) +
-    scale_fill_gradient("cover (%)", low = "white", high = "forestgreen", 
-                        limits = c(0, 70), breaks = c(10, 20, 30, 40, 50, 60), guide = "legend") +
-    borders(fill = "grey60", colour = "black") +
+    scale_fill_gradient("Cover (%)", low = "grey90", high = "grey30", 
+                        limits = c(0, 70), breaks = c(20, 40, 60), guide = "legend") +
+    borders(fill = "white", colour = "black") +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
     labs(x = NULL, y = NULL, title = paste0(sps_title)) +
-    theme_bw() +
+    # theme_bw() +
     theme(legend.position = "bottom",
+          # panel.grid = element_line(colour = "black"),
+          # plot.background = element_rect(fill = "grey90"),
+          # plot.title = element_text(face = "italic"),
+          panel.background = element_rect(fill = "grey95"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_present
-  
+
+  if(kelp_choice %in% c("agarum", "alaria")){
+    p_present <- p_present + theme(plot.title = element_text(face = "italic"))
+  }
+    
   # 2050 plot
   p_2050 <- ggplot() +
     # geom_tile(data = df, # No filter
-    geom_tile(data = filter(project_diff, depth <= 100 | land_distance <= 100),
+    geom_tile(data = filter(project_diff, 
+                            pred_present_round >= 10,
+                            depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_diff_2050)) +
-    scale_fill_gradient2("change (%)", low = "red", high = "forestgreen",
+    scale_fill_gradient2("Change (%)", low = "red", mid = "grey70", high = "blue",
                          limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
                          guide = "legend", na.value = NA) +
     # scale_fill_discrete("2050 - present (%)") +
-    borders(fill = "grey60", colour = "black") +
+    borders(fill = "white", colour = "black") +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -389,19 +432,23 @@ rf_plot <- function(kelp_choice, add_legend = F){
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
+          # panel.grid = element_line(colour = "black"),
+          panel.background = element_rect(fill = "grey95"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_2050
   
   # 2050 plot
   p_2100 <-  ggplot() +
     # geom_tile(data = df, # No filter
-    geom_tile(data = filter(project_diff, depth <= 100 | land_distance <= 100),
+    geom_tile(data = filter(project_diff,
+                            pred_present_round >= 10,
+                            depth <= 100 | land_distance <= 100),
               aes(x = lon, y = lat, fill = pred_diff_2100)) +
-    scale_fill_gradient2("change (%)", low = "red", high = "forestgreen", 
+    scale_fill_gradient2("Change (%)", low = "red", mid = "grey70", high = "blue",
                          limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40), 
                          guide = "legend", na.value = NA) +
     # scale_fill_discrete("2100 - present (%)") +
-    borders(fill = "grey60", colour = "black") +
+    borders(fill = "white", colour = "black") +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -411,6 +458,8 @@ rf_plot <- function(kelp_choice, add_legend = F){
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
+          # panel.grid = element_line(colour = "black"),
+          panel.background = element_rect(fill = "grey95"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_2100
   
@@ -434,7 +483,7 @@ rf_plot <- function(kelp_choice, add_legend = F){
 rf_lam <- rf_plot("laminariales")
 rf_agarum <- rf_plot("agarum")
 rf_alaria <- rf_plot("alaria")
-rf_legend <- rf_plot("alaria", add_legend = T)
+rf_legend <- rf_plot("laminariales", add_legend = T)
 
 # Combine into one mecha-figure
 rf_ALL <- ggpubr::ggarrange(rf_agarum, rf_alaria, rf_lam, rf_legend,

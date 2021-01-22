@@ -600,3 +600,25 @@ project_compare <- function(best_rf, kelp_choice){
 # Run a regression to see in which direction the relationships with percent cover 
 # are with the top variables. e.g. more cover with more iron
 
+
+# Export as raster --------------------------------------------------------
+
+# NB: Create a function to do this for all of the kelps
+
+load("data/best_rf_agarum.RData")
+
+rf_data <- best_rf_agarum$project_multi %>% 
+  dplyr::select(lon, lat, pred_present_mean) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(lon = plyr::round_any(lon, 0.125),
+         lat = plyr::round_any(lat, 0.125)) %>% 
+  group_by(lon, lat) %>% 
+  summarise(pred_present_mean = mean(pred_present_mean), .groups = "drop")
+rf_raster <- rasterFromXYZ(rf_data, crs = 4326)
+writeRaster(x = rf_raster, bylayer = TRUE, overwrite = TRUE,
+            filename = paste0("data/ascii_results/rf_agarum_present.asc"))
+
+# Check the output
+test_rast <- raster("data/ascii_results/rf_agarum_present.asc")
+plot(test_rast)
+
