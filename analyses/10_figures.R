@@ -77,14 +77,16 @@ adf_summary_mean_coords <- filter(adf_summary_coords, family == "kelp.cover") %>
             range_cover = max(mean_cover)-min(mean_cover), .groups = "drop")
 
 # Create spatial polygon data frame from Arctic bounding box
-# NB: Need 
-bbox_df <- data.frame(lon = c(bbox_arctic[c(1,1,2,2)]), 
-                      lat = bbox_arctic[c(3,4,4,3)], id = "bbox")
+bbox_top <- data.frame(lon = seq(bbox_arctic[1], bbox_arctic[2], length.out = 100), 
+                       lat = bbox_arctic[3], id = "bbox")
+bbox_bottom <- data.frame(lon = seq(bbox_arctic[2], bbox_arctic[1], length.out = 100), 
+                          lat = bbox_arctic[4], id = "bbox")
+bbox_df <- rbind(bbox_top, bbox_bottom)
 
 # only want lon-lats in the list, not the names
 bbox_list <- lapply(split(bbox_df, bbox_df$id), function(x) { x["id"] <- NULL; x })
 
-#  COnvert to polygon and add id variable 
+# Convert to polygon and add id variable 
 bbox_poly <- Polygons(sapply(bbox_list, Polygon), ID = 1)
 
 # Create SpatialPolygons object
@@ -109,7 +111,7 @@ Arctic_boundary <- rbind(Arctic_boundary,
                                     lat = rep(90, nrow(Arctic_boundary))))
 
 # Overall regions
-fig_1a <- basemap(limits = c(-180, 180, 40, 90)) +
+fig_1a <- basemap(limits = c(-180, 180, 40, 90), bathymetry = T) +
   annotation_spatial(bbox_spatial, fill = "forestgreen", alpha = 0.2) +
   annotation_spatial(Arctic_poly, fill = "cadetblue1", alpha = 0.2) +
   # annotation_spatial(MEOW, aes(colour = ECOREGION), fill = NA) +
@@ -118,6 +120,7 @@ fig_1a <- basemap(limits = c(-180, 180, 40, 90)) +
   geom_spatial_point(data = sps_data, crs = 4326, shape = 21,
                      aes(x = lon, y = lat), fill = "hotpink", colour = "black")
 fig_1a
+ggsave("figures/fig_1a.png", fig_1a, height = 6, width = 8)
 
 # Add the names of the main regions: Hudson Bay, Hudson Strait, Lancaster Sound
 label_df <- data.frame(lon = c(-85, -75.17, -82.92),
@@ -125,18 +128,19 @@ label_df <- data.frame(lon = c(-85, -75.17, -82.92),
                        loc = c("Hudson Bay", "Hudson Straight", "Lancaster Sound"))
 
 # ArcticKelp campaign map
-fig_1b <- basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
-                   bbox_arctic[3], bbox_arctic[4]),
-        glaciers = TRUE, bathymetry = TRUE,
-        rotate = TRUE, projection.grid = F) +
-  geom_spatial_label(data = label_df, crs = 4326,
-                     aes(x = lon, y = lat, label = loc)) +
-  geom_spatial_point(data = study_sites, crs = 4326, shape = 21,
-                     aes(x = lon, y = lat), colour = "black", fill = "magenta", size = 4) +
-  labs(x = NULL, y = NULL)
+# fig_1b <- basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
+#                              bbox_arctic[3], bbox_arctic[4]),
+#         glaciers = TRUE, bathymetry = TRUE,
+#         rotate = TRUE, projection.grid = F) +
+#   geom_spatial_label(data = label_df, crs = 4326,
+#                      aes(x = lon, y = lat, label = loc)) +
+#   geom_spatial_point(data = study_sites, crs = 4326, shape = 21,
+#                      aes(x = lon, y = lat), colour = "black", fill = "magenta", size = 4) +
+#   labs(x = NULL, y = NULL)
+# fig_1b
 fig_1b <- ggplot() +
   # geom_tile(aes(fill = presence)) +
-  borders(fill = "white", colour = "black") +
+  borders(fill = "grey30", colour = "black") +
   geom_point(data = study_sites, shape = 21, colour = "black", 
              fill = "magenta", size = 2,
              aes(x = lon, y = lat)) +
