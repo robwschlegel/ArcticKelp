@@ -158,7 +158,7 @@ bbox_to_bathy <- function(coords, lon_pad = 0, lat_pad = 0,
   world <- rbind(world, islands)
   # proj4string(world) <- CRS(projection)
   bs_land <- clip_shapefile(world, lims, proj.limits = projection)
-  # bs_land <- sp::spTransform(bs_land, CRSobj = sp::CRS(projection))
+  bs_land <- sp::spTransform(bs_land, CRSobj = sp::CRS(projection))
   if(!rgeos::gIsValid(bs_land)){ # Has to return TRUE, if not use rgeos::gBuffer
     bs_land <- rgeos::gBuffer(bs_land, byid = TRUE, width = 0)
   }
