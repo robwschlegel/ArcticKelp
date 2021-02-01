@@ -61,7 +61,7 @@ ggplot(data = study_sites, aes(x = lon, y = lat)) +
                   expand = F) +
   labs(x = NULL, y = NULL) +
   theme(panel.border = element_rect(colour = "black", fill = NA))
-ggsave("graph/study_area_pointswlabels.png", width = 9, height = 7)
+# ggsave("graph/study_area_pointswlabels.png", width = 9, height = 7)
 
 # CANA collection points
 # ggplot(data = CANA_kelp, aes(x = Longitude, y = Latitude)) +
