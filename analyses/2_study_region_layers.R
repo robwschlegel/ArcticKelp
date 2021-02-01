@@ -206,7 +206,6 @@ Arctic_BO_2100 <- Arctic_BO %>%
   left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Current.Velocity.Lt.max.asc.BOv2_1.asc", "BO21_curvelltmax_bdmax"))
 save(Arctic_BO_2100, file = "data/Arctic_BO_2100.RData")
 
-
 # Visualise
 ggplot(Arctic_BO_2100, aes(x = lon, y = lat)) +
   # geom_raster(aes(fill = BO_parmax)) +

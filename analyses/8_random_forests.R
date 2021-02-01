@@ -177,32 +177,6 @@ top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
 }
 # top_var(kelp_choice = "Agarum", df = kelp_all)
 
-# Convenience wrapper to remove correlated variables
-# cor_var_rm <- function(df_multi){
-#   
-#   # Order the dataframe based on the Increase in MSE
-#   df_ordered <- arrange(df_multi, -X.IncMSE)
-#   
-#   # Remove variables that correlate with better predictors
-#   row_i <- 2
-#   cor_df <- df_ordered
-#   while(row_i < nrow(cor_df)){
-#     cor_cols <- cor_df[1:row_i-1, "var"]
-#     cor_check <- cor_df[row_i, "var"]
-#     BO_cor_check <- BO_cor_matrix %>% 
-#       dplyr::select(Parameter1, cor_cols$var) %>% 
-#       filter(Parameter1 == cor_check$var) %>% 
-#       pivot_longer(cols = -Parameter1) %>% 
-#       filter(abs(value) >= 0.7)
-#     if(nrow(BO_cor_check) > 0){
-#       cor_df <- cor_df[-row_i,]
-#     } else{
-#       row_i <- row_i+1
-#     }
-#   }
-#   return(cor_df)
-# }
-
 # We then run this 1000 times to increase our certainty in the findings
 top_var_multi <- function(kelp_choice, df = kelp_all){
   
@@ -226,20 +200,20 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 # registerDoParallel(cores = 50)
 
 # kelp.cover
-# system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~16 seconds on 50 cores
-# save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
+system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~16 seconds on 50 cores
+save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
 
 # Laminariales
-# top_var_laminariales <- top_var_multi("Laminariales")
-# save(top_var_laminariales, file = "data/top_var_laminariales.RData")
+top_var_laminariales <- top_var_multi("Laminariales")
+save(top_var_laminariales, file = "data/top_var_laminariales.RData")
 
 # # Agarum
-# top_var_agarum <- top_var_multi("Agarum")
-# save(top_var_agarum, file = "data/top_var_agarum.RData")
+top_var_agarum <- top_var_multi("Agarum")
+save(top_var_agarum, file = "data/top_var_agarum.RData")
 
 # Alaria
-# top_var_alaria <- top_var_multi("Alaria")
-# save(top_var_alaria, file = "data/top_var_alaria.RData")
+top_var_alaria <- top_var_multi("Alaria")
+save(top_var_alaria, file = "data/top_var_alaria.RData")
 
 
 # Random Forest function --------------------------------------------------
@@ -388,20 +362,20 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
 doParallel::registerDoParallel(cores = 50)
 
 # Kelp.cover
-# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 230 seconds with 50 cores
-# save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 230 seconds with 50 cores
+save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 
 # Laminariales
-# best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
-# save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
+best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
+save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
 
 # Agarum
-# best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
-# save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
+best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
+save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
 
 # Alaria
-# best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
-# save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
+best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
+save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 
 
 # Analyse model accuracy --------------------------------------------------
@@ -625,4 +599,26 @@ project_compare <- function(best_rf, kelp_choice){
 
 # Run a regression to see in which direction the relationships with percent cover 
 # are with the top variables. e.g. more cover with more iron
+
+
+# Export as raster --------------------------------------------------------
+
+# NB: Create a function to do this for all of the kelps
+
+load("data/best_rf_agarum.RData")
+
+rf_data <- best_rf_agarum$project_multi %>% 
+  dplyr::select(lon, lat, pred_present_mean) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(lon = plyr::round_any(lon, 0.125),
+         lat = plyr::round_any(lat, 0.125)) %>% 
+  group_by(lon, lat) %>% 
+  summarise(pred_present_mean = mean(pred_present_mean), .groups = "drop")
+rf_raster <- rasterFromXYZ(rf_data, crs = 4326)
+writeRaster(x = rf_raster, bylayer = TRUE, overwrite = TRUE,
+            filename = paste0("data/ascii_results/rf_agarum_present.asc"))
+
+# Check the output
+test_rast <- raster("data/ascii_results/rf_agarum_present.asc")
+plot(test_rast)
 
