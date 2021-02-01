@@ -154,16 +154,17 @@ bbox_to_bathy <- function(coords, lon_pad = 0, lat_pad = 0,
   
   # Convert land file for use with new bathy file
   world <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/shape_files/ne_10m_land.shp")
-  islands <- rgdal::readOGR("/pCloudDrive/FACE-IT_data/shape_files/ne_10m_minor_islands.shp")
+  islands <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/shape_files/ne_10m_minor_islands.shp")
   world <- rbind(world, islands)
-  bs_land <- clip_shapefile(world, lims)
-  bs_land <- sp::spTransform(bs_land, CRSobj = sp::CRS(projection))
+  # proj4string(world) <- CRS(projection)
+  bs_land <- clip_shapefile(world, lims, proj.limits = projection)
+  # bs_land <- sp::spTransform(bs_land, CRSobj = sp::CRS(projection))
   if(!rgeos::gIsValid(bs_land)){ # Has to return TRUE, if not use rgeos::gBuffer
     bs_land <- rgeos::gBuffer(bs_land, byid = TRUE, width = 0)
   }
   
   # Create glacier shape files
-  glaciers <- rgdal::readOGR("/pCloudDrive/FACE-IT_data/shape_files/ne_10m_glaciated_areas.shp")
+  glaciers <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/shape_files/ne_10m_glaciated_areas.shp")
   if(!rgeos::gIsValid(glaciers)){ # Needs buffering
     glaciers <- rgeos::gBuffer(glaciers, byid = TRUE, width = 0)
   }
@@ -181,7 +182,7 @@ bbox_to_bathy <- function(coords, lon_pad = 0, lat_pad = 0,
 
 # Prep Arctic bathy data
 # NB: This requires too much RAM to run on a laptop
-# arctic_bathy <- bbox_to_bathy(c(-180, 180, 40, 90))
+arctic_bathy <- bbox_to_bathy(c(-180, 180, 40, 90))
 
 # Overall regions
 fig_1a <- basemap(limits = c(-180, 180, 40, 90), bathymetry = T) +
