@@ -41,7 +41,7 @@ sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), p
 
 # The base map to use for everything else
 Arctic_map <- ggplot() +
-  borders(fill = "grey70", colour = "black") +
+  borders(fill = "grey70", colour = NA) +
   scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -300,22 +300,23 @@ ensemble_diff_plot <- function(df_project, year_label){
                                 levels = c("1", "0", "-1"),
                                 labels = c("gain", "no change", "loss"))) %>%
     na.omit() %>% 
-    filter(land_distance <= 100 | depth <= 100) %>% 
+    filter(land_distance <= 50 | depth <= 100) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes_string(fill = paste0("change_",year_label))) +
-    borders(fill = "white", colour = "black") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
     # scale_fill_brewer(palette = "Set1", direction = -1) +
-    scale_fill_manual(values = c("blue", "grey40", "red")) +
+    scale_fill_manual(values = c(RColorBrewer::brewer.pal(9, "Reds")[7], "grey80",
+                                 RColorBrewer::brewer.pal(9, "Blues")[7])) +
     labs(x = NULL, y = NULL, fill = "Change", title = paste0(year_label," - present")) +
     # theme_bw() +
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
-          panel.background = element_rect(fill = "grey95"),
+          panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
   # diff_plot
 }
@@ -362,7 +363,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Visualise present data
   plot_present <- df_project %>% 
-    filter(land_distance <= 100 | depth <= 100,
+    filter(land_distance <= 50 | depth <= 100,
            presence == 1,
            projection == "proj_pres") %>%
     # dplyr::select(lon, lat) %>% 
@@ -370,18 +371,18 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     mutate(presence = "") %>%
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = presence)) +
-    borders(fill = "white", colour = "black") +
-    geom_point(data = sps_points, shape = 21, colour = "black", fill = "yellow", size = 0.5) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_point(data = sps_points, shape = 21, colour = "black", fill = "hotpink", size = 0.5) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    scale_fill_manual("Suitable", values = c("grey40")) +
+    scale_fill_manual("Suitable", values = c("grey80")) +
     labs(x = NULL, y = NULL, title = sps_title) +
     # theme_bw() +
     theme(legend.position = "bottom",
           plot.title = element_text(face = "italic"),
-          panel.background = element_rect(fill = "grey95"),
+          panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
   # plot_present
   
@@ -466,13 +467,13 @@ rf_plot <- function(kelp_choice, add_legend = F){
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff,
                             pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 100),
+                            depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_present_round)) +
     # scale_fill_viridis_c(paste0("cover (%)"), limits = c(10, 70)) +
     # scale_fill_distiller(palette = "Greens", direction = 1, limits = c(10, 70)) +
     scale_fill_gradient("Cover (%)", low = "grey90", high = "grey30", 
                         limits = c(0, 70), breaks = c(20, 40, 60), guide = "legend") +
-    borders(fill = "white", colour = "black") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -480,10 +481,7 @@ rf_plot <- function(kelp_choice, add_legend = F){
     labs(x = NULL, y = NULL, title = paste0(sps_title)) +
     # theme_bw() +
     theme(legend.position = "bottom",
-          # panel.grid = element_line(colour = "black"),
-          # plot.background = element_rect(fill = "grey90"),
-          # plot.title = element_text(face = "italic"),
-          panel.background = element_rect(fill = "grey95"),
+          panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_present
 
@@ -496,13 +494,16 @@ rf_plot <- function(kelp_choice, add_legend = F){
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff, 
                             pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 100),
+                            depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_diff_2050)) +
-    scale_fill_gradient2("Change (%)", low = "red", mid = "grey70", high = "blue",
-                         limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
+    scale_fill_gradientn("Change (%)", 
+                         colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
+                                     RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
+                         limits = c(-40, 40), 
+                         breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
                          guide = "legend", na.value = NA) +
     # scale_fill_discrete("2050 - present (%)") +
-    borders(fill = "white", colour = "black") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -513,7 +514,7 @@ rf_plot <- function(kelp_choice, add_legend = F){
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
           # panel.grid = element_line(colour = "black"),
-          panel.background = element_rect(fill = "grey95"),
+          panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_2050
   
@@ -522,13 +523,16 @@ rf_plot <- function(kelp_choice, add_legend = F){
     # geom_tile(data = df, # No filter
     geom_tile(data = filter(project_diff,
                             pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 100),
+                            depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_diff_2100)) +
-    scale_fill_gradient2("Change (%)", low = "red", mid = "grey70", high = "blue",
-                         limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40), 
+    scale_fill_gradientn("Change (%)", 
+                         colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
+                                     RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
+                         limits = c(-40, 40), 
+                         breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
                          guide = "legend", na.value = NA) +
     # scale_fill_discrete("2100 - present (%)") +
-    borders(fill = "white", colour = "black") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -538,7 +542,6 @@ rf_plot <- function(kelp_choice, add_legend = F){
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
-          # panel.grid = element_line(colour = "black"),
           panel.background = element_rect(fill = "grey95"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_2100
@@ -612,37 +615,44 @@ model_compare_plot <- function(model_choice, add_legend = F){
     geom_tile(data = filter(model_join,
                             proj_pres == 1,
                             # pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 100),
+                            depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_present_round)) +
-    scale_fill_distiller("Cover (%)", palette = "BuGn", direction = 1, #low = "springgreen1", high = "springgreen4", 
-                        limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
-    borders(fill = "white", colour = "black") +
+    scale_fill_gradientn("Cover (%)", colours = RColorBrewer::brewer.pal(9, "BuGn")[c(5,6,7,8)],
+                      limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
+    # scale_fill_distiller("Cover (%)", palette = "BuGn", direction = 1, #low = "springgreen1", high = "springgreen4", 
+                        # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
     labs(x = NULL, y = NULL, title = paste0(sps_title)) +
     theme(legend.position = "bottom",
-          panel.background = element_rect(fill = "grey75"),
+          axis.line = element_line(colour = NA),
+          panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
   
   # Correct title as necessary
   if(model_choice %in% c("agarum", "alaria")){
     p_present <- p_present + theme(plot.title = element_text(face = "italic"))
   }
-  # p_present
+  p_present
   
   # 2050 plot
   p_2050 <- ggplot() +
     geom_tile(data = filter(model_join,
                             proj_2050 == 1,
                             # pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 100),
+                            depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_diff_2050)) +
-    scale_fill_gradient2("Change (%)", low = "red", mid = "grey70", high = "blue",
-                         limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
+    # scale_fill_gradient2("Change (%)", low = "red", mid = "grey80", high = "blue",
+    scale_fill_gradientn("Change (%)", 
+                         colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
+                                     RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
+                         limits = c(-40, 40), 
+                         breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
                          guide = "legend", na.value = NA) +
-    borders(fill = "white", colour = "black") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -651,7 +661,7 @@ model_compare_plot <- function(model_choice, add_legend = F){
     theme(legend.position = "bottom",
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
-          panel.background = element_rect(fill = "grey95"),
+          panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_2050
   
@@ -660,12 +670,16 @@ model_compare_plot <- function(model_choice, add_legend = F){
     geom_tile(data = filter(model_join,
                             proj_2100 == 1,
                             # pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 100),
+                            depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_diff_2100)) +
-    scale_fill_gradient2("Change (%)", low = "red", mid = "grey70", high = "blue",
-                         limits = c(-40, 40), breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40), 
+    # scale_fill_gradient2("Change (%)", low = "red", mid = "grey80", high = "blue",
+    scale_fill_gradientn("Change (%)", 
+                         colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
+                                     RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
+                         limits = c(-40, 40), 
+                         breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40), 
                          guide = "legend", na.value = NA) +
-    borders(fill = "white", colour = "black") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -675,7 +689,7 @@ model_compare_plot <- function(model_choice, add_legend = F){
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
           # panel.grid = element_line(colour = "black"),
-          panel.background = element_rect(fill = "grey95"),
+          panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_2100
   
@@ -706,4 +720,135 @@ model_compare_legend <- model_compare_plot("laminariales", add_legend = T)
 model_compare_ALL <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_compare_lam, model_compare_legend,
                                        ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
 ggsave("figures/fig_5.png", model_compare_ALL, width = 7, height = 11)
+
+
+# Figure S1 ---------------------------------------------------------------
+
+# Variance plot for ensemble model results
+
+
+# Figure S2 ---------------------------------------------------------------
+
+# The variance per pixel in the random forest model results
+# testers...
+# kelp_choice <- "laminariales"
+# kelp_choice <- "agarum"
+rf_var_plot <- function(kelp_choice, add_legend = F){
+  
+  # Create full species name
+  if(kelp_choice == "laminariales"){
+    sps_title <- "Laminariales spp."
+  } else if(kelp_choice == "agarum"){
+    sps_title <- "Agarum clathratum"
+  } else if(kelp_choice == "alaria"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }
+  
+  # Load data
+  best_rf <- loadRData(paste0("data/best_rf_",kelp_choice,".RData"))
+  
+  # Calculate differences
+  project_diff <- best_rf$project_multi
+  
+  # Plot
+  p_present <-  ggplot() +
+    geom_tile(data = filter(project_diff,
+                            # proj_pres == 1,
+                            # pred_present_round >= 10,
+                            depth <= 100 | land_distance <= 50),
+              aes(x = lon, y = lat, fill = pred_present_sd)) +
+    scale_fill_distiller("Cover (SD %)", palette = "Oranges", direction = 1, limits = c(0, 8)) +
+    # scale_fill_gradientn("Cover (%)", colours = RColorBrewer::brewer.pal(9, "BuGn")[c(5,6,7,8)],
+                         # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
+    # scale_fill_distiller("Cover (%)", palette = "BuGn", direction = 1, #low = "springgreen1", high = "springgreen4", 
+    # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    labs(x = NULL, y = NULL, title = paste0(sps_title)) +
+    theme(legend.position = "bottom",
+          axis.line = element_line(colour = NA),
+          panel.background = element_rect(fill = "grey100"),
+          panel.border = element_rect(colour = "black", fill = NA))
+  
+  # Correct title as necessary
+  if(model_choice %in% c("agarum", "alaria")){
+    p_present <- p_present + theme(plot.title = element_text(face = "italic"))
+  }
+  # p_present
+  
+  # 2050 plot
+  p_2050 <- ggplot() +
+    geom_tile(data = filter(model_join,
+                            # proj_2050 == 1,
+                            # pred_present_round >= 10,
+                            depth <= 100 | land_distance <= 50),
+              aes(x = lon, y = lat, fill = pred_2050_sd)) +
+    scale_fill_distiller("Cover (SD %)", palette = "Oranges", direction = 1, limits = c(0, 8)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    labs(x = NULL, y = NULL, title = "2050 - present") +
+    theme(legend.position = "bottom",
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.background = element_rect(fill = "grey100"),
+          panel.border = element_rect(colour = "black", fill = NA))
+  # p_2050
+  
+  # 2050 plot
+  p_2100 <-  ggplot() +
+    geom_tile(data = filter(model_join,
+                            # proj_2100 == 1,
+                            # pred_present_round >= 10,
+                            depth <= 100 | land_distance <= 50),
+              aes(x = lon, y = lat, fill = pred_2100_sd)) +
+    scale_fill_distiller("Cover (SD %)", palette = "Oranges", direction = 1, limits = c(0, 8)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    labs(x = NULL, y = NULL, title = "2100 - present") +
+    theme(legend.position = "bottom",
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.background = element_rect(fill = "grey100"),
+          panel.border = element_rect(colour = "black", fill = NA))
+  # p_2100
+  
+  # Combine and exit
+  p_ALL <- cowplot::plot_grid(
+    p_present + theme(legend.position = "none"),
+    p_2050 + theme(legend.position = "none"),
+    p_2100 + theme(legend.position = "none"),
+    ncol = 3,
+    align = "v")
+  if(add_legend){
+    p_ALL <- cowplot::plot_grid(
+      ggplot() + theme_void(),
+      cowplot::get_legend(p_present),
+      ggplot() + theme_void(),
+      # cowplot::get_legend(p_2100),
+      ncol = 3, rel_widths = c(1, 0, 1.5))
+  }
+  return(p_ALL)
+}
+
+# Create figures
+rf_var_lam <- rf_var_plot("laminariales")
+rf_var_agarum <- rf_var_plot("agarum")
+rf_var_alaria <- rf_var_plot("alaria")
+rf_var_legend <- rf_var_plot("laminariales", add_legend = T)
+
+# Combine into one mecha-figure
+rf_var_ALL <- ggpubr::ggarrange(rf_var_agarum, rf_var_alaria, rf_var_lam, rf_var_legend,
+                            ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
+ggsave("figures/fig_S2.png", rf_var_ALL, width = 7, height = 11)
 
