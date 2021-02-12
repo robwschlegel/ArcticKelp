@@ -76,6 +76,11 @@ kelp_all <- adf %>%
   dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
   left_join(study_site_env, by = c("Campaign", "site")) %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
+  # Round values to nearest 10 percent
+  mutate(kelp.cover = round(kelp.cover, -1),
+         Laminariales = round(Laminariales, -1),
+         Agarum = round(Agarum, -1),
+         Alaria = round(Alaria, -1)) %>% 
   dplyr::select(-lon_env, -lat_env, -lon, -lat) %>%
   dplyr::select(-depth) %>% # This is not used in Jesi's model
   dplyr::select(-bathy, -land_distance) %>% # Decided against these variables
@@ -605,20 +610,20 @@ project_compare <- function(best_rf, kelp_choice){
 
 # NB: Create a function to do this for all of the kelps
 
-load("data/best_rf_agarum.RData")
+# load("data/best_rf_agarum.RData")
 
-rf_data <- best_rf_agarum$project_multi %>% 
-  dplyr::select(lon, lat, pred_present_mean) %>% 
-  replace(is.na(.), 0) %>% 
-  mutate(lon = plyr::round_any(lon, 0.125),
-         lat = plyr::round_any(lat, 0.125)) %>% 
-  group_by(lon, lat) %>% 
-  summarise(pred_present_mean = mean(pred_present_mean), .groups = "drop")
-rf_raster <- rasterFromXYZ(rf_data, crs = 4326)
-writeRaster(x = rf_raster, bylayer = TRUE, overwrite = TRUE,
-            filename = paste0("data/ascii_results/rf_agarum_present.asc"))
+# rf_data <- best_rf_agarum$project_multi %>% 
+#   dplyr::select(lon, lat, pred_present_mean) %>% 
+#   replace(is.na(.), 0) %>% 
+#   mutate(lon = plyr::round_any(lon, 0.125),
+#          lat = plyr::round_any(lat, 0.125)) %>% 
+#   group_by(lon, lat) %>% 
+#   summarise(pred_present_mean = mean(pred_present_mean), .groups = "drop")
+# rf_raster <- rasterFromXYZ(rf_data, crs = 4326)
+# writeRaster(x = rf_raster, bylayer = TRUE, overwrite = TRUE,
+#             filename = paste0("data/ascii_results/rf_agarum_present.asc"))
 
 # Check the output
-test_rast <- raster("data/ascii_results/rf_agarum_present.asc")
-plot(test_rast)
+# test_rast <- raster("data/ascii_results/rf_agarum_present.asc")
+# plot(test_rast)
 
