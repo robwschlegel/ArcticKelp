@@ -207,7 +207,7 @@ label_df <- data.frame(lon = c(-85, -75.17, -82.92),
 # fig_1b <- basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
 #                              bbox_arctic[3], bbox_arctic[4]),
 fig_1b <- basemap(limits = bbox_arctic,
-        glaciers = TRUE, bathymetry = TRUE, rotate = TRUE) +
+                  glaciers = TRUE, bathymetry = TRUE, rotate = TRUE) +
   geom_spatial_label(data = label_df, crs = 4326,
                      aes(x = lon, y = lat, label = loc)) +
   geom_spatial_point(data = study_sites, crs = 4326, shape = 21,
@@ -423,19 +423,46 @@ ggsave("figures/fig_3.png", ensemble_ALL, width = 7, height = 14)
 # Figure 4 ----------------------------------------------------------------
 
 # The model values from the ensembles; ROC vs AUC
+model_stats_plot <- function(sps_choice){
+  
+  # Load chosen biomod_model and print evaluation scores
+  biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
+  
+  # Create full species name
+  if(sps_choice == "Lsol"){
+    sps_title <- "Laminaria solidungula"
+  } else if(sps_choice == "Slat"){
+    sps_title <- "Saccharina latissima"
+  } else if(sps_choice == "Acla"){
+    sps_title <- "Agarum clathratum"
+  } else if(sps_choice == "Aesc"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }  
+  
+  # Model evaluation by algorithm
+  model_res <- biomod2::models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS')) + 
+    geom_hline(aes(yintercept = 0.7), colour = "red", size = 2) +
+    ggtitle(sps_title) +
+    coord_cartesian(xlim = c(0.6,1), ylim = c(0.3,1), expand = F) +
+    theme(plot.title = element_text(face = "italic"))
+  # model_res
+  
+  return(model_res)
+}
 
-# Choose a species for the following code
-sps_choice <- sps_names[1]
+# Create plots
+model_stats_Acla <- model_stats_plot("Acla")
+model_stats_Aesc <- model_stats_plot("Aesc")
+model_stats_Lsol <- model_stats_plot("Lsol")
+model_stats_Slat <- model_stats_plot("Slat")
 
-# Load chosen biomod_model and print evaluation scores
-biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
-(Model_scores <- get_evaluations(biomod_model))
-# dim(Model_scores)
-# dimnames(Model_scores)
-
-# Model evaluation by algorithm
-models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS'),
-                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("Algorithm")
+# Combine and save
+fig_4 <- ggpubr::ggarrange(model_stats_Acla, model_stats_Aesc, model_stats_Lsol, model_stats_Slat, 
+                           ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom", 
+                           labels = c("A)", "B)", "C)", "D)"))
+ggsave("figures/fig_4.png", fig_4, width = 5, height = 7)
 
 
 # Figure 5 ----------------------------------------------------------------
@@ -482,9 +509,9 @@ model_compare_plot <- function(model_choice, add_legend = F){
                             depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_present_round)) +
     scale_fill_gradientn("Cover (%)", colours = RColorBrewer::brewer.pal(9, "BuGn")[c(5,6,7,8)],
-                      limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
+                         limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
     # scale_fill_distiller("Cover (%)", palette = "BuGn", direction = 1, #low = "springgreen1", high = "springgreen4", 
-                        # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
+    # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
@@ -581,9 +608,9 @@ model_compare_alaria <- model_compare_plot("alaria")
 model_compare_legend <- model_compare_plot("laminariales", add_legend = T)
 
 # Combine into one mecha-figure
-model_compare_ALL <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_compare_lam, model_compare_legend,
-                                       ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
-ggsave("figures/fig_5.png", model_compare_ALL, width = 7, height = 11)
+fig_5 <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_compare_lam, model_compare_legend,
+                           ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
+ggsave("figures/fig_5.png", fig_5, width = 7, height = 11)
 
 
 # Figure 6 ----------------------------------------------------------------
@@ -602,14 +629,14 @@ conf_plot_RF <- function(df, plot_title){
   conf_acc <- df %>% 
     filter(portion == "validate") %>% 
     group_by(original) %>% 
-    mutate(accuracy = round(accuracy)) %>% 
-    summarise(q05 = quantile(accuracy, 0.05),
+    mutate(accuracy = round(accuracy, -1)) %>% 
+    summarise(count = n(),
+              q05 = quantile(accuracy, 0.05),
               q25 = quantile(accuracy, 0.25),
               q50 = median(accuracy),
               mean = mean(accuracy),
               q75 = quantile(accuracy, 0.75),
-              q95 = quantile(accuracy, 0.95)) %>% 
-    ungroup()
+              q95 = quantile(accuracy, 0.95), .groups = "drop")
   
   conf_mean <- df %>% 
     filter(portion == "validate") %>% 
@@ -617,8 +644,7 @@ conf_plot_RF <- function(df, plot_title){
     mutate(accuracy = round(accuracy)) %>% 
     summarise(mean_acc = mean(abs(accuracy)),
               sd_acc = sd(abs(accuracy)),
-              r_acc = cor(x = original, y = pred)) %>% 
-    ungroup()
+              r_acc = cor(x = original, y = pred), .groups = "drop")
   
   conf_mean_label <- conf_mean %>% 
     summarise(mean_acc = round(mean(abs(mean_acc))),
@@ -636,18 +662,17 @@ conf_plot_RF <- function(df, plot_title){
            portion == "validate") %>% 
     group_by(original) %>% 
     summarise(mean_acc = mean(accuracy),
-              sd_acc = sd(accuracy)) %>% 
-    ungroup()
+              sd_acc = sd(accuracy), .groups = "drop")
   
   # Visualise
   ggplot(conf_acc, aes(x = original, y = mean)) +
     geom_hline(yintercept = 0, size = 2, colour = "red") +
     geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
-                  fatten = 0, fill = "grey70", colour = NA, width = 1) +
+                  fatten = 0, fill = "grey70", colour = NA, width = 10) +
     geom_crossbar(aes(ymin = q25, ymax = q75),
-                  fatten = 0, fill = "grey50", width = 1) +
+                  fatten = 0, fill = "grey50", width = 10) +
     geom_crossbar(aes(ymin = q50, ymax = q50),
-                  fatten = 0, fill = NA, colour = "black", width = 1) +
+                  fatten = 0, fill = NA, colour = "black", width = 10) +
     # geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
     # colour = "purple", size = 1.2, alpha = 0.8) +
     # geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
@@ -656,6 +681,7 @@ conf_plot_RF <- function(df, plot_title){
     # geom_label(data = conf_best_label, colour = "purple",
     # aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
     scale_y_continuous(limits = c(-100, 100)) +
+    scale_x_continuous(breaks = c(0, 20, 40, 60, 80, 100)) +
     labs(y = "Range in accuracy of predictions", x = "Original value (% cover)", title = plot_title) +
     theme(panel.border = element_rect(fill = NA, colour = "black"))
 }
@@ -664,6 +690,11 @@ conf_plot_RF <- function(df, plot_title){
 cover_lam <- conf_plot_RF(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
 cover_agarum <- conf_plot_RF(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
 cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
+
+fig_6 <- ggpubr::ggarrange(cover_agarum, cover_alaria, cover_lam, ncol = 1, 
+                           labels = c("A)", "B)", "C)"))
+ggsave("figures/fig_6.png", fig_6, width = 7, height = 12)
+
 
 # Figure S1 ---------------------------------------------------------------
 # The random forest model results
@@ -857,7 +888,7 @@ rf_var_plot <- function(kelp_choice, add_legend = F){
               aes(x = lon, y = lat, fill = pred_present_sd)) +
     scale_fill_distiller("Cover (SD %)", palette = "Oranges", direction = 1, limits = c(0, 8)) +
     # scale_fill_gradientn("Cover (%)", colours = RColorBrewer::brewer.pal(9, "BuGn")[c(5,6,7,8)],
-                         # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
+    # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
     # scale_fill_distiller("Cover (%)", palette = "BuGn", direction = 1, #low = "springgreen1", high = "springgreen4", 
     # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
@@ -945,6 +976,6 @@ rf_var_legend <- rf_var_plot("laminariales", add_legend = T)
 
 # Combine into one mecha-figure
 rf_var_ALL <- ggpubr::ggarrange(rf_var_agarum, rf_var_alaria, rf_var_lam, rf_var_legend,
-                            ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
+                                ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
 ggsave("figures/fig_S2.png", rf_var_ALL, width = 7, height = 11)
 
