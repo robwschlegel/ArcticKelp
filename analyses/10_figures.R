@@ -442,7 +442,7 @@ model_stats_plot <- function(sps_choice){
   }  
   
   # Model evaluation by algorithm
-  model_res <- models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS')) + 
+  model_res <- biomod2::models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS')) + 
     geom_hline(aes(yintercept = 0.7), colour = "red", size = 2) +
     ggtitle(sps_title) +
     coord_cartesian(xlim = c(0.6,1), ylim = c(0.3,1), expand = F) +
@@ -460,7 +460,8 @@ model_stats_Slat <- model_stats_plot("Slat")
 
 # Combine and save
 fig_4 <- ggpubr::ggarrange(model_stats_Acla, model_stats_Aesc, model_stats_Lsol, model_stats_Slat, 
-                           ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom")
+                           ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom", 
+                           labels = c("A)", "B)", "C)", "D)"))
 ggsave("figures/fig_4.png", fig_4, width = 5, height = 7)
 
 
@@ -607,9 +608,9 @@ model_compare_alaria <- model_compare_plot("alaria")
 model_compare_legend <- model_compare_plot("laminariales", add_legend = T)
 
 # Combine into one mecha-figure
-model_compare_ALL <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_compare_lam, model_compare_legend,
+fig_5 <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_compare_lam, model_compare_legend,
                                        ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
-ggsave("figures/fig_5.png", model_compare_ALL, width = 7, height = 11)
+ggsave("figures/fig_5.png", fig_5, width = 7, height = 11)
 
 
 # Figure 6 ----------------------------------------------------------------
@@ -628,7 +629,7 @@ conf_plot_RF <- function(df, plot_title){
   conf_acc <- df %>% 
     filter(portion == "validate") %>% 
     group_by(original) %>% 
-    mutate(accuracy = round(accuracy)) %>% 
+    mutate(accuracy = round(accuracy, -1)) %>% 
     summarise(count = n(),
               q05 = quantile(accuracy, 0.05),
               q25 = quantile(accuracy, 0.25),
@@ -667,11 +668,11 @@ conf_plot_RF <- function(df, plot_title){
   ggplot(conf_acc, aes(x = original, y = mean)) +
     geom_hline(yintercept = 0, size = 2, colour = "red") +
     geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
-                  fatten = 0, fill = "grey70", colour = NA, width = 1) +
+                  fatten = 0, fill = "grey70", colour = NA, width = 10) +
     geom_crossbar(aes(ymin = q25, ymax = q75),
-                  fatten = 0, fill = "grey50", width = 1) +
+                  fatten = 0, fill = "grey50", width = 10) +
     geom_crossbar(aes(ymin = q50, ymax = q50),
-                  fatten = 0, fill = NA, colour = "black", width = 1) +
+                  fatten = 0, fill = NA, colour = "black", width = 10) +
     # geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
     # colour = "purple", size = 1.2, alpha = 0.8) +
     # geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
@@ -680,6 +681,7 @@ conf_plot_RF <- function(df, plot_title){
     # geom_label(data = conf_best_label, colour = "purple",
     # aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
     scale_y_continuous(limits = c(-100, 100)) +
+    scale_x_continuous(breaks = c(0, 20, 40, 60, 80, 100)) +
     labs(y = "Range in accuracy of predictions", x = "Original value (% cover)", title = plot_title) +
     theme(panel.border = element_rect(fill = NA, colour = "black"))
 }
@@ -688,6 +690,11 @@ conf_plot_RF <- function(df, plot_title){
 cover_lam <- conf_plot_RF(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
 cover_agarum <- conf_plot_RF(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
 cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
+
+fig_6 <- ggpubr::ggarrange(cover_agarum, cover_alaria, cover_lam, ncol = 1, 
+                           labels = c("A)", "B)", "C)"))
+ggsave("figures/fig_6.png", fig_6, width = 7, height = 12)
+
 
 # Figure S1 ---------------------------------------------------------------
 # The random forest model results
