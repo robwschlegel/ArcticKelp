@@ -423,19 +423,45 @@ ggsave("figures/fig_3.png", ensemble_ALL, width = 7, height = 14)
 # Figure 4 ----------------------------------------------------------------
 
 # The model values from the ensembles; ROC vs AUC
+model_stats_plot <- function(sps_choice){
+  
+  # Load chosen biomod_model and print evaluation scores
+  biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
+  
+  # Create full species name
+  if(sps_choice == "Lsol"){
+    sps_title <- "Laminaria solidungula"
+  } else if(sps_choice == "Slat"){
+    sps_title <- "Saccharina latissima"
+  } else if(sps_choice == "Acla"){
+    sps_title <- "Agarum clathratum"
+  } else if(sps_choice == "Aesc"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }  
+  
+  # Model evaluation by algorithm
+  model_res <- models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS')) + 
+    geom_hline(aes(yintercept = 0.7), colour = "red", size = 2) +
+    ggtitle(sps_title) +
+    coord_cartesian(xlim = c(0.6,1), ylim = c(0.3,1), expand = F) +
+    theme(plot.title = element_text(face = "italic"))
+  # model_res
+  
+  return(model_res)
+}
 
-# Choose a species for the following code
-sps_choice <- sps_names[1]
+# Create plots
+model_stats_Acla <- model_stats_plot("Acla")
+model_stats_Aesc <- model_stats_plot("Aesc")
+model_stats_Lsol <- model_stats_plot("Lsol")
+model_stats_Slat <- model_stats_plot("Slat")
 
-# Load chosen biomod_model and print evaluation scores
-biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
-(Model_scores <- get_evaluations(biomod_model))
-# dim(Model_scores)
-# dimnames(Model_scores)
-
-# Model evaluation by algorithm
-models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS'),
-                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("Algorithm")
+# Combine and save
+fig_4 <- ggpubr::ggarrange(model_stats_Acla, model_stats_Aesc, model_stats_Lsol, model_stats_Slat, 
+                           ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom")
+ggsave("figures/fig_4.png", fig_4, width = 5, height = 7)
 
 
 # Figure 5 ----------------------------------------------------------------
@@ -603,13 +629,13 @@ conf_plot_RF <- function(df, plot_title){
     filter(portion == "validate") %>% 
     group_by(original) %>% 
     mutate(accuracy = round(accuracy)) %>% 
-    summarise(q05 = quantile(accuracy, 0.05),
+    summarise(count = n(),
+              q05 = quantile(accuracy, 0.05),
               q25 = quantile(accuracy, 0.25),
               q50 = median(accuracy),
               mean = mean(accuracy),
               q75 = quantile(accuracy, 0.75),
-              q95 = quantile(accuracy, 0.95)) %>% 
-    ungroup()
+              q95 = quantile(accuracy, 0.95), .groups = "drop")
   
   conf_mean <- df %>% 
     filter(portion == "validate") %>% 
@@ -617,8 +643,7 @@ conf_plot_RF <- function(df, plot_title){
     mutate(accuracy = round(accuracy)) %>% 
     summarise(mean_acc = mean(abs(accuracy)),
               sd_acc = sd(abs(accuracy)),
-              r_acc = cor(x = original, y = pred)) %>% 
-    ungroup()
+              r_acc = cor(x = original, y = pred), .groups = "drop")
   
   conf_mean_label <- conf_mean %>% 
     summarise(mean_acc = round(mean(abs(mean_acc))),
@@ -636,8 +661,7 @@ conf_plot_RF <- function(df, plot_title){
            portion == "validate") %>% 
     group_by(original) %>% 
     summarise(mean_acc = mean(accuracy),
-              sd_acc = sd(accuracy)) %>% 
-    ungroup()
+              sd_acc = sd(accuracy), .groups = "drop")
   
   # Visualise
   ggplot(conf_acc, aes(x = original, y = mean)) +
