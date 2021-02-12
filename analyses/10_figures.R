@@ -246,8 +246,7 @@ ggsave("figures/fig_1.png", fig_1, height = 12, width = 8)
 # Figure 2 ----------------------------------------------------------------
 # Relationship with important variables and kelp PA and abundance
 
-
-# Figure 3 ----------------------------------------------------------------
+# Figure 3 ---------------------------------------------------------------
 # The ensemble model results
 
 # Function to convert rasters to data.frames
@@ -309,8 +308,8 @@ ensemble_diff_plot <- function(df_project, year_label){
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
     # scale_fill_brewer(palette = "Set1", direction = -1) +
-    scale_fill_manual(values = c(RColorBrewer::brewer.pal(9, "Reds")[7], "grey80",
-                                 RColorBrewer::brewer.pal(9, "Blues")[7])) +
+    scale_fill_manual(values = c(RColorBrewer::brewer.pal(9, "Blues")[7], "grey80",
+                                 RColorBrewer::brewer.pal(9, "Reds")[7])) +
     labs(x = NULL, y = NULL, fill = "Change", title = paste0(year_label," - present")) +
     # theme_bw() +
     theme(legend.position = "bottom",
@@ -346,7 +345,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   #     mutate(presence = ifelse(Ldig + Lsol + Slat >= 2, TRUE, FALSE)) %>% 
   #     dplyr::select(lon, lat, presence, land_distance, depth, projection)
   # } else{
-    df_project <- ensemble_prep(sps_choice)
+  df_project <- ensemble_prep(sps_choice)
   # }
   
   # test <- df_project %>% 
@@ -400,10 +399,10 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     align = "v")
   if(add_legend){
     plot_ALL <- cowplot::plot_grid(
-        cowplot::get_legend(plot_present),
-        ggplot() + theme_void(),
-        cowplot::get_legend(plot_2100),
-        ncol = 3, rel_widths = c(1, 0, 1.5))
+      cowplot::get_legend(plot_present),
+      ggplot() + theme_void(),
+      cowplot::get_legend(plot_2100),
+      ncol = 3, rel_widths = c(1, 0, 1.5))
   }
   return(plot_ALL)
 }
@@ -422,161 +421,26 @@ ggsave("figures/fig_3.png", ensemble_ALL, width = 7, height = 14)
 
 
 # Figure 4 ----------------------------------------------------------------
-# The random forest model results
-# Combine into one dataframe to have the same legend via facets
 
-# testers...
-# kelp_choice <- "laminariales"
-# kelp_choice <- "agarum"
-rf_plot <- function(kelp_choice, add_legend = F){
-  
-  # Create full species name
-  if(kelp_choice == "laminariales"){
-    sps_title <- "Laminariales spp."
-  } else if(kelp_choice == "agarum"){
-    sps_title <- "Agarum clathratum"
-  } else if(kelp_choice == "alaria"){
-    sps_title <- "Alaria esculenta"
-  } else{
-    stop("*sad robot noises*")
-  }
-  
-  # Load data
-  best_rf <- loadRData(paste0("data/best_rf_",kelp_choice,".RData"))
-  
-  # Calculate differences
-  project_diff <- best_rf$project_multi %>% 
-    mutate(pred_present_round = plyr::round_any(pred_present_mean, 20),
-           pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 10),
-           pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10)) #%>% 
-    # mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050),
-           # pred_diff_2100 = ifelse(pred_diff_2100 == 0, NA, pred_diff_2100))#,
-           # pred_diff_2050 = as.factor(pred_diff_2050),
-           # pred_diff_2100 = as.factor(pred_diff_2100))
-  # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
-  # filter(name == "pred_diff_2050" & value != 0) %>% 
-  # pivot_wider()
-  # mutate(pred_diff_2050 = base::cut(pred_2050_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)),
-  #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
-  
-  # Scale for difference plots
-  # diff_range <- range(c(project_diff$pred_diff_2050, project_diff$pred_diff_2100), na.rm = T)
-  
-  # Present plot
-  p_present <-  ggplot() +
-    # geom_tile(data = df, # No filter
-    geom_tile(data = filter(project_diff,
-                            pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 50),
-              aes(x = lon, y = lat, fill = pred_present_round)) +
-    # scale_fill_viridis_c(paste0("cover (%)"), limits = c(10, 70)) +
-    # scale_fill_distiller(palette = "Greens", direction = 1, limits = c(10, 70)) +
-    scale_fill_gradient("Cover (%)", low = "grey90", high = "grey30", 
-                        limits = c(0, 70), breaks = c(20, 40, 60), guide = "legend") +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
-    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    labs(x = NULL, y = NULL, title = paste0(sps_title)) +
-    # theme_bw() +
-    theme(legend.position = "bottom",
-          panel.background = element_rect(fill = "grey100"),
-          panel.border = element_rect(colour = "black", fill = NA))
-  # p_present
+# The model values from the ensembles; ROC vs AUC
 
-  if(kelp_choice %in% c("agarum", "alaria")){
-    p_present <- p_present + theme(plot.title = element_text(face = "italic"))
-  }
-    
-  # 2050 plot
-  p_2050 <- ggplot() +
-    # geom_tile(data = df, # No filter
-    geom_tile(data = filter(project_diff, 
-                            pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 50),
-              aes(x = lon, y = lat, fill = pred_diff_2050)) +
-    scale_fill_gradientn("Change (%)", 
-                         colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
-                                     RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
-                         limits = c(-40, 40), 
-                         breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
-                         guide = "legend", na.value = NA) +
-    # scale_fill_discrete("2050 - present (%)") +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
-    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    labs(x = NULL, y = NULL, title = "2050 - present") +
-    # theme_bw() +
-    theme(legend.position = "bottom",
-          axis.text.y = element_blank(),
-          axis.ticks.y = element_blank(),
-          # panel.grid = element_line(colour = "black"),
-          panel.background = element_rect(fill = "grey100"),
-          panel.border = element_rect(colour = "black", fill = NA))
-  # p_2050
-  
-  # 2050 plot
-  p_2100 <-  ggplot() +
-    # geom_tile(data = df, # No filter
-    geom_tile(data = filter(project_diff,
-                            pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 50),
-              aes(x = lon, y = lat, fill = pred_diff_2100)) +
-    scale_fill_gradientn("Change (%)", 
-                         colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
-                                     RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
-                         limits = c(-40, 40), 
-                         breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
-                         guide = "legend", na.value = NA) +
-    # scale_fill_discrete("2100 - present (%)") +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
-    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    labs(x = NULL, y = NULL, title = "2100 - present") +
-    # theme_bw() +
-    theme(legend.position = "bottom",
-          axis.text.y = element_blank(),
-          axis.ticks.y = element_blank(),
-          panel.background = element_rect(fill = "grey95"),
-          panel.border = element_rect(colour = "black", fill = NA))
-  # p_2100
-  
-  # Combine and exit
-  p_ALL <- cowplot::plot_grid(
-    p_present + theme(legend.position = "none"),
-    p_2050 + theme(legend.position = "none"),
-    p_2100 + theme(legend.position = "none"),
-    ncol = 3,
-    align = "v")
-  if(add_legend){
-    p_ALL <- cowplot::plot_grid(
-      cowplot::get_legend(p_present),
-      ggplot() + theme_void(),
-      cowplot::get_legend(p_2100),
-      ncol = 3, rel_widths = c(1, 0, 1.5))
-  }
-  return(p_ALL)
-}
+# Choose a species for the following code
+sps_choice <- sps_names[1]
 
-rf_lam <- rf_plot("laminariales")
-rf_agarum <- rf_plot("agarum")
-rf_alaria <- rf_plot("alaria")
-rf_legend <- rf_plot("laminariales", add_legend = T)
+# Load chosen biomod_model and print evaluation scores
+biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
+(Model_scores <- get_evaluations(biomod_model))
+# dim(Model_scores)
+# dimnames(Model_scores)
 
-# Combine into one mecha-figure
-rf_ALL <- ggpubr::ggarrange(rf_agarum, rf_alaria, rf_lam, rf_legend,
-                             ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
-ggsave("figures/fig_4.png", rf_ALL, width = 7, height = 11)
+# Model evaluation by algorithm
+models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS'),
+                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("Algorithm")
 
 
 # Figure 5 ----------------------------------------------------------------
 
-# Comparison of the present modelling approaches
+# Combination of the modelling approaches
 
 # Join ensemble and random forest results
 model_compare_plot <- function(model_choice, add_legend = F){
@@ -722,12 +586,244 @@ model_compare_ALL <- ggpubr::ggarrange(model_compare_agarum, model_compare_alari
 ggsave("figures/fig_5.png", model_compare_ALL, width = 7, height = 11)
 
 
+# Figure 6 ----------------------------------------------------------------
+
+# Random forest model results
+load("data/best_rf_kelpcover.RData")
+load("data/best_rf_laminariales.RData")
+load("data/best_rf_agarum.RData")
+load("data/best_rf_alaria.RData")
+
+# Confidence in RF output
+# Function for creating figure showing confidence intervals of prediction accuracy
+conf_plot_RF <- function(df, plot_title){
+  
+  # 90 CI around predictions per step
+  conf_acc <- df %>% 
+    filter(portion == "validate") %>% 
+    group_by(original) %>% 
+    mutate(accuracy = round(accuracy)) %>% 
+    summarise(q05 = quantile(accuracy, 0.05),
+              q25 = quantile(accuracy, 0.25),
+              q50 = median(accuracy),
+              mean = mean(accuracy),
+              q75 = quantile(accuracy, 0.75),
+              q95 = quantile(accuracy, 0.95)) %>% 
+    ungroup()
+  
+  conf_mean <- df %>% 
+    filter(portion == "validate") %>% 
+    group_by(model_id) %>% 
+    mutate(accuracy = round(accuracy)) %>% 
+    summarise(mean_acc = mean(abs(accuracy)),
+              sd_acc = sd(abs(accuracy)),
+              r_acc = cor(x = original, y = pred)) %>% 
+    ungroup()
+  
+  conf_mean_label <- conf_mean %>% 
+    summarise(mean_acc = round(mean(abs(mean_acc))),
+              sd_acc = round(mean(abs(sd_acc))),
+              r_acc = round(mean(r_acc), 2))
+  
+  conf_best_label <- conf_mean %>% 
+    filter(mean_acc == min(mean_acc)) %>% 
+    mutate(mean_acc = round(abs(mean_acc)),
+           sd_acc = round(sd_acc),
+           r_acc = round(r_acc, 2))
+  
+  conf_best <- df %>% 
+    filter(model_id == conf_best_label$model_id,
+           portion == "validate") %>% 
+    group_by(original) %>% 
+    summarise(mean_acc = mean(accuracy),
+              sd_acc = sd(accuracy)) %>% 
+    ungroup()
+  
+  # Visualise
+  ggplot(conf_acc, aes(x = original, y = mean)) +
+    geom_hline(yintercept = 0, size = 2, colour = "red") +
+    geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
+                  fatten = 0, fill = "grey70", colour = NA, width = 1) +
+    geom_crossbar(aes(ymin = q25, ymax = q75),
+                  fatten = 0, fill = "grey50", width = 1) +
+    geom_crossbar(aes(ymin = q50, ymax = q50),
+                  fatten = 0, fill = NA, colour = "black", width = 1) +
+    # geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
+    # colour = "purple", size = 1.2, alpha = 0.8) +
+    # geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
+    geom_label(data = conf_mean_label, 
+               aes(x = 75, y = 75, label = paste0("Mean accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
+    # geom_label(data = conf_best_label, colour = "purple",
+    # aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
+    scale_y_continuous(limits = c(-100, 100)) +
+    labs(y = "Range in accuracy of predictions", x = "Original value (% cover)", title = plot_title) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))
+}
+
+# Create the plots
+cover_lam <- conf_plot_RF(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
+cover_agarum <- conf_plot_RF(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
+cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
+
 # Figure S1 ---------------------------------------------------------------
+# The random forest model results
+# Combine into one dataframe to have the same legend via facets
+
+# testers...
+# kelp_choice <- "laminariales"
+# kelp_choice <- "agarum"
+rf_plot <- function(kelp_choice, add_legend = F){
+  
+  # Create full species name
+  if(kelp_choice == "laminariales"){
+    sps_title <- "Laminariales spp."
+  } else if(kelp_choice == "agarum"){
+    sps_title <- "Agarum clathratum"
+  } else if(kelp_choice == "alaria"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }
+  
+  # Load data
+  best_rf <- loadRData(paste0("data/best_rf_",kelp_choice,".RData"))
+  
+  # Calculate differences
+  project_diff <- best_rf$project_multi %>% 
+    mutate(pred_present_round = plyr::round_any(pred_present_mean, 20),
+           pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 10),
+           pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10)) #%>% 
+  # mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050),
+  # pred_diff_2100 = ifelse(pred_diff_2100 == 0, NA, pred_diff_2100))#,
+  # pred_diff_2050 = as.factor(pred_diff_2050),
+  # pred_diff_2100 = as.factor(pred_diff_2100))
+  # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
+  # filter(name == "pred_diff_2050" & value != 0) %>% 
+  # pivot_wider()
+  # mutate(pred_diff_2050 = base::cut(pred_2050_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)),
+  #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
+  
+  # Scale for difference plots
+  # diff_range <- range(c(project_diff$pred_diff_2050, project_diff$pred_diff_2100), na.rm = T)
+  
+  # Present plot
+  p_present <-  ggplot() +
+    # geom_tile(data = df, # No filter
+    geom_tile(data = filter(project_diff,
+                            pred_present_round >= 10,
+                            depth <= 100 | land_distance <= 50),
+              aes(x = lon, y = lat, fill = pred_present_round)) +
+    # scale_fill_viridis_c(paste0("cover (%)"), limits = c(10, 70)) +
+    # scale_fill_distiller(palette = "Greens", direction = 1, limits = c(10, 70)) +
+    scale_fill_gradient("Cover (%)", low = "grey90", high = "grey30", 
+                        limits = c(0, 70), breaks = c(20, 40, 60), guide = "legend") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    labs(x = NULL, y = NULL, title = paste0(sps_title)) +
+    # theme_bw() +
+    theme(legend.position = "bottom",
+          panel.background = element_rect(fill = "grey100"),
+          panel.border = element_rect(colour = "black", fill = NA))
+  # p_present
+  
+  if(kelp_choice %in% c("agarum", "alaria")){
+    p_present <- p_present + theme(plot.title = element_text(face = "italic"))
+  }
+  
+  # 2050 plot
+  p_2050 <- ggplot() +
+    # geom_tile(data = df, # No filter
+    geom_tile(data = filter(project_diff, 
+                            pred_present_round >= 10,
+                            depth <= 100 | land_distance <= 50),
+              aes(x = lon, y = lat, fill = pred_diff_2050)) +
+    scale_fill_gradientn("Change (%)", 
+                         colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
+                                     RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
+                         limits = c(-40, 40), 
+                         breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
+                         guide = "legend", na.value = NA) +
+    # scale_fill_discrete("2050 - present (%)") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    labs(x = NULL, y = NULL, title = "2050 - present") +
+    # theme_bw() +
+    theme(legend.position = "bottom",
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          # panel.grid = element_line(colour = "black"),
+          panel.background = element_rect(fill = "grey100"),
+          panel.border = element_rect(colour = "black", fill = NA))
+  # p_2050
+  
+  # 2050 plot
+  p_2100 <-  ggplot() +
+    # geom_tile(data = df, # No filter
+    geom_tile(data = filter(project_diff,
+                            pred_present_round >= 10,
+                            depth <= 100 | land_distance <= 50),
+              aes(x = lon, y = lat, fill = pred_diff_2100)) +
+    scale_fill_gradientn("Change (%)", 
+                         colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
+                                     RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
+                         limits = c(-40, 40), 
+                         breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
+                         guide = "legend", na.value = NA) +
+    # scale_fill_discrete("2100 - present (%)") +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    labs(x = NULL, y = NULL, title = "2100 - present") +
+    # theme_bw() +
+    theme(legend.position = "bottom",
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.background = element_rect(fill = "grey95"),
+          panel.border = element_rect(colour = "black", fill = NA))
+  # p_2100
+  
+  # Combine and exit
+  p_ALL <- cowplot::plot_grid(
+    p_present + theme(legend.position = "none"),
+    p_2050 + theme(legend.position = "none"),
+    p_2100 + theme(legend.position = "none"),
+    ncol = 3,
+    align = "v")
+  if(add_legend){
+    p_ALL <- cowplot::plot_grid(
+      cowplot::get_legend(p_present),
+      ggplot() + theme_void(),
+      cowplot::get_legend(p_2100),
+      ncol = 3, rel_widths = c(1, 0, 1.5))
+  }
+  return(p_ALL)
+}
+
+rf_lam <- rf_plot("laminariales")
+rf_agarum <- rf_plot("agarum")
+rf_alaria <- rf_plot("alaria")
+rf_legend <- rf_plot("laminariales", add_legend = T)
+
+# Combine into one mecha-figure
+rf_ALL <- ggpubr::ggarrange(rf_agarum, rf_alaria, rf_lam, rf_legend,
+                            ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
+ggsave("figures/fig_S1.png", rf_ALL, width = 7, height = 11)
+
+
+# Figure S2 ---------------------------------------------------------------
 
 # Variance plot for ensemble model results
 
 
-# Figure S2 ---------------------------------------------------------------
+# Figure S3 ---------------------------------------------------------------
 
 # The variance per pixel in the random forest model results
 # testers...
