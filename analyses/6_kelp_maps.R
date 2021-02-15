@@ -13,7 +13,7 @@ Arctic_BO <- Arctic_BO %>%
 load("data/Arctic_AM.RData")
 Arctic_AM <- Arctic_AM %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))
-Arctic_env <- right_join(Arctic_BO, Arctic_AM)
+Arctic_env <- right_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
 Arctic_env$env_index <- 1:nrow(Arctic_env)
 rm(Arctic_BO, Arctic_AM); gc()
 
@@ -30,7 +30,7 @@ colnames(Arctic_env)
 
 # The function
 map_cover_abiotic <- function(cover = "kelp.cover", 
-                              abiotic = "BO2_tempmean_bdmax"){
+                              abiotic = "BO21_tempmean_bdmax"){
   # Subset cover
   kelp_sub <- adf_summary %>% 
     filter(family == cover) %>% 
@@ -55,7 +55,7 @@ map_cover_abiotic <- function(cover = "kelp.cover",
 # Visualise some different things
 map_cover_abiotic()
 map_cover_abiotic(cover = "Laminariales", abiotic = "BO21_curvelmean_bdmax")
-map_cover_abiotic(cover = "Agarum", abiotic = "BO2_icethickmean_ss")
+map_cover_abiotic(cover = "Agarum", abiotic = "BO21_icethickmean_ss")
 map_cover_abiotic(cover = "Alaria", abiotic = "BO_parmean")
 
 
@@ -72,7 +72,7 @@ colnames(Arctic_env)
 
 # The function
 distribution_cover_abiotic <- function(cover = "kelp.cover", 
-                                       abiotic = "BO2_tempmean_bdmax"){
+                                       abiotic = "BO21_tempmean_bdmax"){
   # Subset abiotic background variable
   abiotic_sub <- Arctic_env[,c("lon", "lat", abiotic)]
   colnames(abiotic_sub) <- c("lon_env", "lat_env", "var")
@@ -100,6 +100,6 @@ distribution_cover_abiotic <- function(cover = "kelp.cover",
 # Visualise all kelp cover against sst
 distribution_cover_abiotic()
 distribution_cover_abiotic(cover = "Alaria", abiotic = "BO21_curvelltmax_bdmax")
-distribution_cover_abiotic(cover = "Agarum", abiotic = "BO2_salinitymean_bdmax")
-distribution_cover_abiotic(cover = "Laminariales", abiotic = "BO2_icethickmean_ss")
+distribution_cover_abiotic(cover = "Agarum", abiotic = "BO21_salinitymean_bdmax")
+distribution_cover_abiotic(cover = "Laminariales", abiotic = "BO21_icethickmean_ss")
 

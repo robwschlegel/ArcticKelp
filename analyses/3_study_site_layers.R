@@ -25,7 +25,7 @@ Arctic_BO <- Arctic_BO %>%
 load("data/Arctic_AM.RData")
 Arctic_AM <- Arctic_AM %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))
-Arctic_env <- left_join(Arctic_BO, Arctic_AM)
+Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
 Arctic_env$env_index <- 1:nrow(Arctic_env)
 rm(Arctic_BO, Arctic_AM); gc()
 

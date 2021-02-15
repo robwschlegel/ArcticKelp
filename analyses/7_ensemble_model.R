@@ -66,15 +66,15 @@ excl_VIF_df <- na.omit(as.data.frame(Arctic_excl_pre))
 # corrplot(dataVIF.cor)
 # heatmap(x = dataVIF.cor, symm = T)
 Pearson_cor <- cor(excl_VIF_df)
-##WITH PEARSON CORRELATION, THERE ARE STILL 3 CORRELATIONS: 
-##1) SSTmax/SSTmin, 2) PAR and SSTmax, 3)PAR and ice
+## WITH PEARSON CORRELATION, THERE ARE STILL 3 CORRELATIONS: 
+## 1) SSTmax/SSTmin, 2) PAR and SSTmax, 3)PAR and ice
 
 
 # 2: Load data ------------------------------------------------------------
 
 # Remove SST long-term min and PAR
 Arctic_excl <- Arctic_excl_pre %>% 
-  dplyr::select(-BO2_templtmin_ss, -BO_parmean)
+  dplyr::select(-BO21_templtmin_ss, -BO_parmean)
 Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 # plot(Arctic_excl_stack) # Visualise raster stack
 

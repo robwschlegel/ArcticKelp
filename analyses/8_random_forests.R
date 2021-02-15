@@ -17,7 +17,7 @@ library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be b
   # NB: Somehow the ensembles were given a different salinity variable
   # This will need to be corrected later
 load("metadata/BO_vars.RData")
-BO_vars[4] <- "BO2_salinityltmax_ss" 
+# BO_vars[4] <- "BO2_salinityltmax_ss" 
 
 # Environmental data per site
 load("data/study_site_env.RData")

@@ -69,44 +69,36 @@ layer_stats()
 # Download the chosen layers
   # NB: Don't run this if nothing has changed as there is no need to ping their servers
                               # Bottom temperature
-BO_layers_dl <- load_layers(c("BO2_templtmin_bdmax", "BO2_tempmean_bdmax", "BO2_templtmax_bdmax", 
+BO_layers_dl <- load_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO21_templtmax_bdmax", 
                               # Surface temperature
-                              "BO2_templtmin_ss", "BO2_tempmean_ss", "BO2_templtmax_ss", 
+                              "BO21_templtmin_ss", "BO21_tempmean_ss", "BO21_templtmax_ss", 
                               # Bottom salinity
-                              "BO2_salinityltmin_bdmax", "BO2_salinitymean_bdmax", "BO2_salinityltmax_bdmax", 
+                              "BO21_salinityltmin_bdmax", "BO21_salinitymean_bdmax", "BO21_salinityltmax_bdmax", 
                               # Surface salinity
-                              "BO2_salinityltmin_ss", "BO2_salinitymean_ss", "BO2_salinityltmax_ss", 
+                              "BO21_salinityltmin_ss", "BO21_salinitymean_ss", "BO21_salinityltmax_ss", 
                               # Ice thickness
-                              "BO2_icethickltmin_ss", "BO2_icethickmean_ss", "BO2_icethickltmax_ss", 
+                              "BO21_icethickltmin_ss", "BO21_icethickmean_ss", "BO21_icethickltmax_ss", 
                               # Current velocity
-                                # Note that the v2.1 files are needed and downloaded here: https://www.bio-oracle.org/downloads-to-email.php
-                              # "BO2_curvelltmin_bdmax", "BO2_curvelmean_bdmax", "BO2_curvelltmax_bdmax",
+                              "BO21_curvelltmin_bdmax", "BO21_curvelmean_bdmax", "BO21_curvelltmax_bdmax",
                               # Photosynthetically active radiation
                               "BO_parmean", "BO_parmax", 
                               # Dissolve oxygen
-                              "BO2_dissoxltmin_bdmax", "BO2_dissoxmean_bdmax", "BO2_dissoxltmax_bdmax", 
+                              "BO21_dissoxltmin_bdmax", "BO21_dissoxmean_bdmax", "BO21_dissoxltmax_bdmax", 
                               # Iron
-                              "BO2_ironltmin_bdmax", "BO2_ironmean_bdmax", "BO2_ironltmax_bdmax", 
+                              "BO21_ironltmin_bdmax", "BO21_ironmean_bdmax", "BO21_ironltmax_bdmax", 
                               # Nitrate
-                              "BO2_nitrateltmin_bdmax", "BO2_nitratemean_bdmax", "BO2_nitrateltmax_bdmax", 
+                              "BO21_nitrateltmin_bdmax", "BO21_nitratemean_bdmax", "BO21_nitrateltmax_bdmax", 
                               # Phosphate
-                              "BO2_phosphateltmin_bdmax", "BO2_phosphatemean_bdmax", "BO2_phosphateltmax_bdmax"))
+                              "BO21_phosphateltmin_bdmax", "BO21_phosphatemean_bdmax", "BO21_phosphateltmax_bdmax"))
 
 # Convert to dataframe
-BO_layers_df <- as.data.frame(BO_layers_dl, xy = T) %>% 
+BO_layers_present <- as.data.frame(BO_layers_dl, xy = T) %>% 
   dplyr::rename(lon = x, lat = y) %>% 
-  filter(BO2_icethickmean_ss >= 0,
+  filter(BO21_icethickmean_ss >= 0,
          lat >= min(Arctic_boundary$lat)) #%>%
-  # mutate(lon = round(lon, 4), 
-         # lat = round(lat, 4))
+  # mutate(lon = round(lon, 5), 
+         # lat = round(lat, 5))
 rm(BO_layers_dl); gc()
-
-# Join the current velocity v2.1 layers
-BO_layers_present <- BO_layers_df %>% 
-  left_join(load_asc("data/Present.Benthic.Max.Depth.Current.Velocity.Lt.min.asc.BOv2_1.asc", "BO21_curvelltmin_bdmax")) %>% 
-  left_join(load_asc("data/Present.Benthic.Max.Depth.Current.Velocity.Mean.asc.BOv2_1.asc", "BO21_curvelmean_bdmax")) %>% 
-  left_join(load_asc("data/Present.Benthic.Max.Depth.Current.Velocity.Lt.max.asc.BOv2_1.asc", "BO21_curvelltmax_bdmax"))
-rm(BO_layers_df); gc()
 
 # Clip to Arctic study region
 Arctic_BO <- BO_layers_present %>%
@@ -115,10 +107,10 @@ Arctic_BO <- BO_layers_present %>%
   filter(in_grid >= 1) %>% 
   dplyr::select(-in_grid)
 save(Arctic_BO, file = "data/Arctic_BO.RData")
+rm(BO_layers_present); gc()
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  # geom_raster(aes(fill = BO2_templtmax_bdmax)) +
   geom_raster(aes(fill = BO21_curvelltmax_bdmax)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
@@ -130,87 +122,62 @@ ggplot(Arctic_BO, aes(x = lon, y = lat)) +
 
 # Load future Bio-ORACLE data ---------------------------------------------
 
-## NB: All of the v2.1 future layers had issues so had to be downloaded manually from the BO website:
-# https://www.bio-oracle.org/downloads-to-email.php
-
 # Future scenario conversions
 # https://ar5-syr.ipcc.ch/topic_futurechanges.php
 # RCP8.5 ~= A2
 # RCP6.0 ~= B2
 # RCP4.5 ~= B1
 
+# Load present data for easier joining
+load("data/Arctic_BO.RData")
+
 # Look at possible layers
 BO_layers_future <- list_layers_future(datasets = "Bio-ORACLE") %>% 
   filter(scenario == "RCP85")
 
-# Load present data for easier joining
-load("data/Arctic_BO.RData")
+# Download as similar of layers as possible to present data
+                                           # Bottom temperature
+BO_layers_future_dl <- get_future_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO21_templtmax_bdmax", 
+                                           # Surface temperature
+                                           "BO21_templtmin_ss", "BO21_tempmean_ss", "BO21_templtmax_ss", 
+                                           # Bottom salinity
+                                           "BO21_salinityltmin_bdmax", "BO21_salinitymean_bdmax", "BO21_salinityltmax_bdmax", 
+                                           # Surface salinity
+                                           "BO21_salinityltmin_ss", "BO21_salinitymean_ss", "BO21_salinityltmax_ss", 
+                                           # Ice thickness
+                                           "BO21_icethickltmin_ss", "BO21_icethickmean_ss", "BO21_icethickltmax_ss",
+                                           # Current velocity
+                                           "BO21_curvelltmin_bdmax", "BO21_curvelmean_bdmax", "BO21_curvelltmax_bdmax"), 
+                                         scenario = "RCP85", year = c(2050, 2100))
+BO_layers_future_dl <- load_layers(BO_layers_future_dl$layer_code)
 
-# Load and process 2050 data layers
-  # Note that the layer names must be the same as the present data even though these are v2.1 data
+# Convert to data.frame
+BO_layers_future_df <- as.data.frame(BO_layers_future_dl, xy = T) %>% 
+  dplyr::rename(lon = x, lat = y) %>% 
+  filter(BO21_RCP85_2100_icethickmean_ss >= 0,
+         lat >= min(Arctic_boundary$lat))
+rm(BO_layers_future_dl); gc()
+
+# Create 2050 data.frame
 Arctic_BO_2050 <- Arctic_BO %>% 
-  dplyr::select(lon, lat, BO_parmean:BO2_phosphateltmax_bdmax) %>% 
-  # Add bottom temperature
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Temperature.Lt.min.asc.BOv2_1.asc", "BO2_templtmin_bdmax")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Temperature.Mean.asc.BOv2_1.asc", "BO2_tempmean_bdmax")) %>% 
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Temperature.Lt.max.asc.BOv2_1.asc", "BO2_templtmax_bdmax")) %>% 
-  # Add SST
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Temperature.Lt.min.asc.BOv2_1.asc", "BO2_templtmin_ss")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Temperature.Mean.asc.BOv2_1.asc", "BO2_tempmean_ss")) %>% 
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Temperature.Lt.max.asc.BOv2_1.asc", "BO2_templtmax_ss")) %>% 
-  # Add bottom salinity
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Salinity.Lt.min.asc.BOv2_1.asc", "BO2_salinityltmin_bdmax")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Salinity.Mean.asc.BOv2_1.asc", "BO2_salinitymean_bdmax")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Salinity.Lt.max.asc.BOv2_1.asc", "BO2_salinityltmax_bdmax")) %>%
-  # Add SSS
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Salinity.Lt.min.asc.BOv2_1.asc", "BO2_salinityltmin_ss")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Salinity.Mean.asc.BOv2_1.asc", "BO2_salinitymean_ss")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Salinity.Lt.max.asc.BOv2_1.asc", "BO2_salinityltmax_ss")) %>%
-  # Add ice thickness
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Ice.thickness.Lt.min.asc.BOv2_1.asc", "BO2_icethickltmin_ss")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Ice.thickness.Mean.asc.BOv2_1.asc", "BO2_icethickmean_ss")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Surface.Ice.thickness.Lt.max.asc.BOv2_1.asc", "BO2_icethickltmax_ss")) %>%
-  # Add current velocities
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Current.Velocity.Lt.min.asc.BOv2_1.asc", "BO21_curvelltmin_bdmax")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Current.Velocity.Mean.asc.BOv2_1.asc", "BO21_curvelmean_bdmax")) %>%
-  left_join(load_asc("data/2050AOGCM.RCP85.Benthic.Max.Depth.Current.Velocity.Lt.max.asc.BOv2_1.asc", "BO21_curvelltmax_bdmax"))
+  dplyr::select(lon, lat, BO_parmean:BO21_phosphateltmax_bdmax) %>% 
+  left_join(dplyr::select(BO_layers_future_df, lon, lat, BO21_RCP85_2050_curvelltmax_bdmax:BO21_RCP85_2050_tempmean_ss), 
+            by = c("lon", "lat"))
+colnames(Arctic_BO_2050) <- sub("RCP85_2050_", "", colnames(Arctic_BO_2050))
 save(Arctic_BO_2050, file = "data/Arctic_BO_2050.RData")
 
-# Load and process 2100 data layers
-# Note that the layer names must be the same as the present data even though these are v2.1 data
+# Create 2100 data.frame
 Arctic_BO_2100 <- Arctic_BO %>% 
-  dplyr::select(lon, lat, BO_parmean:BO2_phosphateltmax_bdmax) %>% 
-  # Add bottom temperature
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Temperature.Lt.min.asc.BOv2_1.asc", "BO2_templtmin_bdmax")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Temperature.Mean.asc.BOv2_1.asc", "BO2_tempmean_bdmax")) %>% 
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Temperature.Lt.max.asc.BOv2_1.asc", "BO2_templtmax_bdmax")) %>% 
-  # Add SST
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Temperature.Lt.min.asc.BOv2_1.asc", "BO2_templtmin_ss")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Temperature.Mean.asc.BOv2_1.asc", "BO2_tempmean_ss")) %>% 
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Temperature.Lt.max.asc.BOv2_1.asc", "BO2_templtmax_ss")) %>% 
-  # Add bottom salinity
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Salinity.Lt.min.asc.BOv2_1.asc", "BO2_salinityltmin_bdmax")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Salinity.Mean.asc.BOv2_1.asc", "BO2_salinitymean_bdmax")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Salinity.Lt.max.asc.BOv2_1.asc", "BO2_salinityltmax_bdmax")) %>%
-  # Add SSS
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Salinity.Lt.min.asc.BOv2_1.asc", "BO2_salinityltmin_ss")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Salinity.Mean.asc.BOv2_1.asc", "BO2_salinitymean_ss")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Salinity.Lt.max.asc.BOv2_1.asc", "BO2_salinityltmax_ss")) %>%
-  # Add ice thickness
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Ice.thickness.Lt.min.asc.BOv2_1.asc", "BO2_icethickltmin_ss")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Ice.thickness.Mean.asc.BOv2_1.asc", "BO2_icethickmean_ss")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Surface.Ice.thickness.Lt.max.asc.BOv2_1.asc", "BO2_icethickltmax_ss")) %>%
-  # Add current velocities
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Current.Velocity.Lt.min.asc.BOv2_1.asc", "BO21_curvelltmin_bdmax")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Current.Velocity.Mean.asc.BOv2_1.asc", "BO21_curvelmean_bdmax")) %>%
-  left_join(load_asc("data/2100AOGCM.RCP85.Benthic.Max.Depth.Current.Velocity.Lt.max.asc.BOv2_1.asc", "BO21_curvelltmax_bdmax"))
+  dplyr::select(lon, lat, BO_parmean:BO21_phosphateltmax_bdmax) %>% 
+  left_join(dplyr::select(BO_layers_future_df, lon, lat, BO21_RCP85_2100_curvelltmax_bdmax:BO21_RCP85_2100_tempmean_ss), 
+            by = c("lon", "lat"))
+colnames(Arctic_BO_2100) <- sub("RCP85_2100_", "", colnames(Arctic_BO_2100))
 save(Arctic_BO_2100, file = "data/Arctic_BO_2100.RData")
+rm(BO_layers_future_df); gc()
 
 # Visualise
 ggplot(Arctic_BO_2100, aes(x = lon, y = lat)) +
-  # geom_raster(aes(fill = BO_parmax)) +
-  # geom_raster(aes(fill = BO2_templtmax_bdmax)) +
-  geom_raster(aes(fill = BO21_curvelltmax_bdmax)) +
+  geom_raster(aes(fill = BO21_RCP85_2100_curvelltmax_bdmax)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -273,9 +240,9 @@ BO_cor_matrix <- Arctic_BO %>%
 save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
 write_csv(BO_cor_matrix, "data/BO_cor_matrix.csv")
 
-BO_cor_groups <- correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env, BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax))))
+BO_cor_groups <- correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env, BO21_templtmin_bdmax:BO21_phosphateltmax_bdmax))))
 BO_cor_groups
 
-# ANother method of screening vartiables based on correlations
+# Another method of screening variables based on correlations
 usdm::vifcor()
 
