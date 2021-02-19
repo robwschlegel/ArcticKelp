@@ -127,7 +127,7 @@ bbox_to_bathy <- function(coords, lon_pad = 0, lat_pad = 0,
   
   # Use the default hi-res Arctic bathy unless the user specifies something else
   # if(is.na(bathy_file)) bathy_file <- paste0(pCloud_path,"FACE-IT_data/shape_files/IBCAO_v4_200m.nc") # Super hi-res, but doesn't work...
-  if(is.na(bathy_file)) bathy_file <- "~/pCloudDrive/FACE-IT_data/shape_files/GRIDONE_2D.nc"
+  if(is.na(bathy_file)) bathy_file <- "~/pCloudDrive/FACE-IT_data/maps/GRIDONE_2D.nc"
   # if(is.na(bathy_file)) bathy_file <- paste0(pCloud_path,"FACE-IT_data/shape_files/GEBCO_2020.nc")
   
   # Set limits for bathy projection
@@ -153,8 +153,8 @@ bbox_to_bathy <- function(coords, lon_pad = 0, lat_pad = 0,
   bs_bathy <- vector_bathymetry(rb)
   
   # Convert land file for use with new bathy file
-  world <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/shape_files/ne_10m_land.shp")
-  islands <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/shape_files/ne_10m_minor_islands.shp")
+  world <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/maps/ne_10m_land.shp")
+  islands <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/maps/ne_10m_minor_islands.shp")
   world <- rbind(world, islands)
   # proj4string(world) <- CRS(projection)
   bs_land <- clip_shapefile(world, lims, proj.limits = projection)
@@ -164,7 +164,7 @@ bbox_to_bathy <- function(coords, lon_pad = 0, lat_pad = 0,
   }
   
   # Create glacier shape files
-  glaciers <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/shape_files/ne_10m_glaciated_areas.shp")
+  glaciers <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/maps/ne_10m_glaciated_areas.shp")
   if(!rgeos::gIsValid(glaciers)){ # Needs buffering
     glaciers <- rgeos::gBuffer(glaciers, byid = TRUE, width = 0)
   }
