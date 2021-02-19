@@ -27,7 +27,7 @@ rm(study_site_env); gc()
 
 # Load Arctic data for testing variable correlations and for making model projections
 Arctic_excl <- Arctic_coast %>%
-  dplyr::select(lon, lat, all_of(BO_vars))
+  dplyr::select(lon, lat, land_distance, depth, all_of(BO_vars))
 rm(Arctic_coast); gc()
 
 # Load future layers
@@ -66,8 +66,8 @@ kelp_all <- adf %>%
          Agarum = round(Agarum, -1),
          Alaria = round(Alaria, -1)) %>% 
   dplyr::select(-lon_env, -lat_env, -lon, -lat) %>%
-  dplyr::select(-depth.x) %>% # This is not used in Jesi's model
-  dplyr::select(-depth.y, -land_distance) %>% # Decided against these variables
+  dplyr::select(-bathy) %>% # This is not used in Jesi's model
+  dplyr::select(-depth, -land_distance) %>% # Decided against these variables
   na.omit() # No missing data
 
 # The mean kelp covers per site/depth
@@ -189,7 +189,7 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 registerDoParallel(cores = 50)
 
 # kelp.cover
-system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~16 seconds on 50 cores
+system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~7 seconds on 50 cores
 save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
 
 # Laminariales
@@ -351,7 +351,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
 doParallel::registerDoParallel(cores = 50)
 
 # Kelp.cover
-system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 230 seconds with 50 cores
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 354 seconds with 50 cores
 save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 
 # Laminariales

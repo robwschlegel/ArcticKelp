@@ -75,6 +75,13 @@ adf_summary <- adf %>%
          sd_cover = ifelse(is.na(sd_cover), 0, sd_cover))
 
 
+
+# Coastal data ------------------------------------------------------------
+
+load("data/Arctic_coast.RData")
+load("metadata/coastal_coords.RData")
+
+
 # Create figures ----------------------------------------------------------
 
 # Ridge plot showing percent kelp cover in quadrats by site and depth
