@@ -21,6 +21,7 @@ library(biomod2)
 # remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
 library(raster)
 library(FNN)
+library(geosphere)
 library(doParallel)
 library(usdm)
 library(corrplot)
@@ -37,10 +38,50 @@ sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), p
 
 # The present data
 load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>% 
+  mutate(lon = round(lon, 5),
+         lat = round(lat, 5),
+         idx = 1:n())
 
-# Coordinates only
+# The depth/distance info
+load("data/Arctic_AM.RData")
+Arctic_AM <- Arctic_AM %>% 
+  dplyr::rename(depth = bathy) %>% 
+  mutate(lon = round(lon, 5),
+         lat = round(lat, 5))
+
+# Global coordinates
 global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
   mutate(env_index = 1:nrow(Arctic_BO))
+
+# Coastal coordinates
+coastal_coords <- Arctic_AM %>% 
+  filter(land_distance <= 50 | depth <= 100) %>% 
+  mutate(env_index = 1:n())
+
+# Match BO and AM grids
+grid_index <- data.frame(coastal_coords,
+                         idx = knnx.index(data = as.matrix(Arctic_BO[,1:2]),
+                                          query = as.matrix(coastal_coords[,1:2]), k = 1))
+Arctic_coast_match <- left_join(grid_index, Arctic_BO, by = c("idx")) %>% 
+  mutate(dist = round(distHaversine(cbind(lon.x, lat.x),
+                                    cbind(lon.y, lat.y))/1000, 2), 
+         idx = NULL) %>% 
+  filter(dist <= 25) %>% 
+  dplyr::rename(lon = lon.y, lat = lat.y)
+
+# Merge to extract only "coastal" pixels
+Arctic_coast <- left_join(Arctic_BO , Arctic_AM, by = c("lon", "lat")) %>% 
+  filter(land_distance <= 50 | depth <= 100)
+  # filter(is.na(depth))
+
+# Plot coastal pixels
+# ggplot(data = Arctic_BO, aes(x = lon, y = lat)) +
+ggplot(data = filter(Arctic_AM, depth > 100), aes(x = lon, y = lat)) +
+  # geom_tile(aes(fill = BO21_templtmin_bdmax)) +
+  geom_tile(aes(fill = depth)) +
+  borders(fill = "grey90", colour = "black") +
+  coord_quickmap(ylim = c(50, 90), expand = F)
 
 # The usdm package can do stepwise elimination of highly inflating variables
 # Calculate vif for the variables in Arctic_BO_stack
@@ -50,10 +91,10 @@ global_coords <- dplyr::select(Arctic_BO, lon, lat) %>%
 # v1 <- vifstep(Arctic_BO[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
-v2 <- vifcor(na.omit(Arctic_BO)[, 3:34], th = 0.7)
+v2 <- vifcor(na.omit(Arctic_coast)[, 3:34], th = 0.7)
 
 # Exclude the collinear variables that were identified previously
-Arctic_excl_pre <- Arctic_BO %>% 
+Arctic_excl_pre <- Arctic_coast %>% 
   dplyr::select(lon, lat, v2@results$Variables) %>% ###JG: should we also remove SSTmax and PAR? (see lines 64-66)
   mutate(BO_parmean = replace_na(BO_parmean, 0),
          BO21_curvelltmin_bdmax = replace_na(BO21_curvelltmin_bdmax, 0)) %>% 
@@ -525,7 +566,7 @@ plot_biomod <- function(sps_choice){
   
   # Visualise present data
   plot_present <- df_project_present %>% 
-    filter(land_distance <= 100 | depth <= 100) %>% 
+    filter(land_distance <= 50 | depth <= 100) %>% 
     filter(presence == TRUE) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes(fill = presence)) +

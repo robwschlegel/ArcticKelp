@@ -197,24 +197,24 @@ depth <- read.asciigrid("data/depthclip.asc")
 depth_df <- as.data.frame(depth, xy = T)
 Arctic_depth <- depth_df %>%
   dplyr::rename(bathy = data.depthclip.asc,
-                lon = s1, lat = s2) %>%
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+                lon = s1, lat = s2) #%>%
+  # filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         # lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # Distance to land
 land_distance <- read.asciigrid("data/landdistclip.asc")
 land_distance_df <- as.data.frame(land_distance, xy = T)
 Arctic_land_distance <- land_distance_df %>%
   dplyr::rename(land_distance = data.landdistclip.asc,
-                lon = s1, lat = s2) %>%
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+                lon = s1, lat = s2) #%>%
+  # filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         # lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # Combine into single file and save
 Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat")) %>% 
-  dplyr::select(lon, lat, everything()) %>% 
-  mutate(lon = round(lon, 5),
-         lat = round(lat, 5))
+  dplyr::select(lon, lat, everything()) #%>% 
+  # mutate(lon = round(lon, 5),
+         # lat = round(lat, 5))
 save(Arctic_AM, file = "data/Arctic_AM.RData")
 
 # Visualise
@@ -222,9 +222,9 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
   geom_tile(aes(fill = land_distance)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
-  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
-                  expand = F) +
+  # coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                  # ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                  # expand = F) +
   theme(legend.position = "bottom")
 
 
