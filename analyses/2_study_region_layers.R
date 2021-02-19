@@ -36,8 +36,8 @@ rainbow_palette <- c("#fefefe", "#f963fa", "#020135", "#00efe1", "#057400", "#fc
 load_asc <- function(file_name, col_name){
   df <- as.data.frame(raster(file_name), xy = T) %>% 
     `colnames<-`(c("lon", "lat", col_name))  #%>% 
-    # mutate(lon = round(lon, 4),
-           # lat = round(lat, 4))
+  # mutate(lon = round(lon, 4),
+  # lat = round(lat, 4))
 }
 
 
@@ -54,7 +54,7 @@ MAR_layers <- list_layers(datasets = "MARSPEC")
 layer_stats()
 
 # Download bathy layers
-  # NB: Not used as these values are suspicious
+# NB: Not used as these values are suspicious
 # bathy <- load_layers(c("BO_bathymin", "BO_bathymean", "BO_bathymax"))
 # Arctic_bathy <- as.data.frame(bathy, xy = T) %>% 
 #   dplyr::rename(lon = x, lat = y) %>% 
@@ -63,11 +63,11 @@ layer_stats()
 # save(Arctic_bathy, file = "data/Arctic_bathy.RData")
 
 # The layers currently chosen for use in this study
-  # NB: Many of the variables below also have surface values
-  # NB: Max depth is the deepest, we checked
+# NB: Many of the variables below also have surface values
+# NB: Max depth is the deepest, we checked
 
 # Download the chosen layers
-  # NB: Don't run this if nothing has changed as there is no need to ping their servers
+# NB: Don't run this if nothing has changed as there is no need to ping their servers
                               # Bottom temperature
 BO_layers_dl <- load_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO21_templtmax_bdmax", 
                               # Surface temperature
@@ -96,8 +96,8 @@ BO_layers_present <- as.data.frame(BO_layers_dl, xy = T) %>%
   dplyr::rename(lon = x, lat = y) %>% 
   filter(BO21_icethickmean_ss >= 0,
          lat >= min(Arctic_boundary$lat)) #%>%
-  # mutate(lon = round(lon, 5), 
-         # lat = round(lat, 5))
+# mutate(lon = round(lon, 5), 
+# lat = round(lat, 5))
 rm(BO_layers_dl); gc()
 
 # Clip to Arctic study region
@@ -136,7 +136,7 @@ BO_layers_future <- list_layers_future(datasets = "Bio-ORACLE") %>%
   filter(scenario == "RCP85")
 
 # Download as similar of layers as possible to present data
-                                           # Bottom temperature
+# Bottom temperature
 BO_layers_future_dl <- get_future_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO21_templtmax_bdmax", 
                                            # Surface temperature
                                            "BO21_templtmin_ss", "BO21_tempmean_ss", "BO21_templtmax_ss", 
@@ -198,8 +198,8 @@ depth_df <- as.data.frame(depth, xy = T)
 Arctic_depth <- depth_df %>%
   dplyr::rename(bathy = data.depthclip.asc,
                 lon = s1, lat = s2) #%>%
-  # filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         # lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+# filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+# lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # Distance to land
 land_distance <- read.asciigrid("data/landdistclip.asc")
@@ -207,8 +207,8 @@ land_distance_df <- as.data.frame(land_distance, xy = T)
 Arctic_land_distance <- land_distance_df %>%
   dplyr::rename(land_distance = data.landdistclip.asc,
                 lon = s1, lat = s2) #%>%
-  # filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         # lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+# filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+# lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # Combine into single file and save
 Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat")) %>% 
@@ -227,8 +227,8 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   # coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  # ylim = c(bbox_arctic[3], bbox_arctic[4]),
-                  # expand = F) +
+  # ylim = c(bbox_arctic[3], bbox_arctic[4]),
+  # expand = F) +
   theme(legend.position = "bottom")
 
 

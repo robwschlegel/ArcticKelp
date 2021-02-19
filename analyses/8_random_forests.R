@@ -45,8 +45,8 @@ rm(Arctic_BO_2050, Arctic_BO_2100); gc()
 Arctic_map <- ggplot() +
   borders(fill = "grey70", colour = "black") +
   coord_quickmap(expand = F,
-                  xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+                 xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4])) +
   labs(x = NULL, y = NULL)
 
 
@@ -98,13 +98,13 @@ rf_data_prep <- function(kelp_choice, df = kelp_all){
 
 # Function for OneR model run
 OneR_model <- function(kelp_choice, df = kelp_all){
-
+  
   # Pull out training index
   one_random <- sample(1:nrow(df), 0.7*nrow(df))
   
   # Prep the data
   kelp_cat <- rf_data_prep(kelp_choice = kelp_choice, df = df)
-           
+  
   # The training data
   kelp_train <- kelp_cat %>% 
     slice(one_random) %>%
@@ -135,13 +135,13 @@ OneR_model <- function(kelp_choice, df = kelp_all){
 
 # Convenience wrapper for extracting variable importance from an RF
 extract_var_imp <- function(kelp_rf){
-    res <- data.frame(var = row.names(kelp_rf$importance), 
-                      kelp_rf$importance, 
-                      importanceSD = kelp_rf$importanceSD,
-                      mean_MSE = mean(kelp_rf$mse),
-                      mean_rsq = mean(kelp_rf$rsq)) %>% 
-      arrange(-X.IncMSE) %>% 
-      mutate_if(is.numeric, round, 4)
+  res <- data.frame(var = row.names(kelp_rf$importance), 
+                    kelp_rf$importance, 
+                    importanceSD = kelp_rf$importanceSD,
+                    mean_MSE = mean(kelp_rf$mse),
+                    mean_rsq = mean(kelp_rf$rsq)) %>% 
+    arrange(-X.IncMSE) %>% 
+    mutate_if(is.numeric, round, 4)
   res$var <- as.character(res$var)
   return(res)
 }
@@ -159,7 +159,7 @@ top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
   
   # Random forest models for the four possibilities
   rf_reg <- randomForest(cover ~ ., data = df_prep[train,], ntree = 200, importance = TRUE, do.trace = F)
-
+  
   # Extract results
   var_reg <- extract_var_imp(rf_reg)
   return(var_reg)
@@ -306,7 +306,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
                             kelp_choice = kelp_choice, column_choice = column_choice, df = df)
   # ) # ~18 seconds
   gc()
-    
+
   # Create mean projection from all model data
   # system.time(
   project_multi <- plyr::ldply(multi_test, project_cover, .parallel = T) %>%
@@ -377,7 +377,7 @@ load("data/best_rf_alaria.RData")
 
 # Find the distributions of accuracy from 0 - 100%
 test_acc <- best_rf_kelpcover$accuracy_reg #%>%
-  # filter(model_id == 1000)
+# filter(model_id == 1000)
 
 # Quick visuals
 ggplot(filter(test_acc, portion == "validate"), aes(x = accuracy)) +
@@ -532,11 +532,11 @@ project_compare <- function(best_rf, kelp_choice){
     mutate(pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 20),
            pred_diff_2100 = pred_2100_mean - pred_present_mean) %>% 
     mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050))
-    # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
-    # filter(name == "pred_diff_2050" & value != 0) %>% 
-    # pivot_wider()
-    # mutate(pred_diff_2050 = base::cut(pred_2050_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)),
-    #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
+  # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
+  # filter(name == "pred_diff_2050" & value != 0) %>% 
+  # pivot_wider()
+  # mutate(pred_diff_2050 = base::cut(pred_2050_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)),
+  #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
   
   # Scale for difference plots
   diff_range <- range(c(project_diff$pred_diff_2050, project_diff$pred_diff_2100), na.rm = T)
