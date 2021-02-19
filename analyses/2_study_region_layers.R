@@ -177,7 +177,7 @@ rm(BO_layers_future_df); gc()
 
 # Visualise
 ggplot(Arctic_BO_2100, aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = BO21_RCP85_2100_curvelltmax_bdmax)) +
+  geom_raster(aes(fill = BO21_curvelltmax_bdmax)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -212,7 +212,11 @@ Arctic_land_distance <- land_distance_df %>%
 
 # Combine into single file and save
 Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat")) %>% 
-  dplyr::select(lon, lat, everything()) #%>% 
+  dplyr::select(lon, lat, everything()) %>% 
+  mutate(in_grid = sp::point.in.polygon(point.x = Arctic_land_distance[["lon"]], point.y = Arctic_land_distance[["lat"]], 
+                                        pol.x = Arctic_boundary[["lon"]], pol.y = Arctic_boundary[["lat"]])) %>% 
+  filter(in_grid >= 1) %>% 
+  dplyr::select(-in_grid) #%>% 
   # mutate(lon = round(lon, 5),
          # lat = round(lat, 5))
 save(Arctic_AM, file = "data/Arctic_AM.RData")
@@ -231,7 +235,6 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
 # Establish the correlation matrix ----------------------------------------
 
 # Check Pearson correlation coefficient between layers
-  # These warnings are fine, we don't 
 BO_cor_matrix <- Arctic_BO %>% 
   dplyr::select(-lon, -lat) %>% 
   correlation(redundant = T) %>% 
@@ -240,9 +243,10 @@ BO_cor_matrix <- Arctic_BO %>%
 save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
 write_csv(BO_cor_matrix, "data/BO_cor_matrix.csv")
 
-BO_cor_groups <- correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env, BO21_templtmin_bdmax:BO21_phosphateltmax_bdmax))))
-BO_cor_groups
+# Another method
+# BO_cor_groups <- correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env, BO21_templtmin_bdmax:BO21_phosphateltmax_bdmax))))
+# BO_cor_groups
 
-# Another method of screening variables based on correlations
-usdm::vifcor()
+# Yet another method of screening variables based on correlations
+# usdm::vifcor()
 

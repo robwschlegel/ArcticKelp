@@ -67,18 +67,18 @@ coastal_coords <- dplyr::select(Arctic_coast, lon, lat) %>%
 
 # The usdm package can do stepwise elimination of highly inflating variables
 # Calculate vif for the variables in Arctic_BO_stack
-v0 <- vif(Arctic_coast[, 3:34])
+# v0 <- vif(Arctic_coast[, 3:34])
 
 # Identify collinear variables that should be excluded (VIF > 10)
-v1 <- vifstep(Arctic_coast[, 3:34])
+# v1 <- vifstep(Arctic_coast[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
-v2 <- vifcor(na.omit(Arctic_coast)[, 3:34], th = 0.7)
+# v2 <- vifcor(na.omit(Arctic_coast)[, 3:34], th = 0.7)
 
 # Save column names for use with Random Forest variable screening
 # BO_vars <- v2@results$Variables
 # save(BO_vars, file = "metadata/BO_vars.RData")
-# NB: THis can vary slightly between computers
+# NB: This can vary slightly between computers
 # The values here are to be taken as the official ones
 load("metadata/BO_vars.RData")
 
