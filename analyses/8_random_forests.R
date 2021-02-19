@@ -4,7 +4,7 @@
 
 # Setup -------------------------------------------------------------------
 
-# Load all data nad previous libraries
+# Load all data and previous libraries
 source("analyses/4_kelp_cover.R")
 
 # Libraries for this script specifically
@@ -14,10 +14,7 @@ library(OneR) # For single rule machine learning
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
 # Load BO layer names used for the ensemble models
-  # NB: Somehow the ensembles were given a different salinity variable
-  # This will need to be corrected later
 load("metadata/BO_vars.RData")
-# BO_vars[4] <- "BO2_salinityltmax_ss" 
 
 # Environmental data per site
 load("data/study_site_env.RData")

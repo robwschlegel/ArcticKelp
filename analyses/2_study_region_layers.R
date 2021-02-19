@@ -232,10 +232,45 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
   theme(legend.position = "bottom")
 
 
+# Create coastal data.frame -----------------------------------------------
+
+# The present data
+load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>%
+  mutate(lon_match = round(lon, 5),
+         lat_match = round(lat, 5))
+
+# The depth/distance info
+load("data/Arctic_AM.RData")
+Arctic_AM <- Arctic_AM %>% 
+  dplyr::rename(depth = bathy) %>% 
+  mutate(lon = round(lon, 5),
+         lat = round(lat, 5))
+
+# Merge to extract only "coastal" pixels
+Arctic_coast <- left_join(Arctic_BO , Arctic_AM, 
+                          by = c("lon_match" = "lon", "lat_match" = "lat")) %>% 
+  filter(land_distance <= 50 | depth <= 100)
+save(Arctic_coast, file = "data/Arctic_coast.RData")
+
+# Plot coastal pixels
+# ggplot(data = Arctic_coast, aes(x = lon, y = lat)) +
+# # ggplot(data = filter(Arctic_AM, depth > 100), aes(x = lon, y = lat)) +
+#   geom_tile(aes(fill = BO21_templtmin_bdmax)) +
+#   # geom_tile(aes(fill = depth)) +
+#   borders(fill = "grey90", colour = "black") +
+#   coord_quickmap(ylim = c(50, 90), expand = F)
+
+# Coastal coordinates
+coastal_coords <- dplyr::select(Arctic_coast, lon, lat) %>%
+  mutate(env_index = 1:n())
+save(coastal_coords, file = "metadata/coastal_coords.RData")
+
+
 # Establish the correlation matrix ----------------------------------------
 
 # Check Pearson correlation coefficient between layers
-BO_cor_matrix <- Arctic_BO %>% 
+BO_cor_matrix <- Arctic_coast %>% 
   dplyr::select(-lon, -lat) %>% 
   correlation(redundant = T) %>% 
   dplyr::select(Parameter1:r) %>% 
