@@ -17,8 +17,8 @@ source("analyses/1_study_region_sites.R")
 
 # Load additional packages
 # devtools::install_github("biomodhub/biomod2", dependencies = TRUE) # Developmental version. Wasn't needed.
-library(biomod2)
 # remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
+library(biomod2)
 library(raster)
 library(FNN)
 library(doParallel)
@@ -35,51 +35,25 @@ loadRData <- function(fileName){
 sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
 sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), pattern = "_Arct_rarefied_points.csv")
 
-# The present data
-load("data/Arctic_BO.RData")
-Arctic_BO <- Arctic_BO %>%
-  mutate(lon_match = round(lon, 5),
-         lat_match = round(lat, 5))
+# The coastal data
+load("data/Arctic_coast.RData")
 
-# The depth/distance info
-load("data/Arctic_AM.RData")
-Arctic_AM <- Arctic_AM %>% 
-  dplyr::rename(depth = bathy) %>% 
-  mutate(lon = round(lon, 5),
-         lat = round(lat, 5))
-
-# Merge to extract only "coastal" pixels
-Arctic_coast <- left_join(Arctic_BO , Arctic_AM, 
-                          by = c("lon_match" = "lon", "lat_match" = "lat")) %>% 
-  filter(land_distance <= 50 | depth <= 100)
-
-# Plot coastal pixels
-# ggplot(data = Arctic_coast, aes(x = lon, y = lat)) +
-# # ggplot(data = filter(Arctic_AM, depth > 100), aes(x = lon, y = lat)) +
-#   geom_tile(aes(fill = BO21_templtmin_bdmax)) +
-#   # geom_tile(aes(fill = depth)) +
-#   borders(fill = "grey90", colour = "black") +
-#   coord_quickmap(ylim = c(50, 90), expand = F)
-
-# Coastal coordinates
-coastal_coords <- dplyr::select(Arctic_coast, lon, lat) %>%
-  mutate(env_index = 1:n())
+# The coastal coordinates
+load("metadata/coastal_coords.RData")
 
 # The usdm package can do stepwise elimination of highly inflating variables
 # Calculate vif for the variables in Arctic_BO_stack
-v0 <- vif(Arctic_coast[, 3:34])
+# v0 <- vif(Arctic_coast[, 3:34])
 
 # Identify collinear variables that should be excluded (VIF > 10)
-v1 <- vifstep(Arctic_coast[, 3:34])
+# v1 <- vifstep(Arctic_coast[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
-v2 <- vifcor(na.omit(Arctic_coast)[, 3:34], th = 0.7)
+# v2 <- vifcor(na.omit(Arctic_coast)[, 3:34], th = 0.7)
 
 # Save column names for use with Random Forest variable screening
 # BO_vars <- v2@results$Variables
 # save(BO_vars, file = "metadata/BO_vars.RData")
-# NB: THis can vary slightly between computers
-# The values here are to be taken as the official ones
 load("metadata/BO_vars.RData")
 
 # Exclude the collinear variables that were identified previously
@@ -91,18 +65,18 @@ Arctic_excl <- Arctic_coast %>%
 
 # One more layer of correlation screening
 # Correlation plots
-excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
-dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
-corrplot(dataVIF.cor, type = "lower", method = "number")
-heatmap(x = dataVIF.cor, symm = T)
-Pearson_cor <- cor(excl_VIF_df)
+# excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
+# dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
+# corrplot(dataVIF.cor, type = "lower", method = "number")
+# heatmap(x = dataVIF.cor, symm = T)
+# Pearson_cor <- cor(excl_VIF_df)
 
 
 # 2: Load data ------------------------------------------------------------
 
 # Create raster stack
 Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
-plot(Arctic_excl_stack) # Visualise raster stack
+# plot(Arctic_excl_stack) # Visualise raster stack
 
 # Subset of present data used for projections
 Arctic_excl_sub <- Arctic_excl %>% 
@@ -122,6 +96,7 @@ rm(Arctic_AM, Arctic_BO, Arctic_coast, Arctic_excl_sub); gc()
 load("data/Arctic_BO_2050.RData")
 # Note that we do not need the full Arctic data for projections, just the study area
 Arctic_excl_2050_sub <- Arctic_BO_2050 %>% 
+  right_join(dplyr::select(Arctic_excl, lon, lat), by = c("lon", "lat")) %>% 
   dplyr::select(colnames(Arctic_excl)) %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
@@ -133,6 +108,7 @@ rm(Arctic_BO_2050, Arctic_excl_2050_sub); gc()
 load("data/Arctic_BO_2100.RData")
 # Note that we do not need the full Arctic data for projections, just the study area
 Arctic_excl_2100_sub <- Arctic_BO_2100 %>% 
+  right_join(dplyr::select(Arctic_excl, lon, lat), by = c("lon", "lat")) %>% 
   dplyr::select(colnames(Arctic_excl)) %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
@@ -229,15 +205,15 @@ biomod_pipeline <- function(sps_choice){
     NbRunEval = 5, # 5 reps for final models
     DataSplit = 70, # Either chose a 70/30 split
     # DataSplitTable = DataSplitTable, # Or the cross-validation method. This takes much longer, but does run.
-    ## JG = although it runs now here, it messes sections below and get the GLM warning
+    ## JG: although it runs now here, it messes sections below and get the GLM warning
     VarImport = 5, # Number of permutations to estimate variable importance
     models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
     # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
     rescal.all.models = TRUE,
     do.full.models = FALSE,
     modeling.id = sps_name)
-  # ) # 665 seconds for 1 rep
-  #biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
+  # ) # 894 seconds for 1 rep
+  # biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
   
   # Build the ensemble models
   # system.time(
@@ -253,7 +229,7 @@ biomod_pipeline <- function(sps_choice){
     prob.ci = TRUE, # Confidence interval around prob.mean
     prob.ci.alpha = 0.05,
     VarImport = 10)
-  # ) # 631 seconds for 1 rep
+  # ) # 792 seconds for 1 rep
   
   # Load if the model has already been run
   # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
@@ -275,7 +251,7 @@ biomod_pipeline <- function(sps_choice){
     compress = "xz",
     build.clamping.mask = FALSE,
     do.stack = TRUE)
-  # ) # 123 seconds for 1 rep
+  # ) # 76 seconds for 1 rep
   # plot(biomod_projection)
   
   # Create ensemble projections
@@ -286,7 +262,7 @@ biomod_pipeline <- function(sps_choice){
     binary.meth = 'TSS',
     output.format = '.RData',
     do.stack = TRUE)
-  # ) # 9 seconds for 1 rep
+  # ) # 7 seconds for 1 rep
   
   # Visualise
   # plot(biomod_ensemble_projection)
@@ -311,7 +287,7 @@ biomod_pipeline <- function(sps_choice){
     output.format = '.RData',
     compress = 'xz',
     build.clamping.mask = FALSE)
-  # ) # 178 seconds for 1 rep
+  # ) # 85 seconds for 1 rep
   # plot(biomod_projection_2050)
   
   # Create 2050 ensemble projections
@@ -322,7 +298,7 @@ biomod_pipeline <- function(sps_choice){
     binary.meth = 'TSS',
     output.format = '.RData',
     do.stack = TRUE)
-  # ) # 11 seconds for 1 rep
+  # ) # 8 seconds for 1 rep
   # plot(biomod_ensemble_projection_2050)
   
   # Clean out 2050
@@ -332,7 +308,7 @@ biomod_pipeline <- function(sps_choice){
   # unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
   
   # Run 2100 projections
-  system.time(
+  # system.time(
   biomod_projection_2100 <- BIOMOD_Projection(
     modeling.output = biomod_model,
     new.env = Arctic_excl_2100_sub_stack,
@@ -341,21 +317,21 @@ biomod_pipeline <- function(sps_choice){
     output.format = '.RData',
     compress = 'xz',
     build.clamping.mask = FALSE)
-  ) # xxx seconds
+  # ) # 84 seconds
   
   # Create 2100 ensemble projections
-  system.time(
+  # system.time(
   biomod_ensemble_projection_2100 <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
     projection.output = biomod_projection_2100,
     binary.meth = 'TSS',
     output.format = '.RData',
     do.stack = TRUE)
-  ) # xxx seconds
+  # ) # 8 seconds
   # plot(biomod_ensemble_projection_2100)
   
   # Clean out 2100
-  rm(biomod_projection_2100); gc()
+  rm(biomod_projection_2100, biomod_ensemble_projection_2100); gc()
   
   # Flush local tmp drive. Better not to do this if running on mulitple cores
   # unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
@@ -375,7 +351,7 @@ biomod_pipeline <- function(sps_choice){
 # biomod_pipeline(sps_files[1])
 
 # Run them all
-registerDoParallel(cores = 10)
+registerDoParallel(cores = 5)
 plyr::l_ply(sps_files, biomod_pipeline, .parallel = TRUE)
 
 
@@ -625,7 +601,7 @@ plot_biomod <- function(sps_choice){
 
 # Create all visuals
 registerDoParallel(cores = 5)
-plyr::l_ply(sps_names, plot_biomod, .parallel = T)
+# plyr::l_ply(sps_names, plot_biomod, .parallel = T)
 
 
 # 11: Save ensemble models as .grd files ----------------------------------

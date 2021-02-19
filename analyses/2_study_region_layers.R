@@ -68,7 +68,7 @@ layer_stats()
 
 # Download the chosen layers
 # NB: Don't run this if nothing has changed as there is no need to ping their servers
-# Bottom temperature
+                              # Bottom temperature
 BO_layers_dl <- load_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO21_templtmax_bdmax", 
                               # Surface temperature
                               "BO21_templtmin_ss", "BO21_tempmean_ss", "BO21_templtmax_ss", 
@@ -217,8 +217,8 @@ Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat"))
                                         pol.x = Arctic_boundary[["lon"]], pol.y = Arctic_boundary[["lat"]])) %>% 
   filter(in_grid >= 1) %>% 
   dplyr::select(-in_grid) #%>% 
-# mutate(lon = round(lon, 5),
-# lat = round(lat, 5))
+  # mutate(lon = round(lon, 5),
+         # lat = round(lat, 5))
 save(Arctic_AM, file = "data/Arctic_AM.RData")
 
 # Visualise

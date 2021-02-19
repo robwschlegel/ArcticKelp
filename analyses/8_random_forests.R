@@ -306,7 +306,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
                             kelp_choice = kelp_choice, column_choice = column_choice, df = df)
   # ) # ~18 seconds
   gc()
-  
+
   # Create mean projection from all model data
   # system.time(
   project_multi <- plyr::ldply(multi_test, project_cover, .parallel = T) %>%
