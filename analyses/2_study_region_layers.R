@@ -36,8 +36,8 @@ rainbow_palette <- c("#fefefe", "#f963fa", "#020135", "#00efe1", "#057400", "#fc
 load_asc <- function(file_name, col_name){
   df <- as.data.frame(raster(file_name), xy = T) %>% 
     `colnames<-`(c("lon", "lat", col_name))  #%>% 
-    # mutate(lon = round(lon, 4),
-           # lat = round(lat, 4))
+  # mutate(lon = round(lon, 4),
+  # lat = round(lat, 4))
 }
 
 
@@ -54,7 +54,7 @@ MAR_layers <- list_layers(datasets = "MARSPEC")
 layer_stats()
 
 # Download bathy layers
-  # NB: Not used as these values are suspicious
+# NB: Not used as these values are suspicious
 # bathy <- load_layers(c("BO_bathymin", "BO_bathymean", "BO_bathymax"))
 # Arctic_bathy <- as.data.frame(bathy, xy = T) %>% 
 #   dplyr::rename(lon = x, lat = y) %>% 
@@ -63,12 +63,12 @@ layer_stats()
 # save(Arctic_bathy, file = "data/Arctic_bathy.RData")
 
 # The layers currently chosen for use in this study
-  # NB: Many of the variables below also have surface values
-  # NB: Max depth is the deepest, we checked
+# NB: Many of the variables below also have surface values
+# NB: Max depth is the deepest, we checked
 
 # Download the chosen layers
-  # NB: Don't run this if nothing has changed as there is no need to ping their servers
-                              # Bottom temperature
+# NB: Don't run this if nothing has changed as there is no need to ping their servers
+# Bottom temperature
 BO_layers_dl <- load_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO21_templtmax_bdmax", 
                               # Surface temperature
                               "BO21_templtmin_ss", "BO21_tempmean_ss", "BO21_templtmax_ss", 
@@ -96,8 +96,8 @@ BO_layers_present <- as.data.frame(BO_layers_dl, xy = T) %>%
   dplyr::rename(lon = x, lat = y) %>% 
   filter(BO21_icethickmean_ss >= 0,
          lat >= min(Arctic_boundary$lat)) #%>%
-  # mutate(lon = round(lon, 5), 
-         # lat = round(lat, 5))
+# mutate(lon = round(lon, 5), 
+# lat = round(lat, 5))
 rm(BO_layers_dl); gc()
 
 # Clip to Arctic study region
@@ -136,7 +136,7 @@ BO_layers_future <- list_layers_future(datasets = "Bio-ORACLE") %>%
   filter(scenario == "RCP85")
 
 # Download as similar of layers as possible to present data
-                                           # Bottom temperature
+# Bottom temperature
 BO_layers_future_dl <- get_future_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO21_templtmax_bdmax", 
                                            # Surface temperature
                                            "BO21_templtmin_ss", "BO21_tempmean_ss", "BO21_templtmax_ss", 
@@ -177,7 +177,7 @@ rm(BO_layers_future_df); gc()
 
 # Visualise
 ggplot(Arctic_BO_2100, aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = BO21_RCP85_2100_curvelltmax_bdmax)) +
+  geom_raster(aes(fill = BO21_curvelltmax_bdmax)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -198,8 +198,8 @@ depth_df <- as.data.frame(depth, xy = T)
 Arctic_depth <- depth_df %>%
   dplyr::rename(bathy = data.depthclip.asc,
                 lon = s1, lat = s2) #%>%
-  # filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         # lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+# filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+# lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # Distance to land
 land_distance <- read.asciigrid("data/landdistclip.asc")
@@ -207,14 +207,18 @@ land_distance_df <- as.data.frame(land_distance, xy = T)
 Arctic_land_distance <- land_distance_df %>%
   dplyr::rename(land_distance = data.landdistclip.asc,
                 lon = s1, lat = s2) #%>%
-  # filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         # lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+# filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+# lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
 # Combine into single file and save
 Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat")) %>% 
-  dplyr::select(lon, lat, everything()) #%>% 
-  # mutate(lon = round(lon, 5),
-         # lat = round(lat, 5))
+  dplyr::select(lon, lat, everything()) %>% 
+  mutate(in_grid = sp::point.in.polygon(point.x = Arctic_land_distance[["lon"]], point.y = Arctic_land_distance[["lat"]], 
+                                        pol.x = Arctic_boundary[["lon"]], pol.y = Arctic_boundary[["lat"]])) %>% 
+  filter(in_grid >= 1) %>% 
+  dplyr::select(-in_grid) #%>% 
+# mutate(lon = round(lon, 5),
+# lat = round(lat, 5))
 save(Arctic_AM, file = "data/Arctic_AM.RData")
 
 # Visualise
@@ -223,16 +227,50 @@ ggplot(Arctic_AM, aes(x = lon, y = lat)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   # coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  # ylim = c(bbox_arctic[3], bbox_arctic[4]),
-                  # expand = F) +
+  # ylim = c(bbox_arctic[3], bbox_arctic[4]),
+  # expand = F) +
   theme(legend.position = "bottom")
+
+
+# Create coastal data.frame -----------------------------------------------
+
+# The present data
+load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>%
+  mutate(lon_match = round(lon, 5),
+         lat_match = round(lat, 5))
+
+# The depth/distance info
+load("data/Arctic_AM.RData")
+Arctic_AM <- Arctic_AM %>% 
+  dplyr::rename(depth = bathy) %>% 
+  mutate(lon = round(lon, 5),
+         lat = round(lat, 5))
+
+# Merge to extract only "coastal" pixels
+Arctic_coast <- left_join(Arctic_BO , Arctic_AM, 
+                          by = c("lon_match" = "lon", "lat_match" = "lat")) %>% 
+  filter(land_distance <= 50 | depth <= 100)
+save(Arctic_coast, file = "data/Arctic_coast.RData")
+
+# Plot coastal pixels
+# ggplot(data = Arctic_coast, aes(x = lon, y = lat)) +
+# # ggplot(data = filter(Arctic_AM, depth > 100), aes(x = lon, y = lat)) +
+#   geom_tile(aes(fill = BO21_templtmin_bdmax)) +
+#   # geom_tile(aes(fill = depth)) +
+#   borders(fill = "grey90", colour = "black") +
+#   coord_quickmap(ylim = c(50, 90), expand = F)
+
+# Coastal coordinates
+coastal_coords <- dplyr::select(Arctic_coast, lon, lat) %>%
+  mutate(env_index = 1:n())
+save(coastal_coords, file = "metadata/coastal_coords.RData")
 
 
 # Establish the correlation matrix ----------------------------------------
 
 # Check Pearson correlation coefficient between layers
-  # These warnings are fine, we don't 
-BO_cor_matrix <- Arctic_BO %>% 
+BO_cor_matrix <- Arctic_coast %>% 
   dplyr::select(-lon, -lat) %>% 
   correlation(redundant = T) %>% 
   dplyr::select(Parameter1:r) %>% 
@@ -240,9 +278,10 @@ BO_cor_matrix <- Arctic_BO %>%
 save(BO_cor_matrix, file = "data/BO_cor_matrix.RData")
 write_csv(BO_cor_matrix, "data/BO_cor_matrix.csv")
 
-BO_cor_groups <- correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env, BO21_templtmin_bdmax:BO21_phosphateltmax_bdmax))))
-BO_cor_groups
+# Another method
+# BO_cor_groups <- correlation_groups(layers_correlation(colnames(dplyr::select(Arctic_env, BO21_templtmin_bdmax:BO21_phosphateltmax_bdmax))))
+# BO_cor_groups
 
-# Another method of screening variables based on correlations
-usdm::vifcor()
+# Yet another method of screening variables based on correlations
+# usdm::vifcor()
 
