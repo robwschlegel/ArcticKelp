@@ -13,43 +13,33 @@ library(OneR) # For single rule machine learning
 # library(caret) # For cross validation option
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
+# Remove scientific notation from data.frame displays in RStudio
+options(scipen = 9999)
+
 # Load BO layer names used for the ensemble models
 load("metadata/BO_vars.RData")
 
 # Environmental data per site
 load("data/study_site_env.RData")
-study_site_env <- study_site_env %>% 
+study_site_excl <- study_site_env %>% 
   dplyr::select(site:land_distance, all_of(BO_vars))
+rm(study_site_env); gc()
 
 # Load Arctic data for testing variable correlations and for making model projections
-load("data/Arctic_BO.RData")
-Arctic_BO <- Arctic_BO %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+Arctic_excl <- Arctic_coast %>%
   dplyr::select(lon, lat, all_of(BO_vars))
-load("data/Arctic_AM.RData")
-Arctic_AM <- Arctic_AM %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4))
-Arctic_env <- right_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
-rm(Arctic_BO); gc()
+rm(Arctic_coast); gc()
 
 # Load future layers
 load("data/Arctic_BO_2050.RData")
-Arctic_env_2050 <- Arctic_BO_2050 %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+Arctic_excl_2050 <- Arctic_BO_2050 %>% 
   dplyr::select(lon, lat, all_of(BO_vars)) %>% 
-  right_join(Arctic_AM, by = c("lon", "lat")) 
+  right_join(dplyr::select(Arctic_excl, lon, lat), by = c("lon", "lat")) 
 load("data/Arctic_BO_2100.RData")
-Arctic_env_2100 <- Arctic_BO_2100 %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+Arctic_excl_2100 <- Arctic_BO_2100 %>% 
   dplyr::select(lon, lat, all_of(BO_vars)) %>% 
-  right_join(Arctic_AM, by = c("lon", "lat")) 
-rm(Arctic_AM, Arctic_BO_2050, Arctic_BO_2100); gc()
-
-# Load the BO correlation matrix
-# load("data/BO_cor_matrix.RData")
-
-# Remove scientific notation from data.frame displays in RStudio
-options(scipen = 9999)
+  right_join(dplyr::select(Arctic_excl, lon, lat), by = c("lon", "lat")) 
+rm(Arctic_BO_2050, Arctic_BO_2100); gc()
 
 # The base map to use for everything else
 Arctic_map <- ggplot() +
@@ -58,9 +48,6 @@ Arctic_map <- ggplot() +
                   xlim = c(bbox_arctic[1], bbox_arctic[2]),
                   ylim = c(bbox_arctic[3], bbox_arctic[4])) +
   labs(x = NULL, y = NULL)
-
-# See how well the models perform given the restrictions in range between the different 
-# bounding boxes that can be used
 
 
 # Data --------------------------------------------------------------------
@@ -71,7 +58,7 @@ Arctic_map <- ggplot() +
 # All of the BO variables matched to sites
 kelp_all <- adf %>% 
   dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
-  left_join(study_site_env, by = c("Campaign", "site")) %>%
+  left_join(study_site_excl, by = c("Campaign", "site")) %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
   # Round values to nearest 10 percent
   mutate(kelp.cover = round(kelp.cover, -1),
@@ -79,8 +66,8 @@ kelp_all <- adf %>%
          Agarum = round(Agarum, -1),
          Alaria = round(Alaria, -1)) %>% 
   dplyr::select(-lon_env, -lat_env, -lon, -lat) %>%
-  dplyr::select(-depth) %>% # This is not used in Jesi's model
-  dplyr::select(-bathy, -land_distance) %>% # Decided against these variables
+  dplyr::select(-depth.x) %>% # This is not used in Jesi's model
+  dplyr::select(-depth.y, -land_distance) %>% # Decided against these variables
   na.omit() # No missing data
 
 # The mean kelp covers per site/depth
@@ -199,7 +186,7 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 }
 
 ## Find the top variables for the different kelp covers
-# registerDoParallel(cores = 50)
+registerDoParallel(cores = 50)
 
 # kelp.cover
 system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~16 seconds on 50 cores
@@ -223,7 +210,7 @@ save(top_var_alaria, file = "data/top_var_alaria.RData")
 # The base function used for the random forest
 # It is informed by the top variables from the previous section
 
-# Load top variable dataframes
+# Load top variable data.frames
 load("data/top_var_kelpcover.RData")
 load("data/top_var_laminariales.RData")
 load("data/top_var_agarum.RData")
@@ -296,11 +283,11 @@ random_kelp_forest <- function(lply_bit, kelp_choice, column_choice,
 # Function for projecting a model
 # model_choice <- multi_test[[1]]
 project_cover <- function(model_choice){
-  pred_df <- data.frame(lon = Arctic_env$lon, lat = Arctic_env$lat,
-                        depth = Arctic_env$bathy, land_distance = Arctic_env$land_distance,
-                        pred_present = predict(model_choice$rf_reg, Arctic_env),
-                        pred_2050 = predict(model_choice$rf_reg, Arctic_env_2050),
-                        pred_2100 = predict(model_choice$rf_reg, Arctic_env_2100)) %>% 
+  pred_df <- data.frame(lon = Arctic_excl$lon, lat = Arctic_excl$lat,
+                        depth = Arctic_excl$depth, land_distance = Arctic_excl$land_distance,
+                        pred_present = predict(model_choice$rf_reg, Arctic_excl),
+                        pred_2050 = predict(model_choice$rf_reg, Arctic_excl_2050),
+                        pred_2100 = predict(model_choice$rf_reg, Arctic_excl_2100)) %>% 
     mutate(pred_present = case_when(pred_present < 0 ~ 0, TRUE ~ pred_present),
            pred_2050 = case_when(pred_present < 0 ~ 0, TRUE ~ pred_2050),
            pred_2100 = case_when(pred_present < 0 ~ 0, TRUE ~ pred_2100))
@@ -320,7 +307,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
   # ) # ~18 seconds
   gc()
     
-  # Create mean projection from all models for present data
+  # Create mean projection from all model data
   # system.time(
   project_multi <- plyr::ldply(multi_test, project_cover, .parallel = T) %>%
     group_by(lon, lat, depth, land_distance) %>% 
@@ -492,7 +479,7 @@ cover_squiz <- function(best_rf, legend_title, x_nudge, kelp_choice, pred_choice
   # Prep point data
   data_point <- adf %>% 
     dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
-    left_join(study_site_env, by = c("Campaign", "site")) %>%
+    left_join(study_site_excl, by = c("Campaign", "site")) %>%
     mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>%
     dplyr::select(lon, lat, {{kelp_choice}}) %>% 
     group_by(lon, lat) %>%

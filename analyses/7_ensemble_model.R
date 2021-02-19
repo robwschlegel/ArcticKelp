@@ -601,7 +601,7 @@ plot_biomod <- function(sps_choice){
 
 # Create all visuals
 registerDoParallel(cores = 5)
-plyr::l_ply(sps_names, plot_biomod, .parallel = T)
+# plyr::l_ply(sps_names, plot_biomod, .parallel = T)
 
 
 # 11: Save ensemble models as .grd files ----------------------------------
