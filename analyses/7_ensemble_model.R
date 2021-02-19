@@ -38,10 +38,9 @@ sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), p
 
 # The present data
 load("data/Arctic_BO.RData")
-Arctic_BO <- Arctic_BO %>% 
-  mutate(lon = round(lon, 5),
-         lat = round(lat, 5),
-         idx = 1:n())
+Arctic_BO <- Arctic_BO %>%
+  mutate(lon_match = round(lon, 5),
+         lat_match = round(lat, 5))
 
 # The depth/distance info
 load("data/Arctic_AM.RData")
@@ -50,77 +49,57 @@ Arctic_AM <- Arctic_AM %>%
   mutate(lon = round(lon, 5),
          lat = round(lat, 5))
 
-# Global coordinates
-global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
-  mutate(env_index = 1:nrow(Arctic_BO))
-
-# Coastal coordinates
-coastal_coords <- Arctic_AM %>% 
-  filter(land_distance <= 50 | depth <= 100) %>% 
-  mutate(env_index = 1:n())
-
-# Match BO and AM grids
-grid_index <- data.frame(coastal_coords,
-                         idx = knnx.index(data = as.matrix(Arctic_BO[,1:2]),
-                                          query = as.matrix(coastal_coords[,1:2]), k = 1))
-Arctic_coast_match <- left_join(grid_index, Arctic_BO, by = c("idx")) %>% 
-  mutate(dist = round(distHaversine(cbind(lon.x, lat.x),
-                                    cbind(lon.y, lat.y))/1000, 2), 
-         idx = NULL) %>% 
-  filter(dist <= 25) %>% 
-  dplyr::rename(lon = lon.y, lat = lat.y)
-
 # Merge to extract only "coastal" pixels
-Arctic_coast <- left_join(Arctic_BO , Arctic_AM, by = c("lon", "lat")) %>% 
+Arctic_coast <- left_join(Arctic_BO , Arctic_AM, 
+                          by = c("lon_match" = "lon", "lat_match" = "lat")) %>% 
   filter(land_distance <= 50 | depth <= 100)
-  # filter(is.na(depth))
 
 # Plot coastal pixels
-# ggplot(data = Arctic_BO, aes(x = lon, y = lat)) +
-ggplot(data = filter(Arctic_AM, depth > 100), aes(x = lon, y = lat)) +
-  # geom_tile(aes(fill = BO21_templtmin_bdmax)) +
-  geom_tile(aes(fill = depth)) +
-  borders(fill = "grey90", colour = "black") +
-  coord_quickmap(ylim = c(50, 90), expand = F)
+# ggplot(data = Arctic_coast, aes(x = lon, y = lat)) +
+# # ggplot(data = filter(Arctic_AM, depth > 100), aes(x = lon, y = lat)) +
+#   geom_tile(aes(fill = BO21_templtmin_bdmax)) +
+#   # geom_tile(aes(fill = depth)) +
+#   borders(fill = "grey90", colour = "black") +
+#   coord_quickmap(ylim = c(50, 90), expand = F)
+
+# Coastal coordinates
+coastal_coords <- dplyr::select(Arctic_coast, lon, lat) %>%
+  mutate(env_index = 1:n())
 
 # The usdm package can do stepwise elimination of highly inflating variables
 # Calculate vif for the variables in Arctic_BO_stack
-# vif(Arctic_BO[, 3:34])
+v0 <- vif(Arctic_coast[, 3:34])
 
-#identify collinear variables that should be excluded (VIF > 10)
-# v1 <- vifstep(Arctic_BO[, 3:34])
+# Identify collinear variables that should be excluded (VIF > 10)
+v1 <- vifstep(Arctic_coast[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
 v2 <- vifcor(na.omit(Arctic_coast)[, 3:34], th = 0.7)
 
 # Exclude the collinear variables that were identified previously
-Arctic_excl_pre <- Arctic_coast %>% 
-  dplyr::select(lon, lat, v2@results$Variables) %>% ###JG: should we also remove SSTmax and PAR? (see lines 64-66)
-  mutate(BO_parmean = replace_na(BO_parmean, 0),
+Arctic_excl <- Arctic_coast %>% 
+  dplyr::select(lon, lat, v2@results$Variables) %>%
+  mutate(BO_parmax = replace_na(BO_parmax, 0),
          BO21_curvelltmin_bdmax = replace_na(BO21_curvelltmin_bdmax, 0)) %>% 
   arrange(lon, lat)
 
 # One more layer of correlation screening
 # Correlation plots
-excl_VIF_df <- na.omit(as.data.frame(Arctic_excl_pre))
-# dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
-# corrplot(dataVIF.cor)
-# heatmap(x = dataVIF.cor, symm = T)
+excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
+dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
+corrplot(dataVIF.cor, type = "lower", method = "number")
+heatmap(x = dataVIF.cor, symm = T)
 Pearson_cor <- cor(excl_VIF_df)
-## WITH PEARSON CORRELATION, THERE ARE STILL 3 CORRELATIONS: 
-## 1) SSTmax/SSTmin, 2) PAR and SSTmax, 3)PAR and ice
 
 
 # 2: Load data ------------------------------------------------------------
 
-# Remove SST long-term min and PAR
-Arctic_excl <- Arctic_excl_pre %>% 
-  dplyr::select(-BO21_templtmin_ss, -BO_parmean)
+# Create raster stack
 Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
-# plot(Arctic_excl_stack) # Visualise raster stack
+plot(Arctic_excl_stack) # Visualise raster stack
 
 # Save column names for use with Random Forest variable screening
-BO_vars <- colnames(Arctic_excl)[c(-1, -2)]
+BO_vars <- colnames(Arctic_excl)[-c(1, 2)]
 save(BO_vars, file = "metadata/BO_vars.RData")
 
 # Subset of present data used for projections
@@ -129,7 +108,7 @@ Arctic_excl_sub <- Arctic_excl %>%
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 Arctic_excl_sub_stack <- stack(rasterFromXYZ(Arctic_excl_sub, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 # plot(Arctic_excl_sub_stack)
-rm(Arctic_BO, Arctic_excl_sub); gc()
+rm(Arctic_AM, Arctic_BO, Arctic_coast, Arctic_excl_sub); gc()
 
 # Very small area for testing
 # Arctic_excl_baby <- Arctic_excl %>% 
@@ -169,9 +148,9 @@ biomod_pipeline <- function(sps_choice){
   
   # Load the species
   sps <- read_csv(sps_choice) %>% 
-    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
+    mutate(env_index = as.vector(knnx.index(as.matrix(coastal_coords[,c("lon", "lat")]),
                                             as.matrix(.[,2:3]), k = 1))) %>%
-    left_join(global_coords, by = "env_index") %>% 
+    left_join(coastal_coords, by = "env_index") %>% 
     dplyr::select(Sp, lon.y, lat.y) %>%
     dplyr::rename(lon = lon.y, lat = lat.y)
   
@@ -188,6 +167,7 @@ biomod_pipeline <- function(sps_choice){
   # 3: Prep data ------------------------------------------------------------
   
   # Prep data for modeling
+  # system.time(
   biomod_data <- BIOMOD_FormatingData(
     resp.var = rep(1, nrow(sps)),
     resp.xy = as.matrix(sps[,2:3]),
@@ -198,8 +178,8 @@ biomod_pipeline <- function(sps_choice){
     # PA.dist.min = 0, # units = meters
     # PA.dist.max = NULL, # units = meters
     PA.nb.rep = 5, # several runs to prevent sampling bias since moderate number of pseudo-absence
-    PA.nb.absences = 1000
-    )
+    PA.nb.absences = 1000)
+  # ) # 2 seconds
   
   # Change the NA absences values to 0, this makes them true absences... but then CV will run as expected
   # biomod_data@data.species <- replace_na(biomod_data@data.species, 0)
@@ -237,10 +217,11 @@ biomod_pipeline <- function(sps_choice){
   # 4: Model ----------------------------------------------------------------
   
   # Run the model
+  # system.time(
   biomod_model <- BIOMOD_Modeling(
     biomod_data,
     # models = c('RF', 'GLM'), #, 'MAXENT.Phillips', 'ANN', 'GAM'), # Testing without MAXENT as it doesn't run on my work server
-    #models = c('RF', 'ANN'), #changed to ANN for testing (GLM Warning: 'glm.fit: fitted probabilities numerically 0 or 1 occurred') 
+    #models = c('RF', 'ANN'), # changed to ANN for testing (GLM Warning: 'glm.fit: fitted probabilities numerically 0 or 1 occurred') 
     models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'),
     models.options = biomod_option,
     NbRunEval = 5, # 5 reps for final models
@@ -253,9 +234,11 @@ biomod_pipeline <- function(sps_choice){
     rescal.all.models = TRUE,
     do.full.models = FALSE,
     modeling.id = sps_name)
+  # ) # 665 seconds for 1 rep
   #biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
   
   # Build the ensemble models
+  # system.time(
   biomod_ensemble <- BIOMOD_EnsembleModeling(
     modeling.output = biomod_model,
     chosen.models = 'all',  # defines models kept (useful for removing non-preferred models)
@@ -267,8 +250,8 @@ biomod_pipeline <- function(sps_choice){
     prob.cv = TRUE, # Coefficient of variation across predictions
     prob.ci = TRUE, # Confidence interval around prob.mean
     prob.ci.alpha = 0.05,
-    VarImport = 10
-    )
+    VarImport = 10)
+  # ) # 631 seconds for 1 rep
   
   # Load if the model has already been run
   # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
@@ -277,6 +260,7 @@ biomod_pipeline <- function(sps_choice){
   # 5. Present projections --------------------------------------------------
   
   # Create projections
+  # system.time(
   biomod_projection <- BIOMOD_Projection(
     modeling.output = biomod_model,
     new.env = Arctic_excl_sub_stack,
@@ -288,18 +272,19 @@ biomod_pipeline <- function(sps_choice){
     output.format = '.RData',
     compress = "xz",
     build.clamping.mask = FALSE,
-    do.stack = TRUE
-  )
-  
+    do.stack = TRUE)
+  # ) # 123 seconds for 1 rep
   # plot(biomod_projection)
   
   # Create ensemble projections
+  # system.time(
   biomod_ensemble_projection <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
     projection.output = biomod_projection,
     binary.meth = 'TSS',
     output.format = '.RData',
     do.stack = TRUE)
+  # ) # 9 seconds for 1 rep
   
   # Visualise
   # plot(biomod_ensemble_projection)
@@ -315,6 +300,7 @@ biomod_pipeline <- function(sps_choice){
   # 6: Future projections ---------------------------------------------------
   
   # Run 2050 projections
+  # system.time(
   biomod_projection_2050 <- BIOMOD_Projection(
     modeling.output = biomod_model,
     new.env = Arctic_excl_2050_sub_stack,
@@ -323,17 +309,18 @@ biomod_pipeline <- function(sps_choice){
     output.format = '.RData',
     compress = 'xz',
     build.clamping.mask = FALSE)
-  
+  # ) # 178 seconds for 1 rep
   # plot(biomod_projection_2050)
   
   # Create 2050 ensemble projections
+  # system.time(
   biomod_ensemble_projection_2050 <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
     projection.output = biomod_projection_2050,
     binary.meth = 'TSS',
     output.format = '.RData',
     do.stack = TRUE)
-  
+  # ) # 11 seconds for 1 rep
   # plot(biomod_ensemble_projection_2050)
   
   # Clean out 2050
@@ -343,6 +330,7 @@ biomod_pipeline <- function(sps_choice){
   # unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
   
   # Run 2100 projections
+  system.time(
   biomod_projection_2100 <- BIOMOD_Projection(
     modeling.output = biomod_model,
     new.env = Arctic_excl_2100_sub_stack,
@@ -351,15 +339,17 @@ biomod_pipeline <- function(sps_choice){
     output.format = '.RData',
     compress = 'xz',
     build.clamping.mask = FALSE)
+  ) # xxx seconds
   
   # Create 2100 ensemble projections
+  system.time(
   biomod_ensemble_projection_2100 <- BIOMOD_EnsembleForecasting(
     EM.output = biomod_ensemble,
     projection.output = biomod_projection_2100,
     binary.meth = 'TSS',
     output.format = '.RData',
     do.stack = TRUE)
-  
+  ) # xxx seconds
   # plot(biomod_ensemble_projection_2100)
   
   # Clean out 2100
@@ -383,7 +373,7 @@ biomod_pipeline <- function(sps_choice){
 # biomod_pipeline(sps_files[1])
 
 # Run them all
-registerDoParallel(cores = 5)
+registerDoParallel(cores = 10)
 plyr::l_ply(sps_files, biomod_pipeline, .parallel = TRUE)
 
 
@@ -396,9 +386,9 @@ presence_absence_fig <- function(sps_choice){
   
   # Load the presence data
   sps_presence <- read_csv(sps_choice) %>% 
-    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
+    mutate(env_index = as.vector(knnx.index(as.matrix(coastal_coords[,c("lon", "lat")]),
                                             as.matrix(.[,2:3]), k = 1))) %>%
-    left_join(global_coords, by = "env_index") %>% 
+    left_join(coastal_coords, by = "env_index") %>% 
     dplyr::select(Sp, lon.y, lat.y) %>%
     dplyr::rename(lon = lon.y, lat = lat.y) %>% 
     mutate(presence = 1)
@@ -541,9 +531,9 @@ Arctic_AM <- Arctic_AM %>%
 plot_biomod <- function(sps_choice){
   # Load the species points
   sps_points <- read_csv(sps_files[str_which(sps_files,sps_choice)]) %>% 
-    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
+    mutate(env_index = as.vector(knnx.index(as.matrix(coastal_coords[,c("lon", "lat")]),
                                             as.matrix(.[,2:3]), k = 1))) %>%
-    left_join(global_coords, by = "env_index") %>% 
+    left_join(coastal_coords, by = "env_index") %>% 
     dplyr::select(Sp, lon.y, lat.y) %>%
     dplyr::rename(lon = lon.y, lat = lat.y)
   
