@@ -22,19 +22,6 @@ loadRData <- function(fileName){
   get(ls()[ls() != "fileName"])
 }
 
-# Load data used for maps etc.
-load("data/Arctic_AM.RData")
-colnames(Arctic_AM)[4] <- "depth"
-Arctic_AM <- Arctic_AM %>%
-  mutate(lon = round(lon, 4), lat = round(lat, 4))
-
-# The present data
-load("data/Arctic_BO.RData")
-
-# Coordinates only
-global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
-  mutate(env_index = 1:nrow(Arctic_BO))
-
 # The species occurrence data
 sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
 sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), pattern = "_Arct_rarefied_points.csv")
@@ -58,6 +45,7 @@ MEOW <- read_sf("metadata/MEOW/meow_ecos.shp") %>%
 
 
 # Figure 1 ----------------------------------------------------------------
+
 # The map of the study area with the sample points
 
 # Load all species points
