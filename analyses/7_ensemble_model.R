@@ -21,7 +21,6 @@ library(biomod2)
 # remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
 library(raster)
 library(FNN)
-library(geosphere)
 library(doParallel)
 library(usdm)
 library(corrplot)
@@ -76,9 +75,16 @@ v1 <- vifstep(Arctic_coast[, 3:34])
 # Identify collinear variables that should be excluded (correlation > 0.7)
 v2 <- vifcor(na.omit(Arctic_coast)[, 3:34], th = 0.7)
 
+# Save column names for use with Random Forest variable screening
+# BO_vars <- v2@results$Variables
+# save(BO_vars, file = "metadata/BO_vars.RData")
+# NB: THis can vary slightly between computers
+# The values here are to be taken as the official ones
+load("metadata/BO_vars.RData")
+
 # Exclude the collinear variables that were identified previously
 Arctic_excl <- Arctic_coast %>% 
-  dplyr::select(lon, lat, v2@results$Variables) %>%
+  dplyr::select(lon, lat, all_of(BO_vars)) %>%
   mutate(BO_parmax = replace_na(BO_parmax, 0),
          BO21_curvelltmin_bdmax = replace_na(BO21_curvelltmin_bdmax, 0)) %>% 
   arrange(lon, lat)
@@ -97,10 +103,6 @@ Pearson_cor <- cor(excl_VIF_df)
 # Create raster stack
 Arctic_excl_stack <- stack(rasterFromXYZ(Arctic_excl, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 plot(Arctic_excl_stack) # Visualise raster stack
-
-# Save column names for use with Random Forest variable screening
-BO_vars <- colnames(Arctic_excl)[-c(1, 2)]
-save(BO_vars, file = "metadata/BO_vars.RData")
 
 # Subset of present data used for projections
 Arctic_excl_sub <- Arctic_excl %>% 
