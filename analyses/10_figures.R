@@ -904,14 +904,14 @@ rf_var_plot <- function(kelp_choice, add_legend = F){
           panel.border = element_rect(colour = "black", fill = NA))
   
   # Correct title as necessary
-  if(model_choice %in% c("agarum", "alaria")){
+  if(kelp_choice %in% c("agarum", "alaria")){
     p_present <- p_present + theme(plot.title = element_text(face = "italic"))
   }
   # p_present
   
   # 2050 plot
   p_2050 <- ggplot() +
-    geom_tile(data = filter(model_join,
+    geom_tile(data = filter(project_diff,
                             # proj_2050 == 1,
                             # pred_present_round >= 10,
                             depth <= 100 | land_distance <= 50),
@@ -932,7 +932,7 @@ rf_var_plot <- function(kelp_choice, add_legend = F){
   
   # 2050 plot
   p_2100 <-  ggplot() +
-    geom_tile(data = filter(model_join,
+    geom_tile(data = filter(project_diff,
                             # proj_2100 == 1,
                             # pred_present_round >= 10,
                             depth <= 100 | land_distance <= 50),
