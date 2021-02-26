@@ -15,17 +15,17 @@ library(FNN)
 
 # Study site BO data ------------------------------------------------------
 
-# NB: The following code chunks require Arctic_BO.RData and Arctic_AM.RData
-# This is not hosted on GitHub as it is 17.3 MB
+# NB: The following code chunks require Arctic_coast.RData
+# This is not hosted on GitHub as it is 30.3 MB
 # E-mail robert.schlegel@dal.ca for the file
-# Or create them from '2_monthly_clims.R'
+# Or create it from '2_monthly_clims.R'
 load("data/Arctic_BO.RData")
 Arctic_BO <- Arctic_BO %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))
 load("data/Arctic_AM.RData")
 Arctic_AM <- Arctic_AM %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))
-Arctic_env <- left_join(Arctic_BO, Arctic_AM)
+Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
 Arctic_env$env_index <- 1:nrow(Arctic_env)
 rm(Arctic_BO, Arctic_AM); gc()
 
@@ -45,11 +45,7 @@ Arctic_env$env_index <- NULL
 
 # NB: These layers are not hosted on GitHub, contact Robert for access
 load("data/Arctic_BO_2050.RData")
-Arctic_BO_2050 <- Arctic_BO_2050 %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4))
 load("data/Arctic_BO_2100.RData")
-Arctic_BO_2100 <- Arctic_BO_2100 %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4))
 
 # Create 2050 study site data
 study_site_env_2050 <- study_site_env %>% 

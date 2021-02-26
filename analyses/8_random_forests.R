@@ -4,7 +4,7 @@
 
 # Setup -------------------------------------------------------------------
 
-# Load all data nad previous libraries
+# Load all data and previous libraries
 source("analyses/4_kelp_cover.R")
 
 # Libraries for this script specifically
@@ -13,57 +13,52 @@ library(OneR) # For single rule machine learning
 # library(caret) # For cross validation option
 library(doParallel); doParallel::registerDoParallel(cores = 50) # This will be between 4 - 8 on a laptop
 
+# Remove scientific notation from data.frame displays in RStudio
+options(scipen = 9999)
+
 # Load BO layer names used for the ensemble models
-  # NB: Somehow the ensembles were given a different salinity variable
-  # This will need to be corrected later
 load("metadata/BO_vars.RData")
-BO_vars[4] <- "BO2_salinityltmax_ss" 
 
 # Environmental data per site
 load("data/study_site_env.RData")
-study_site_env <- study_site_env %>% 
+study_site_excl <- study_site_env %>% 
   dplyr::select(site:land_distance, all_of(BO_vars))
+rm(study_site_env); gc()
 
 # Load Arctic data for testing variable correlations and for making model projections
 load("data/Arctic_BO.RData")
 Arctic_BO <- Arctic_BO %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
-  dplyr::select(lon, lat, all_of(BO_vars))
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
 load("data/Arctic_AM.RData")
 Arctic_AM <- Arctic_AM %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4))
-Arctic_env <- right_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
-rm(Arctic_BO); gc()
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+  dplyr::rename(depth = bathy)
+Arctic_excl <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat")) %>% 
+  mutate(env_index = 1:n()) %>% 
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+# rm(Arctic_BO, Arctic_AM); gc()
 
 # Load future layers
 load("data/Arctic_BO_2050.RData")
-Arctic_env_2050 <- Arctic_BO_2050 %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+Arctic_excl_2050 <- Arctic_BO_2050 %>% 
   dplyr::select(lon, lat, all_of(BO_vars)) %>% 
-  right_join(Arctic_AM, by = c("lon", "lat")) 
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+  right_join(dplyr::select(Arctic_excl, lon, lat), by = c("lon", "lat")) 
 load("data/Arctic_BO_2100.RData")
-Arctic_env_2100 <- Arctic_BO_2100 %>% 
-  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+Arctic_excl_2100 <- Arctic_BO_2100 %>% 
   dplyr::select(lon, lat, all_of(BO_vars)) %>% 
-  right_join(Arctic_AM, by = c("lon", "lat")) 
-rm(Arctic_AM, Arctic_BO_2050, Arctic_BO_2100); gc()
-
-# Load the BO correlation matrix
-# load("data/BO_cor_matrix.RData")
-
-# Remove scientific notation from data.frame displays in RStudio
-options(scipen = 9999)
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+  right_join(dplyr::select(Arctic_excl, lon, lat), by = c("lon", "lat")) 
+rm(Arctic_BO_2050, Arctic_BO_2100); gc()
 
 # The base map to use for everything else
 Arctic_map <- ggplot() +
   borders(fill = "grey70", colour = "black") +
   coord_quickmap(expand = F,
-                  xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4])) +
+                 xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4])) +
   labs(x = NULL, y = NULL)
-
-# See how well the models perform given the restrictions in range between the different 
-# bounding boxes that can be used
 
 
 # Data --------------------------------------------------------------------
@@ -74,11 +69,16 @@ Arctic_map <- ggplot() +
 # All of the BO variables matched to sites
 kelp_all <- adf %>% 
   dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
-  left_join(study_site_env, by = c("Campaign", "site")) %>%
+  left_join(study_site_excl, by = c("Campaign", "site")) %>%
   mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>% # Correct values over 100
+  # Round values to nearest 10 percent
+  mutate(kelp.cover = round(kelp.cover, -1),
+         Laminariales = round(Laminariales, -1),
+         Agarum = round(Agarum, -1),
+         Alaria = round(Alaria, -1)) %>% 
   dplyr::select(-lon_env, -lat_env, -lon, -lat) %>%
-  dplyr::select(-depth) %>% # This is not used in Jesi's model
-  dplyr::select(-bathy, -land_distance) %>% # Decided against these variables
+  dplyr::select(-bathy) %>% # This is not used in Jesi's model
+  dplyr::select(-depth, -land_distance) %>% # Decided against these variables
   na.omit() # No missing data
 
 # The mean kelp covers per site/depth
@@ -109,13 +109,13 @@ rf_data_prep <- function(kelp_choice, df = kelp_all){
 
 # Function for OneR model run
 OneR_model <- function(kelp_choice, df = kelp_all){
-
+  
   # Pull out training index
   one_random <- sample(1:nrow(df), 0.7*nrow(df))
   
   # Prep the data
   kelp_cat <- rf_data_prep(kelp_choice = kelp_choice, df = df)
-           
+  
   # The training data
   kelp_train <- kelp_cat %>% 
     slice(one_random) %>%
@@ -146,13 +146,13 @@ OneR_model <- function(kelp_choice, df = kelp_all){
 
 # Convenience wrapper for extracting variable importance from an RF
 extract_var_imp <- function(kelp_rf){
-    res <- data.frame(var = row.names(kelp_rf$importance), 
-                      kelp_rf$importance, 
-                      importanceSD = kelp_rf$importanceSD,
-                      mean_MSE = mean(kelp_rf$mse),
-                      mean_rsq = mean(kelp_rf$rsq)) %>% 
-      arrange(-X.IncMSE) %>% 
-      mutate_if(is.numeric, round, 4)
+  res <- data.frame(var = row.names(kelp_rf$importance), 
+                    kelp_rf$importance, 
+                    importanceSD = kelp_rf$importanceSD,
+                    mean_MSE = mean(kelp_rf$mse),
+                    mean_rsq = mean(kelp_rf$rsq)) %>% 
+    arrange(-X.IncMSE) %>% 
+    mutate_if(is.numeric, round, 4)
   res$var <- as.character(res$var)
   return(res)
 }
@@ -170,38 +170,12 @@ top_var <- function(lplyr_bit, kelp_choice, df = kelp_all){
   
   # Random forest models for the four possibilities
   rf_reg <- randomForest(cover ~ ., data = df_prep[train,], ntree = 200, importance = TRUE, do.trace = F)
-
+  
   # Extract results
   var_reg <- extract_var_imp(rf_reg)
   return(var_reg)
 }
 # top_var(kelp_choice = "Agarum", df = kelp_all)
-
-# Convenience wrapper to remove correlated variables
-# cor_var_rm <- function(df_multi){
-#   
-#   # Order the dataframe based on the Increase in MSE
-#   df_ordered <- arrange(df_multi, -X.IncMSE)
-#   
-#   # Remove variables that correlate with better predictors
-#   row_i <- 2
-#   cor_df <- df_ordered
-#   while(row_i < nrow(cor_df)){
-#     cor_cols <- cor_df[1:row_i-1, "var"]
-#     cor_check <- cor_df[row_i, "var"]
-#     BO_cor_check <- BO_cor_matrix %>% 
-#       dplyr::select(Parameter1, cor_cols$var) %>% 
-#       filter(Parameter1 == cor_check$var) %>% 
-#       pivot_longer(cols = -Parameter1) %>% 
-#       filter(abs(value) >= 0.7)
-#     if(nrow(BO_cor_check) > 0){
-#       cor_df <- cor_df[-row_i,]
-#     } else{
-#       row_i <- row_i+1
-#     }
-#   }
-#   return(cor_df)
-# }
 
 # We then run this 1000 times to increase our certainty in the findings
 top_var_multi <- function(kelp_choice, df = kelp_all){
@@ -223,23 +197,23 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 }
 
 ## Find the top variables for the different kelp covers
-# registerDoParallel(cores = 50)
+registerDoParallel(cores = 50)
 
 # kelp.cover
-# system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~16 seconds on 50 cores
-# save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
+system.time(top_var_kelpcover <- top_var_multi("kelp.cover")) # ~7 seconds on 50 cores
+save(top_var_kelpcover, file = "data/top_var_kelpcover.RData")
 
 # Laminariales
-# top_var_laminariales <- top_var_multi("Laminariales")
-# save(top_var_laminariales, file = "data/top_var_laminariales.RData")
+top_var_laminariales <- top_var_multi("Laminariales")
+save(top_var_laminariales, file = "data/top_var_laminariales.RData")
 
 # # Agarum
-# top_var_agarum <- top_var_multi("Agarum")
-# save(top_var_agarum, file = "data/top_var_agarum.RData")
+top_var_agarum <- top_var_multi("Agarum")
+save(top_var_agarum, file = "data/top_var_agarum.RData")
 
 # Alaria
-# top_var_alaria <- top_var_multi("Alaria")
-# save(top_var_alaria, file = "data/top_var_alaria.RData")
+top_var_alaria <- top_var_multi("Alaria")
+save(top_var_alaria, file = "data/top_var_alaria.RData")
 
 
 # Random Forest function --------------------------------------------------
@@ -247,7 +221,7 @@ top_var_multi <- function(kelp_choice, df = kelp_all){
 # The base function used for the random forest
 # It is informed by the top variables from the previous section
 
-# Load top variable dataframes
+# Load top variable data.frames
 load("data/top_var_kelpcover.RData")
 load("data/top_var_laminariales.RData")
 load("data/top_var_agarum.RData")
@@ -320,15 +294,16 @@ random_kelp_forest <- function(lply_bit, kelp_choice, column_choice,
 # Function for projecting a model
 # model_choice <- multi_test[[1]]
 project_cover <- function(model_choice){
-  pred_df <- data.frame(lon = Arctic_env$lon, lat = Arctic_env$lat,
-                        depth = Arctic_env$bathy, land_distance = Arctic_env$land_distance,
-                        pred_present = predict(model_choice$rf_reg, Arctic_env),
-                        pred_2050 = predict(model_choice$rf_reg, Arctic_env_2050),
-                        pred_2100 = predict(model_choice$rf_reg, Arctic_env_2100)) %>% 
+  pred_df <- data.frame(lon = Arctic_excl$lon, lat = Arctic_excl$lat,
+                        depth = Arctic_excl$depth, land_distance = Arctic_excl$land_distance,
+                        pred_present = predict(model_choice$rf_reg, Arctic_excl),
+                        pred_2050 = predict(model_choice$rf_reg, Arctic_excl_2050),
+                        pred_2100 = predict(model_choice$rf_reg, Arctic_excl_2100)) %>% 
     mutate(pred_present = case_when(pred_present < 0 ~ 0, TRUE ~ pred_present),
            pred_2050 = case_when(pred_present < 0 ~ 0, TRUE ~ pred_2050),
            pred_2100 = case_when(pred_present < 0 ~ 0, TRUE ~ pred_2100))
-  gc(); return(pred_df)
+  gc()
+  return(pred_df)
 }
 
 # Now we run the test on each kelp cover 1000 times to see what the spread is
@@ -343,8 +318,8 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
                             kelp_choice = kelp_choice, column_choice = column_choice, df = df)
   # ) # ~18 seconds
   gc()
-    
-  # Create mean projection from all models for present data
+
+  # Create mean projection from all model data
   # system.time(
   project_multi <- plyr::ldply(multi_test, project_cover, .parallel = T) %>%
     group_by(lon, lat, depth, land_distance) %>% 
@@ -388,20 +363,20 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
 doParallel::registerDoParallel(cores = 50)
 
 # Kelp.cover
-# system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 230 seconds with 50 cores
-# save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 141 seconds with 50 cores
+save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 
 # Laminariales
-# best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
-# save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
+best_rf_laminariales <- random_kelp_forest_select("Laminariales", top_var_laminariales)
+save(best_rf_laminariales, file = "data/best_rf_laminariales.RData", compress = T)
 
 # Agarum
-# best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
-# save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
+best_rf_agarum <- random_kelp_forest_select("Agarum", top_var_agarum)
+save(best_rf_agarum, file = "data/best_rf_agarum.RData", compress = T)
 
 # Alaria
-# best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
-# save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
+best_rf_alaria <- random_kelp_forest_select("Alaria", top_var_alaria)
+save(best_rf_alaria, file = "data/best_rf_alaria.RData", compress = T)
 
 
 # Analyse model accuracy --------------------------------------------------
@@ -414,7 +389,7 @@ load("data/best_rf_alaria.RData")
 
 # Find the distributions of accuracy from 0 - 100%
 test_acc <- best_rf_kelpcover$accuracy_reg #%>%
-  # filter(model_id == 1000)
+# filter(model_id == 1000)
 
 # Quick visuals
 ggplot(filter(test_acc, portion == "validate"), aes(x = accuracy)) +
@@ -516,7 +491,7 @@ cover_squiz <- function(best_rf, legend_title, x_nudge, kelp_choice, pred_choice
   # Prep point data
   data_point <- adf %>% 
     dplyr::select(Campaign, site, depth, -c(Bedrock..:sand), kelp.cover, Laminariales, Agarum, Alaria) %>% 
-    left_join(study_site_env, by = c("Campaign", "site")) %>%
+    left_join(study_site_excl, by = c("Campaign", "site")) %>%
     mutate(kelp.cover = ifelse(kelp.cover > 100, 100, kelp.cover)) %>%
     dplyr::select(lon, lat, {{kelp_choice}}) %>% 
     group_by(lon, lat) %>%
@@ -569,11 +544,11 @@ project_compare <- function(best_rf, kelp_choice){
     mutate(pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 20),
            pred_diff_2100 = pred_2100_mean - pred_present_mean) %>% 
     mutate(pred_diff_2050 = ifelse(pred_diff_2050 == 0, NA, pred_diff_2050))
-    # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
-    # filter(name == "pred_diff_2050" & value != 0) %>% 
-    # pivot_wider()
-    # mutate(pred_diff_2050 = base::cut(pred_2050_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)),
-    #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
+  # pivot_longer(cols = pred_present_mean:pred_diff_2100) %>% 
+  # filter(name == "pred_diff_2050" & value != 0) %>% 
+  # pivot_wider()
+  # mutate(pred_diff_2050 = base::cut(pred_2050_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)),
+  #        pred_diff_2100 = base::cut(pred_2100_mean - pred_present_mean, breaks = c(-0.1, 0, 0.1, 0.2)))
   
   # Scale for difference plots
   diff_range <- range(c(project_diff$pred_diff_2050, project_diff$pred_diff_2100), na.rm = T)
@@ -625,4 +600,26 @@ project_compare <- function(best_rf, kelp_choice){
 
 # Run a regression to see in which direction the relationships with percent cover 
 # are with the top variables. e.g. more cover with more iron
+
+
+# Export as raster --------------------------------------------------------
+
+# NB: Create a function to do this for all of the kelps
+
+# load("data/best_rf_agarum.RData")
+
+# rf_data <- best_rf_agarum$project_multi %>% 
+#   dplyr::select(lon, lat, pred_present_mean) %>% 
+#   replace(is.na(.), 0) %>% 
+#   mutate(lon = plyr::round_any(lon, 0.125),
+#          lat = plyr::round_any(lat, 0.125)) %>% 
+#   group_by(lon, lat) %>% 
+#   summarise(pred_present_mean = mean(pred_present_mean), .groups = "drop")
+# rf_raster <- rasterFromXYZ(rf_data, crs = 4326)
+# writeRaster(x = rf_raster, bylayer = TRUE, overwrite = TRUE,
+#             filename = paste0("data/ascii_results/rf_agarum_present.asc"))
+
+# Check the output
+# test_rast <- raster("data/ascii_results/rf_agarum_present.asc")
+# plot(test_rast)
 

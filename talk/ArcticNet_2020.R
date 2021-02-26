@@ -151,7 +151,7 @@ kelp_question
 ggsave("talk/figure/kelp_question.png", kelp_question, height = fig_height)
 
 # ArcticKelp campaign map
-study_site_campaign <-  Arctic_map +
+study_site_campaign <- Arctic_map +
   geom_point(data = study_sites,
              aes(x = lon, y = lat, colour = Campaign), size = 4) +
   guides(colour = guide_legend(nrow = 2, byrow = TRUE)) +
@@ -164,7 +164,7 @@ study_site_campaign
 ggsave("talk/figure/study_site_campaign.png", study_site_campaign, height = fig_height)
 
 # ArcticKelp percent cover map
-study_site_mean_cover <-  Arctic_map +
+study_site_mean_cover <- Arctic_map +
   geom_point(data = adf_summary_mean_coords,
              aes(x = lon, y = lat, colour = mean_cover), size = 4) +
   scale_colour_viridis_c() +

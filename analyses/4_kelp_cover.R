@@ -35,7 +35,7 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep = ';', dec =
          Saccorhiza.. = replace_na(Saccorhiza.., 0),
          kelp.density = S.latissima.No. + Agarum.No. + Alaria.No.,
          kelp.cover = Agarum + Alaria + L.solidungula + L.digitata + Laminariales.unspecified + Sacharrina,
-         Laminariales = L.solidungula + L.digitata + Laminariales.unspecified,
+         Laminariales = L.solidungula + Sacharrina,# + L.digitata + Laminariales.unspecified, 
          Bedrock.. = replace_na(Bedrock.., 0),
          Boulders.. = replace_na(Boulders.., 0),
          Cobbles.. = replace_na(Cobbles.., 0),
@@ -70,9 +70,16 @@ adf_summary <- adf %>%
   group_by(Campaign, site, depth, family) %>% 
   summarise(mean_cover = round(mean(cover, na.rm = T), 2),
             sd_cover = round(sd(cover, na.rm = T), 2),
-            count = n()) %>% 
+            count = n(), .groups = "drop") %>% 
   mutate(mean_cover = ifelse(is.na(mean_cover), 0, mean_cover),
          sd_cover = ifelse(is.na(sd_cover), 0, sd_cover))
+
+
+
+# Coastal data ------------------------------------------------------------
+
+load("data/Arctic_coast.RData")
+load("metadata/coastal_coords.RData")
 
 
 # Create figures ----------------------------------------------------------

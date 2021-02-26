@@ -44,7 +44,7 @@ kelp_wide <- kelp_means %>%
   left_join(sand_rock, by = c("Campaign", "site", "depth"))
 
 # Visualise
-ggplot(data = kelp_wide, aes(x = BO2_icethickmean_ss)) +
+ggplot(data = kelp_wide, aes(x = BO21_icethickmean_ss)) +
   geom_histogram(bins = 6) +
   geom_point(aes(colour = mean_cover, shape = family), y = 0, size = 4) +
   scale_colour_viridis_c() +
@@ -53,7 +53,7 @@ ggplot(data = kelp_wide, aes(x = BO2_icethickmean_ss)) +
 # The env variables
    # NB: Ignoring the GMED variables for now as there are missing values
 kelp_wide_var <- kelp_wide %>% 
-  dplyr::select(BO2_templtmin_bdmax:BO2_phosphateltmax_bdmax)
+  dplyr::select(BO21_templtmin_bdmax:BO21_phosphateltmax_bdmax)
 
 # The response variables
 kelp_wide_env <- kelp_wide %>% 
@@ -101,6 +101,6 @@ ggplot(data = mds_df, aes(x = MDS1, y = MDS2)) +
         panel.border = element_rect(fill = NA, colour = "black", size = 1),
         axis.text = element_text(size = 12, colour = "black"),
         axis.ticks = element_line(colour = "black"))
-ggsave("graph/MDS_plot.pdf", width = 10, height = 8)
-ggsave("graph/MDS_plot.png", width = 10, height = 8)
+# ggsave("graph/MDS_plot.pdf", width = 10, height = 8)
+# ggsave("graph/MDS_plot.png", width = 10, height = 8)
 
