@@ -57,18 +57,18 @@ global_coords <- dplyr::select(Arctic_BO, lon, lat) %>%
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
 # Select only mean values and max SST
-v2 <- Arctic_BO %>% 
-  dplyr::select(BO21_templtmax_ss,
-                BO21_salinitymean_ss, 
-                BO21_icethickmean_ss, 
-                BO21_curvelmean_bdmax, 
-                BO_parmean, 
-                BO21_dissoxmean_bdmax,
-                BO21_ironmean_bdmax,
-                BO21_nitratemean_bdmax,
-                BO21_phosphatemean_bdmax) %>% 
-  na.omit() %>%
-  vifcor(th = 0.8)
+# v2 <- Arctic_BO %>% 
+#   dplyr::select(BO21_templtmax_ss,
+#                 BO21_salinitymean_ss, 
+#                 BO21_icethickmean_ss, 
+#                 BO21_curvelmean_bdmax, 
+#                 BO_parmean, 
+#                 BO21_dissoxmean_bdmax,
+#                 BO21_ironmean_bdmax,
+#                 BO21_nitratemean_bdmax,
+#                 BO21_phosphatemean_bdmax) %>% 
+#   na.omit() %>%
+#   vifcor(th = 0.8)
 
 # Save column names for use with Random Forest variable screening
 # BO_vars <- c(v2@results$Variables)
@@ -76,6 +76,7 @@ v2 <- Arctic_BO %>%
 # BO_vars
 # save(BO_vars, file = "metadata/BO_vars.RData")
 load("metadata/BO_vars.RData")
+print(paste0(c("Variables for model: ", BO_vars)))
 
 # Exclude the collinear variables that were identified previously
 Arctic_excl <- Arctic_BO %>% 
@@ -85,11 +86,11 @@ Arctic_excl <- Arctic_BO %>%
 
 # One more layer of correlation screening
 # Correlation plots
-excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
-dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
-corrplot(dataVIF.cor, type = "lower", method = "number")
-heatmap(x = dataVIF.cor, symm = T)
-Pearson_cor <- cor(excl_VIF_df)
+# excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
+# dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
+# corrplot(dataVIF.cor, type = "lower", method = "number")
+# heatmap(x = dataVIF.cor, symm = T)
+# Pearson_cor <- cor(excl_VIF_df)
 
 
 # 2: Load data ------------------------------------------------------------
