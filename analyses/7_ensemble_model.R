@@ -56,10 +56,11 @@ global_coords <- dplyr::select(Arctic_BO, lon, lat) %>%
 # v1 <- vifstep(Arctic_BO[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
-# v2 <- vifcor(na.omit(Arctic_BO)[, 3:34], th = 0.7)
+# Remove minimum temperatures and min/mean ice thickness
+v2 <- vifcor(na.omit(Arctic_BO)[, c(4:5, 7:14, 17:34)], th = 0.7)
 
 # Save column names for use with Random Forest variable screening
-# BO_vars <- v2@results$Variables
+BO_vars <- v2@results$Variables
 # save(BO_vars, file = "metadata/BO_vars.RData")
 load("metadata/BO_vars.RData")
 
