@@ -56,28 +56,40 @@ global_coords <- dplyr::select(Arctic_BO, lon, lat) %>%
 # v1 <- vifstep(Arctic_BO[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
-# Remove minimum temperatures and min/mean ice thickness
-v2 <- vifcor(na.omit(Arctic_BO)[, c(4:5, 7:14, 17:34)], th = 0.7)
+# Select only mean values and max SST
+v2 <- Arctic_BO %>% 
+  dplyr::select(BO21_templtmax_ss,
+                BO21_salinitymean_ss, 
+                BO21_icethickmean_ss, 
+                BO21_curvelmean_bdmax, 
+                BO_parmean, 
+                BO21_dissoxmean_bdmax,
+                BO21_ironmean_bdmax,
+                BO21_nitratemean_bdmax,
+                BO21_phosphatemean_bdmax) %>% 
+  na.omit() %>%
+  vifcor(th = 0.8)
 
 # Save column names for use with Random Forest variable screening
-BO_vars <- v2@results$Variables
+# BO_vars <- c(v2@results$Variables)
+# BO_vars <- BO_vars[-5] # Remove PAR because it correlates with SST and Ice
+# BO_vars
 # save(BO_vars, file = "metadata/BO_vars.RData")
 load("metadata/BO_vars.RData")
 
 # Exclude the collinear variables that were identified previously
 Arctic_excl <- Arctic_BO %>% 
   dplyr::select(lon, lat, all_of(BO_vars)) %>%
-  mutate(BO_parmean = replace_na(BO_parmean, 0),
-         BO21_curvelltmin_bdmax = replace_na(BO21_curvelltmin_bdmax, 0)) %>% 
+  replace(is.na(.), 0) %>% 
   arrange(lon, lat)
 
 # One more layer of correlation screening
 # Correlation plots
-# excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
-# dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
-# corrplot(dataVIF.cor, type = "lower", method = "number")
-# heatmap(x = dataVIF.cor, symm = T)
-# Pearson_cor <- cor(excl_VIF_df)
+excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
+dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
+corrplot(dataVIF.cor, type = "lower", method = "number")
+heatmap(x = dataVIF.cor, symm = T)
+Pearson_cor <- cor(excl_VIF_df)
 
 
 # 2: Load data ------------------------------------------------------------

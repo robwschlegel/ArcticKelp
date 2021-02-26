@@ -26,18 +26,29 @@ study_site_excl <- study_site_env %>%
 rm(study_site_env); gc()
 
 # Load Arctic data for testing variable correlations and for making model projections
-Arctic_excl <- Arctic_coast %>%
-  dplyr::select(lon, lat, land_distance, depth, all_of(BO_vars))
-rm(Arctic_coast); gc()
+load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
+load("data/Arctic_AM.RData")
+Arctic_AM <- Arctic_AM %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+  dplyr::rename(depth = bathy)
+Arctic_excl <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat")) %>% 
+  mutate(env_index = 1:n()) %>% 
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+# rm(Arctic_BO, Arctic_AM); gc()
 
 # Load future layers
 load("data/Arctic_BO_2050.RData")
 Arctic_excl_2050 <- Arctic_BO_2050 %>% 
   dplyr::select(lon, lat, all_of(BO_vars)) %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
   right_join(dplyr::select(Arctic_excl, lon, lat), by = c("lon", "lat")) 
 load("data/Arctic_BO_2100.RData")
 Arctic_excl_2100 <- Arctic_BO_2100 %>% 
   dplyr::select(lon, lat, all_of(BO_vars)) %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
   right_join(dplyr::select(Arctic_excl, lon, lat), by = c("lon", "lat")) 
 rm(Arctic_BO_2050, Arctic_BO_2100); gc()
 
@@ -291,7 +302,8 @@ project_cover <- function(model_choice){
     mutate(pred_present = case_when(pred_present < 0 ~ 0, TRUE ~ pred_present),
            pred_2050 = case_when(pred_present < 0 ~ 0, TRUE ~ pred_2050),
            pred_2100 = case_when(pred_present < 0 ~ 0, TRUE ~ pred_2100))
-  gc(); return(pred_df)
+  gc()
+  return(pred_df)
 }
 
 # Now we run the test on each kelp cover 1000 times to see what the spread is
@@ -351,7 +363,7 @@ random_kelp_forest_select <- function(kelp_choice, column_choice, df = kelp_all)
 doParallel::registerDoParallel(cores = 50)
 
 # Kelp.cover
-system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 354 seconds with 50 cores
+system.time(best_rf_kelpcover <- random_kelp_forest_select("kelp.cover", top_var_kelpcover)) # 141 seconds with 50 cores
 save(best_rf_kelpcover, file = "data/best_rf_kelpcover.RData", compress = T)
 
 # Laminariales
