@@ -4,7 +4,7 @@
 .Renviron
 talk/asm2019-abstracts.pdf
 # Acla models
-Acla/*.out
+# Acla/*.out
 Acla/.BIOMOD_DATA/*
 Acla/models/*
 Acla/proj_present/*
@@ -14,7 +14,7 @@ Acla/proj_2050/*
 Acla/proj_2100/*
 !Acla/proj_2100/*.RData
 # Aesc models
-Aesc/*.out
+# Aesc/*.out
 Aesc/.BIOMOD_DATA/*
 Aesc/models/*
 Aesc/proj_present/*
@@ -24,7 +24,7 @@ Aesc/proj_2050/*
 Aesc/proj_2100/*
 !Aesc/proj_2100/*.RData
 # Ldig models
-Ldig/*.out
+# Ldig/*.out
 Ldig/.BIOMOD_DATA/*
 Ldig/models/*
 Ldig/proj_present/*
@@ -34,7 +34,7 @@ Ldig/proj_2050/*
 Ldig/proj_2100/*
 !Ldig/proj_2100/*.RData
 # Lsol models
-Lsol/*.out
+# Lsol/*.out
 Lsol/.BIOMOD_DATA/*
 Lsol/models/*
 Lsol/proj_present/*
@@ -44,7 +44,7 @@ Lsol/proj_2050/*
 Lsol/proj_2100/*
 !Lsol/proj_2100/*.RData
 # Slat models
-Slat/*.out
+# Slat/*.out
 Slat/.BIOMOD_DATA/*
 Slat/models/*
 Slat/proj_present/*
@@ -54,7 +54,7 @@ Slat/proj_2050/*
 Slat/proj_2100/*
 !Slat/proj_2100/*.RData
 # Gulo models
-Gulo/*.out
+# Gulo/*.out
 Gulo/.BIOMOD_DATA/*
 Gulo/models/*
 Gulo/proj_present/*
