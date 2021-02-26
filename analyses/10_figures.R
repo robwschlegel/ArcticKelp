@@ -26,6 +26,19 @@ loadRData <- function(fileName){
 sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
 sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), pattern = "_Arct_rarefied_points.csv")
 
+# Environmental data
+load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
+load("data/Arctic_AM.RData")
+Arctic_AM <- Arctic_AM %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+  dplyr::rename(depth = bathy)
+
+# Coordinates only
+global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
+  mutate(env_index = 1:nrow(Arctic_BO))
+
 # The base map to use for everything else
 Arctic_map <- ggplot() +
   borders(fill = "grey70", colour = NA) +
