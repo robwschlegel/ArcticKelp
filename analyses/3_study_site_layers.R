@@ -19,19 +19,26 @@ library(FNN)
 # This is not hosted on GitHub as it is 30.3 MB
 # E-mail robert.schlegel@dal.ca for the file
 # Or create it from '2_monthly_clims.R'
-load("data/Arctic_coast.RData")
-Arctic_coast$env_index <- 1:nrow(Arctic_coast)
+load("data/Arctic_BO.RData")
+Arctic_BO <- Arctic_BO %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
+load("data/Arctic_AM.RData")
+Arctic_AM <- Arctic_AM %>% 
+  mutate(lon = round(lon, 4), lat = round(lat, 4))
+Arctic_env <- left_join(Arctic_BO, Arctic_AM, by = c("lon", "lat"))
+Arctic_env$env_index <- 1:nrow(Arctic_env)
+rm(Arctic_BO, Arctic_AM); gc()
 
 # Find the nearest BO points to each site and add bathy data
 study_site_env <- study_sites %>%
-  mutate(env_index = as.vector(knnx.index(as.matrix(Arctic_coast[,c("lon", "lat")]),
+  mutate(env_index = as.vector(knnx.index(as.matrix(Arctic_env[,c("lon", "lat")]),
                                           as.matrix(study_sites[,c("lon", "lat")]), k = 1))) %>%
-  left_join(Arctic_coast, by = "env_index") %>%
+  left_join(Arctic_env, by = "env_index") %>%
   dplyr::select(-Date, -Notes, -env_index) %>%
   dplyr::rename(lon = lon.x, lat = lat.x, lon_env = lon.y, lat_env = lat.y) %>% 
-  dplyr::select(site:lat_env, depth, land_distance, everything())
+  dplyr::select(site:lat_env, bathy, land_distance, everything())
 save(study_site_env, file = "data/study_site_env.RData")
-Arctic_coast$env_index <- NULL
+Arctic_env$env_index <- NULL
 
 
 # Future layers -----------------------------------------------------------

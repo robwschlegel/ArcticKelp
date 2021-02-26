@@ -36,20 +36,27 @@ sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
 sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), pattern = "_Arct_rarefied_points.csv")
 
 # The coastal data
-load("data/Arctic_coast.RData")
+# load("data/Arctic_coast.RData")
 
 # The coastal coordinates
-load("metadata/coastal_coords.RData")
+# load("metadata/coastal_coords.RData")
+
+# The present data
+load("data/Arctic_BO.RData")
+
+# Coordinates only
+global_coords <- dplyr::select(Arctic_BO, lon, lat) %>% 
+  mutate(env_index = 1:nrow(Arctic_BO))
 
 # The usdm package can do stepwise elimination of highly inflating variables
 # Calculate vif for the variables in Arctic_BO_stack
-# v0 <- vif(Arctic_coast[, 3:34])
+# v0 <- vif(Arctic_BO[, 3:34])
 
 # Identify collinear variables that should be excluded (VIF > 10)
-# v1 <- vifstep(Arctic_coast[, 3:34])
+# v1 <- vifstep(Arctic_BO[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
-# v2 <- vifcor(na.omit(Arctic_coast)[, 3:34], th = 0.7)
+# v2 <- vifcor(na.omit(Arctic_BO)[, 3:34], th = 0.7)
 
 # Save column names for use with Random Forest variable screening
 # BO_vars <- v2@results$Variables
@@ -57,9 +64,9 @@ load("metadata/coastal_coords.RData")
 load("metadata/BO_vars.RData")
 
 # Exclude the collinear variables that were identified previously
-Arctic_excl <- Arctic_coast %>% 
+Arctic_excl <- Arctic_BO %>% 
   dplyr::select(lon, lat, all_of(BO_vars)) %>%
-  mutate(BO_parmax = replace_na(BO_parmax, 0),
+  mutate(BO_parmean = replace_na(BO_parmean, 0),
          BO21_curvelltmin_bdmax = replace_na(BO21_curvelltmin_bdmax, 0)) %>% 
   arrange(lon, lat)
 
@@ -84,7 +91,7 @@ Arctic_excl_sub <- Arctic_excl %>%
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 Arctic_excl_sub_stack <- stack(rasterFromXYZ(Arctic_excl_sub, crs = "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"))
 # plot(Arctic_excl_sub_stack)
-rm(Arctic_AM, Arctic_BO, Arctic_coast, Arctic_excl_sub); gc()
+rm(Arctic_BO, Arctic_excl_sub); gc()
 
 # Very small area for testing
 # Arctic_excl_baby <- Arctic_excl %>% 
@@ -126,9 +133,9 @@ biomod_pipeline <- function(sps_choice){
   
   # Load the species
   sps <- read_csv(sps_choice) %>% 
-    mutate(env_index = as.vector(knnx.index(as.matrix(coastal_coords[,c("lon", "lat")]),
+    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
                                             as.matrix(.[,2:3]), k = 1))) %>%
-    left_join(coastal_coords, by = "env_index") %>% 
+    left_join(global_coords, by = "env_index") %>% 
     dplyr::select(Sp, lon.y, lat.y) %>%
     dplyr::rename(lon = lon.y, lat = lat.y)
   
@@ -364,9 +371,9 @@ presence_absence_fig <- function(sps_choice){
   
   # Load the presence data
   sps_presence <- read_csv(sps_choice) %>% 
-    mutate(env_index = as.vector(knnx.index(as.matrix(coastal_coords[,c("lon", "lat")]),
+    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
                                             as.matrix(.[,2:3]), k = 1))) %>%
-    left_join(coastal_coords, by = "env_index") %>% 
+    left_join(global_coords, by = "env_index") %>% 
     dplyr::select(Sp, lon.y, lat.y) %>%
     dplyr::rename(lon = lon.y, lat = lat.y) %>% 
     mutate(presence = 1)
@@ -509,9 +516,9 @@ Arctic_AM <- Arctic_AM %>%
 plot_biomod <- function(sps_choice){
   # Load the species points
   sps_points <- read_csv(sps_files[str_which(sps_files,sps_choice)]) %>% 
-    mutate(env_index = as.vector(knnx.index(as.matrix(coastal_coords[,c("lon", "lat")]),
+    mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
                                             as.matrix(.[,2:3]), k = 1))) %>%
-    left_join(coastal_coords, by = "env_index") %>% 
+    left_join(global_coords, by = "env_index") %>% 
     dplyr::select(Sp, lon.y, lat.y) %>%
     dplyr::rename(lon = lon.y, lat = lat.y)
   

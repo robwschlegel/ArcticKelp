@@ -29,9 +29,6 @@ doParallel::registerDoParallel(cores = 50)
 # Disable scientific notation
 options(scipen = 999)
 
-# A rainbow colour palette was explicitly requested
-rainbow_palette <- c("#fefefe", "#f963fa", "#020135", "#00efe1", "#057400", "#fcfd00", "#ed0000", "#3d0000")
-
 # Convenience function for loading .asc files
 load_asc <- function(file_name, col_name){
   df <- as.data.frame(raster(file_name), xy = T) %>% 
@@ -254,12 +251,12 @@ Arctic_coast <- left_join(Arctic_BO , Arctic_AM,
 save(Arctic_coast, file = "data/Arctic_coast.RData")
 
 # Plot coastal pixels
-# ggplot(data = Arctic_coast, aes(x = lon, y = lat)) +
-# # ggplot(data = filter(Arctic_AM, depth > 100), aes(x = lon, y = lat)) +
-#   geom_tile(aes(fill = BO21_templtmin_bdmax)) +
-#   # geom_tile(aes(fill = depth)) +
-#   borders(fill = "grey90", colour = "black") +
-#   coord_quickmap(ylim = c(50, 90), expand = F)
+ggplot(data = Arctic_coast, aes(x = lon, y = lat)) +
+# ggplot(data = filter(Arctic_AM, depth > 100), aes(x = lon, y = lat)) +
+  geom_tile(aes(fill = BO21_templtmin_bdmax)) +
+  # geom_tile(aes(fill = depth)) +
+  borders(fill = "grey90", colour = "black") +
+  coord_quickmap(ylim = c(50, 90), expand = F)
 
 # Coastal coordinates
 coastal_coords <- dplyr::select(Arctic_coast, lon, lat) %>%
@@ -270,7 +267,7 @@ save(coastal_coords, file = "metadata/coastal_coords.RData")
 # Establish the correlation matrix ----------------------------------------
 
 # Check Pearson correlation coefficient between layers
-BO_cor_matrix <- Arctic_coast %>% 
+BO_cor_matrix <- Arctic_BO %>% 
   dplyr::select(-lon, -lat) %>% 
   correlation(redundant = T) %>% 
   dplyr::select(Parameter1:r) %>% 
