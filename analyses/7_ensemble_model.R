@@ -431,15 +431,18 @@ biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".mode
 
 # Model evaluation by algorithm
 models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS'),
-                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("Algorithm")
+                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("Algorithm") +
+  geom_hline(aes(yintercept = 0.7), colour = "red", size = 2)
 
 # Model evaluation by cross-validation
 models_scores_graph(biomod_model, by = "cv_run", metrics = c('ROC','TSS'),
-                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("Run")
+                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("Run") +
+  geom_hline(aes(yintercept = 0.7), colour = "red", size = 2)
 
 # Model evaluation by dataset
 models_scores_graph(biomod_model, by = "data_set", metrics = c('ROC','TSS'),
-                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("PA")
+                    xlim = c(0.5,1), ylim = c(0.5,1)) + ggtitle("PA") +
+  geom_hline(aes(yintercept = 0.7), colour = "red", size = 2)
 
 ## Calculate mean of variable importance by algorithm
 # JG: I have read that scores reported are raw in the table (to be easier to interpret, 
@@ -449,6 +452,7 @@ apply(models_var_import, c(1,2), mean, na.rm = T)
 apply(apply(models_var_import, c(1,2), mean, na.rm = T), 1, mean) # Overall mean per variable
 
 # Visualize species' modeled response to the given variables
+# These necessary files are not on GitHub as they are too large
 sp_name_Maxent <- BIOMOD_LoadModels(biomod_model, models = 'MAXENT.Phillips')
 sp_name_GLM <- BIOMOD_LoadModels(biomod_model, models = 'GLM')
 sp_name_ANN <- BIOMOD_LoadModels(biomod_model, models = 'ANN')
