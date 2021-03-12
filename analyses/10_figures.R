@@ -593,6 +593,8 @@ ggsave("figures/fig_5.png", fig_5, width = 7, height = 12)
 # Figure S1 --------------------------------------------------------------
 # The ensemble model results
 
+# TODO: Add labels that show km in/decrease in habitat suitability
+
 # Function for visualising changes over time
 ensemble_diff_plot <- function(df, year_label){
   diff_plot <- df %>%
