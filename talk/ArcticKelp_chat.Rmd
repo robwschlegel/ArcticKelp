@@ -1,5 +1,5 @@
 ---
-title: "**Current and future habitat suitability and abundance of kelps in the Eastern Canadian Arctic**"
+title: "**Current and future habitat suitability and cover of kelps in the Eastern Canadian Arctic**"
 author: "**_Robert W Schlegel_**^1^, _Jésica Goldsmit_^2,3,4^, Karen Filbee-Dexter^2,5^, Kathleen A MacGregor^2,3^, Ladd E Johnson^2^, Christopher J Mundy^6^, Amanda Savoie^7^, Christopher W McKindsey^2,3^, Kimberly L Howland^2,4^, Philippe Archambault^2^"
 date: "2021-03-16"
 output: html_document
@@ -17,7 +17,14 @@ output: html_document
 
 # State of the manuscript
 
-- Should be ready for co-authors by end of April at the latest
+- Intro fully drafted
+- Methods mostly finished
+  - Still need paragraph about how cover was determined
+- Results are _finished_
+  - Write up still in progress
+  - More than 50% complete
+- Discussion is still being drafted
+- Manuscript should be ready for co-authors by end of April at the latest
 
 ***
 
