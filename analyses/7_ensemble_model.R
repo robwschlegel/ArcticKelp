@@ -76,7 +76,7 @@ global_coords <- dplyr::select(Arctic_BO, lon, lat) %>%
 # BO_vars
 # save(BO_vars, file = "metadata/BO_vars.RData")
 load("metadata/BO_vars.RData")
-print(paste0(c("Variables for model: ", BO_vars)))
+BO_vars
 
 # Exclude the collinear variables that were identified previously
 Arctic_excl <- Arctic_BO %>% 
