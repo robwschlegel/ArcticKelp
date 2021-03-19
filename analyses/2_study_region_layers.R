@@ -108,12 +108,12 @@ rm(BO_layers_present); gc()
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = BO21_icethickltmax_ss)) +
+  geom_raster(aes(fill = BO_parmean)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
-  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4]),
-                 expand = F) +
+  # coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 # ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                 # expand = F) +
   theme(legend.position = "bottom")
 
 

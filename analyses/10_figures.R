@@ -651,7 +651,18 @@ load("data/best_rf_alaria.RData")
 
 # Confidence in RF output
 # Function for creating figure showing confidence intervals of prediction accuracy
-conf_plot_RF <- function(df, plot_title){
+conf_plot_RF <- function(df, sps_choice){
+  
+  # Create full species name and load ensemble data
+  if(sps_choice == "laminariales"){
+    sps_title <- "Laminariales spp."
+  } else if(sps_choice == "agarum"){
+    sps_title <- "Agarum clathratum"
+  } else if(sps_choice == "alaria"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }
   
   # 90 CI around predictions per step
   conf_acc <- df %>% 
@@ -693,14 +704,17 @@ conf_plot_RF <- function(df, plot_title){
               sd_acc = sd(accuracy), .groups = "drop")
   
   # Visualise
-  ggplot(conf_acc, aes(x = original, y = mean)) +
-    geom_hline(yintercept = 0, size = 2, colour = "red") +
+  conf_plot <- ggplot(conf_acc, aes(x = original, y = mean)) +
     geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
                   fatten = 0, fill = "grey70", colour = NA, width = 10) +
     geom_crossbar(aes(ymin = q25, ymax = q75),
                   fatten = 0, fill = "grey50", width = 10) +
-    geom_crossbar(aes(ymin = q50, ymax = q50),
+    geom_crossbar(aes(ymin = q50, ymax = q50), size = 1.5,
                   fatten = 0, fill = NA, colour = "black", width = 10) +
+    geom_hline(yintercept = 0, size = 2, alpha = 0.7, colour = "red") +
+    geom_hline(yintercept = c(-50, 50), size = 0.5, alpha = 0.7, colour = "purple", linetype = "dashed") +
+    # geom_hline(yintercept = -50, size = 1, alpha = 1, colour = "purple", linetype = "dashed") +
+    geom_label(aes(label = count, y = q95), size = 3) +
     # geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
     # colour = "purple", size = 1.2, alpha = 0.8) +
     # geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
@@ -708,17 +722,26 @@ conf_plot_RF <- function(df, plot_title){
                aes(x = 75, y = 75, label = paste0("Mean accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
     # geom_label(data = conf_best_label, colour = "purple",
     # aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
-    scale_y_continuous(limits = c(-100, 100)) +
-    scale_x_continuous(breaks = c(0, 20, 40, 60, 80, 100)) +
-    labs(y = "Range in accuracy of predictions", x = "Original value (% cover)", title = plot_title) +
+    scale_y_continuous(limits = c(-100, 100), breaks = c(-50, 0 ,50), labels = c(-50, 0 ,50), 
+                       minor_breaks = seq(-90, 90, 10), expand = c(0, 0)) +
+    scale_x_continuous(breaks = c(0, 20, 40, 60, 80, 100), expand = c(0, 0)) +
+    labs(y = "Difference from observed", x = "Observed value (% cover)", title = sps_title) +
     theme(panel.border = element_rect(fill = NA, colour = "black"))
+  
+  # Correct title as necessary
+  if(sps_choice %in% c("agarum", "alaria")){
+    conf_plot <- conf_plot + theme(plot.title = element_text(face = "italic"))
+  }
+  conf_plot
+  return(conf_plot)
 }
 
 # Create the plots
-cover_lam <- conf_plot_RF(best_rf_laminariales$accuracy_reg, "Laminariales cover confidence")
-cover_agarum <- conf_plot_RF(best_rf_agarum$accuracy_reg, "Agarum cover confidence")
-cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "Alaria cover confidence")
+cover_lam <- conf_plot_RF(best_rf_laminariales$accuracy_reg, "laminariales")
+cover_agarum <- conf_plot_RF(best_rf_agarum$accuracy_reg, "agarum")
+cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "alaria")
 
+# Steek'em
 fig_6 <- ggpubr::ggarrange(cover_agarum, cover_alaria, cover_lam, ncol = 1, 
                            labels = c("A)", "B)", "C)"))
 ggsave("figures/fig_6.png", fig_6, width = 7, height = 12)
