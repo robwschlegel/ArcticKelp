@@ -443,6 +443,7 @@ model_compare_plot <- function(model_choice, add_legend = F){
   # Join the models
   model_join <- left_join(best_rf, df_project, by = c("lon", "lat", "depth", "land_distance")) %>% 
     mutate(pred_present_round = plyr::round_any(pred_present_mean, 20),
+           pred_present_round = ifelse(pred_present_round > 60, 60, pred_present_round),
            pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 10),
            pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10))
   
@@ -453,8 +454,8 @@ model_compare_plot <- function(model_choice, add_legend = F){
            depth <= 100 | land_distance <= 50) %>% 
     ggplot() +
     geom_tile(aes(x = lon, y = lat, fill = pred_present_round)) +
-    scale_fill_gradientn("Cover (%)", colours = RColorBrewer::brewer.pal(9, "BuGn")[c(5,6,7,8)],
-                         limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
+    scale_fill_gradientn("Cover (%)", colours = RColorBrewer::brewer.pal(9, "BuGn")[c(3,5,7,9)],
+                         limits = c(0, 60), breaks = c(0, 20, 40, 60), guide = "legend") +
     # scale_fill_distiller("Cover (%)", palette = "BuGn", direction = 1, #low = "springgreen1", high = "springgreen4", 
     # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
