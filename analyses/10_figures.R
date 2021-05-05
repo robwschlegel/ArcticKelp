@@ -1,6 +1,10 @@
 # analyses/10_figures
 # This script houses the code used to create the final figures for the manuscript
 
+# TODO: Figures showing response curves between RF % cover and variables used
+# Would be good to have for ensemble models results, too
+# Calculate amount of change in cover over time
+
 
 # Setup -------------------------------------------------------------------
 
@@ -110,81 +114,6 @@ Arctic_boundary <- rbind(Arctic_boundary,
                          data.frame(lon = rev(Arctic_boundary$lon),
                                     lat = rep(90, nrow(Arctic_boundary))))
 
-# Function for preparing bathymetry data for plotting in a polar projection
-bbox_to_bathy <- function(coords, lon_pad = 0, lat_pad = 0,
-                          bathy_file = NA, projection = NA,
-                          depths = c(0, 50, 100, 200, 500, 1000, 2000, 10000)){
-  
-  # Get the coordinates
-  if(is.data.frame(coords)){
-    lon1 <- min(coords$lon1); lon2 <- max(coords$lon2)
-    lat1 <- min(coords$lat1); lat2 <- max(coords$lat2)
-  } else if(is.vector(coords)){
-    lon1 <- coords[1]; lon2 <- coords[2]
-    lat1 <- coords[3]; lat2 <- coords[4]
-  } else {
-    stop("Uh oh")
-  }
-  
-  # Use the default hi-res Arctic bathy unless the user specifies something else
-  # if(is.na(bathy_file)) bathy_file <- paste0(pCloud_path,"FACE-IT_data/shape_files/IBCAO_v4_200m.nc") # Super hi-res, but doesn't work...
-  if(is.na(bathy_file)) bathy_file <- "~/pCloudDrive/FACE-IT_data/maps/GRIDONE_2D.nc"
-  # if(is.na(bathy_file)) bathy_file <- paste0(pCloud_path,"FACE-IT_data/shape_files/GEBCO_2020.nc")
-  
-  # Set limits for bathy projection
-  xlon <- c(lon1-lon_pad, lon2+lon_pad)
-  xlat <- c(lat1-lat_pad, lat2+lat_pad)
-  lims <- c(xlon, xlat)
-  
-  # Set projection
-  if(is.na(projection)){
-    # projection <- "+init=epsg:6070"
-    projection <- "+init=epsg:3995" # Arctic Polar Stereographic
-    # projection <- "+init=epsg:4326" # Cartesian global
-    # projection <- "+init=epsg:32636"
-  } 
-  
-  # Convert NetCDF to raster
-  rb <- raster_bathymetry(bathy = bathy_file,
-                          depths = depths, 
-                          proj.out = projection, 
-                          boundary = lims)
-  
-  # Convert to raster vector for plotting
-  bs_bathy <- vector_bathymetry(rb)
-  
-  # Convert land file for use with new bathy file
-  world <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/maps/ne_10m_land.shp")
-  islands <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/maps/ne_10m_minor_islands.shp")
-  world <- rbind(world, islands)
-  # proj4string(world) <- CRS(projection)
-  bs_land <- clip_shapefile(world, lims, proj.limits = projection)
-  bs_land <- sp::spTransform(bs_land, CRSobj = sp::CRS(projection))
-  if(!rgeos::gIsValid(bs_land)){ # Has to return TRUE, if not use rgeos::gBuffer
-    bs_land <- rgeos::gBuffer(bs_land, byid = TRUE, width = 0)
-  }
-  
-  # Create glacier shape files
-  glaciers <- rgdal::readOGR("~/pCloudDrive/FACE-IT_data/maps/ne_10m_glaciated_areas.shp")
-  if(!rgeos::gIsValid(glaciers)){ # Needs buffering
-    glaciers <- rgeos::gBuffer(glaciers, byid = TRUE, width = 0)
-  }
-  bs_glacier <- clip_shapefile(glaciers, lims)
-  if(dim(bs_glacier)[1] > 0){
-    bs_glacier <- sp::spTransform(bs_glacier, CRSobj = sp::CRS(projection))
-  } else { 
-    bs_glacier <- NA
-  }
-  
-  # Return results
-  res <- list(bathy = bs_bathy, land = bs_land, glacier = bs_glacier)
-  return(res)
-}
-
-# Prep Arctic bathy data
-# NB: This requires too much RAM to run on a laptop
-arctic_bathy <- bbox_to_bathy(c(-180, 180, 40, 90))
-
 # Overall regions
 fig_1a <- basemap(limits = c(-180, 180, 40, 90), bathymetry = T) +
   annotation_spatial(bbox_spatial, fill = "forestgreen", alpha = 0.2) +
@@ -205,22 +134,13 @@ label_df <- data.frame(lon = c(-85, -75.17, -82.92),
                        loc = c("Hudson Bay", "Hudson Straight", "Lancaster Sound"))
 
 # ArcticKelp campaign map
-# fig_1b <- basemap(limits = c(bbox_arctic[1], bbox_arctic[2],
-#                              bbox_arctic[3], bbox_arctic[4]),
-fig_1b <- basemap(limits = bbox_arctic,
-                  glaciers = TRUE, bathymetry = TRUE, rotate = TRUE) +
-  geom_spatial_label(data = label_df, crs = 4326,
-                     aes(x = lon, y = lat, label = loc)) +
-  geom_spatial_point(data = study_sites, crs = 4326, shape = 21,
-                     aes(x = lon, y = lat), colour = "black", fill = "magenta", size = 4) +
-  labs(x = NULL, y = NULL)
-fig_1b
 fig_1b <- ggplot() +
   # geom_tile(aes(fill = presence)) +
   borders(fill = "grey30", colour = "black") +
   geom_point(data = study_sites, shape = 21, colour = "black", 
              fill = "magenta", size = 2,
              aes(x = lon, y = lat)) +
+  geom_label(data = label_df, aes(x = lon, y = lat, label = loc)) +
   scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
