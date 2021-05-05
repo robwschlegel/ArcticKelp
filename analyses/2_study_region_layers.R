@@ -237,7 +237,6 @@ grid_size <- function(df){
   res <- cbind(df, sq_area)
   return(res)
 }
-doParallel::registerDoParallel(7)
 Arctic_area <- plyr::ddply(mutate(Arctic_AM, plyr_idx = 1:n()), c("plyr_idx"), grid_size, .parallel = T)
 Arctic_area$plyr_idx <- NULL
 
@@ -247,7 +246,7 @@ save(Arctic_AM, file = "data/Arctic_AM.RData")
 
 # Visualise
 ggplot(Arctic_AM, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = land_distance)) +
+  geom_tile(aes(fill = sq_area)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   # coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
