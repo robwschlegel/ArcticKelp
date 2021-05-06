@@ -174,6 +174,36 @@ ggsave("figures/fig_1.png", fig_1, height = 12, width = 8)
 
 # TODO: Add labels that show km in/decrease in habitat suitability
 
+# Function to convert rasters to data.frames
+rast_df <- function(rast, projection_name = NULL){
+  df_out <- as.data.frame(rast[[1]], xy = T) %>% 
+    `colnames<-`(c("lon", "lat", "presence")) %>% 
+    mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+    left_join(Arctic_AM, by = c("lon", "lat")) %>% 
+    na.omit()
+  if(!is.null(projection_name)) df_out$projection <- projection_name
+  return(df_out)
+}
+
+# Function for prepping the ensemble model data
+ensemble_prep <- function(sps_choice){
+  
+  # Load the ensemble projections
+  biomod_project_present <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,"_ensemble_TSSbin.RData"))
+  biomod_project_2050 <- loadRData(paste0(sps_choice,"/proj_2050/proj_2050_",sps_choice,"_ensemble_TSSbin.RData"))
+  biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
+  
+  # Convert to data.frames
+  df_project_present <- rast_df(biomod_project_present[[1]], "proj_pres")
+  df_project_2050 <- rast_df(biomod_project_2050[[1]], "proj_2050")
+  df_project_2100 <- rast_df(biomod_project_2100[[1]], "proj_2100")
+  
+  # Combine and exit
+  df_project_all <- rbind(df_project_present, df_project_2050, df_project_2100) %>% 
+    mutate(presence = as.integer(presence))
+  return(df_project_all)
+}
+
 # Function for visualising changes over time
 ensemble_diff_plot <- function(df, year_label){
   diff_plot <- df %>%
@@ -227,6 +257,13 @@ ensemble_plot <- function(sps_choice, add_legend = F){
                                 levels = c("1", "0", "-1"),
                                 labels = c("gain", "no change", "loss")))
   
+  # Calculate sq area coverage per era
+  sq_area_labels <- df_project %>% 
+    filter(land_distance <= 50 | depth <= 100) %>% 
+    summarise(area_pres = round(sum(sq_area*proj_pres, na.rm = T)),
+              area_2050 = round(sum(sq_area*proj_2050, na.rm = T)),
+              area_2100 = round(sum(sq_area*proj_2100, na.rm = T)))
+  
   # Load the species points
   sps_points <- map_df(sps_files[grepl(paste(sps_choice, collapse = "|"), sps_files)], read_csv) %>% 
     mutate(env_index = as.vector(knnx.index(as.matrix(global_coords[,c("lon", "lat")]),
@@ -244,6 +281,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     geom_tile(aes(fill = proj_pres)) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
     geom_point(data = sps_points, shape = 21, colour = "black", fill = "hotpink", size = 0.5) +
+    geom_label(aes(x = -58, y = 75, label = "20")) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -255,7 +293,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
           plot.title = element_text(face = "italic"),
           panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
-  # plot_present
+  plot_present
   
   # Visualise present - 2050 and 2100
   # This is done separately to make adding the legends at the end cleaner
@@ -264,7 +302,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     ensemble_diff_plot("2050")
   plot_2100 <- df_project %>% 
     filter(proj_pres != 0 | proj_2100 != 0) %>% 
-    ensemble_diff_plot( "2100")
+    ensemble_diff_plot("2100")
   
   # Combine and exit
   plot_ALL <- cowplot::plot_grid(
@@ -301,36 +339,6 @@ ggsave("graph/fig_3_agarum.png", fig_3_agarum, width = 7, height = 4)
 
 # Figure 4 ----------------------------------------------------------------
 # Combination of the modelling approaches
-
-# Function to convert rasters to data.frames
-rast_df <- function(rast, projection_name = NULL){
-  df_out <- as.data.frame(rast[[1]], xy = T) %>% 
-    `colnames<-`(c("lon", "lat", "presence")) %>% 
-    mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
-    left_join(Arctic_AM, by = c("lon", "lat")) %>% 
-    na.omit()
-  if(!is.null(projection_name)) df_out$projection <- projection_name
-  return(df_out)
-}
-
-# Function for prepping the ensemble model data
-ensemble_prep <- function(sps_choice){
-  
-  # Load the ensemble projections
-  biomod_project_present <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,"_ensemble_TSSbin.RData"))
-  biomod_project_2050 <- loadRData(paste0(sps_choice,"/proj_2050/proj_2050_",sps_choice,"_ensemble_TSSbin.RData"))
-  biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
-  
-  # Convert to data.frames
-  df_project_present <- rast_df(biomod_project_present[[1]], "proj_pres")
-  df_project_2050 <- rast_df(biomod_project_2050[[1]], "proj_2050")
-  df_project_2100 <- rast_df(biomod_project_2100[[1]], "proj_2100")
-  
-  # Combine and exit
-  df_project_all <- rbind(df_project_present, df_project_2050, df_project_2100) %>% 
-    mutate(presence = as.integer(presence))
-  return(df_project_all)
-}
 
 # Join ensemble and random forest results
 model_compare_plot <- function(model_choice, add_legend = F){

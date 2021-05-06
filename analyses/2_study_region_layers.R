@@ -237,11 +237,10 @@ grid_size <- function(df){
   res <- cbind(df, sq_area)
   return(res)
 }
-Arctic_area <- plyr::ddply(mutate(Arctic_AM, plyr_idx = 1:n()), c("plyr_idx"), grid_size, .parallel = T)
-Arctic_area$plyr_idx <- NULL
+Arctic_AM <- plyr::ddply(mutate(Arctic_AM, plyr_idx = 1:n()), c("plyr_idx"), grid_size, .parallel = T)
+Arctic_AM$plyr_idx <- NULL
 
-# Join and save
-Arctic_AM <- left_join(Arctic_AM, Arctic_area, by = c("lon", "lat"))
+# Save
 save(Arctic_AM, file = "data/Arctic_AM.RData")
 
 # Visualise
