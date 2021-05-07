@@ -14,6 +14,7 @@ source("analyses/4_kelp_cover.R")
 
 # Other libraries
 library(ggOceanMaps) # https://mikkovihtakari.github.io/ggOceanMaps/index.html
+library(ggtext)
 library(raster)
 library(FNN)
 library(sdmpredictors)
@@ -205,7 +206,20 @@ ensemble_prep <- function(sps_choice){
 }
 
 # Function for visualising changes over time
-ensemble_diff_plot <- function(df, year_label){
+ensemble_diff_plot <- function(df, year_label, sq_area_labels){
+  # Prepare label
+  sq_area_label_proj <- sq_area_labels[colnames(sq_area_labels) == paste0("area_",year_label)][[1]]
+  sq_area_label_sub <- sq_area_label_proj-sq_area_labels$area_pres[[1]]
+  sq_area_label_text <- paste0(scales::comma(sq_area_label_sub)," km<sup>2</sup>")
+  if(sq_area_label_sub > 0){
+    sq_area_label_text <- paste0("+",sq_area_label_text)
+    lab_col <- RColorBrewer::brewer.pal(9, "Blues")[7]
+  } else{
+    lab_col <- RColorBrewer::brewer.pal(9, "Reds")[7]
+  }
+  
+  
+  # Create plot
   diff_plot <- df %>%
     filter(land_distance <= 50 | depth <= 100) %>% 
     ggplot(aes(x = lon, y = lat)) +
@@ -215,6 +229,8 @@ ensemble_diff_plot <- function(df, year_label){
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    geom_richtext(data = sq_area_labels, size = 4, hjust = 1, colour = lab_col,
+                  aes(x = -50, y = 51, label = sq_area_label_text)) +
     # scale_fill_brewer(palette = "Set1", direction = -1) +
     scale_fill_manual(values = c(RColorBrewer::brewer.pal(9, "Blues")[7], "grey80",
                                  RColorBrewer::brewer.pal(9, "Reds")[7])) +
@@ -263,6 +279,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     summarise(area_pres = round(sum(sq_area*proj_pres, na.rm = T)),
               area_2050 = round(sum(sq_area*proj_2050, na.rm = T)),
               area_2100 = round(sum(sq_area*proj_2100, na.rm = T)))
+  pres_text <- paste0(scales::comma(sq_area_labels$area_pres), " km<sup>2</sup>")
   
   # Load the species points
   sps_points <- map_df(sps_files[grepl(paste(sps_choice, collapse = "|"), sps_files)], read_csv) %>% 
@@ -281,7 +298,9 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     geom_tile(aes(fill = proj_pres)) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
     geom_point(data = sps_points, shape = 21, colour = "black", fill = "hotpink", size = 0.5) +
-    geom_label(aes(x = -58, y = 75, label = "20")) +
+    geom_richtext(data = sq_area_labels, size = 4, hjust = 1,
+                  aes(x = -50, y = 51, label = pres_text)) +
+    # annotate("label", x = -58, y = 78, label = paste(pres_text, "^2", sep = ""), parse = T) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -293,16 +312,16 @@ ensemble_plot <- function(sps_choice, add_legend = F){
           plot.title = element_text(face = "italic"),
           panel.background = element_rect(fill = "grey100"),
           panel.border = element_rect(colour = "black", fill = NA))
-  plot_present
+  # plot_present
   
   # Visualise present - 2050 and 2100
   # This is done separately to make adding the legends at the end cleaner
   plot_2050 <- df_project %>% 
     filter(proj_pres != 0 | proj_2050 != 0) %>% 
-    ensemble_diff_plot("2050")
+    ensemble_diff_plot("2050", sq_area_labels)
   plot_2100 <- df_project %>% 
     filter(proj_pres != 0 | proj_2100 != 0) %>% 
-    ensemble_diff_plot("2100")
+    ensemble_diff_plot("2100", sq_area_labels)
   
   # Combine and exit
   plot_ALL <- cowplot::plot_grid(
@@ -330,7 +349,7 @@ ensemble_legend <- ensemble_plot("Acla", add_legend = T)
 # Combine into one mecha-figure
 fig_3 <- ggpubr::ggarrange(ensemble_Acla, ensemble_Aesc, ensemble_Lsol, ensemble_Slat, ensemble_legend,
                            ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
-ggsave("figures/fig_3.png", fig_3, width = 7, height = 14)
+ggsave("figures/fig_3.png", fig_3, width = 7, height = 15)
 
 # Agarum only for demo
 fig_3_agarum <- ggpubr::ggarrange(ensemble_Acla, ensemble_legend, ncol = 1, heights = c(1, 0.15))
@@ -341,13 +360,14 @@ ggsave("graph/fig_3_agarum.png", fig_3_agarum, width = 7, height = 4)
 # Combination of the modelling approaches
 
 # Join ensemble and random forest results
+# model_choice <- "agarum"
 model_compare_plot <- function(model_choice, add_legend = F){
   
   # Create full species name and load ensemble data
   if(model_choice == "laminariales"){
     sps_title <- "Laminariales spp."
     df_project <- left_join(ensemble_prep("Lsol"), ensemble_prep("Slat"),
-                            by = c("lon", "lat", "land_distance", "depth", "projection")) %>% 
+                            by = c("lon", "lat", "land_distance", "depth", "projection", "sq_area")) %>% 
       mutate(presence = case_when(presence.x == 1 | presence.y == 1 ~ 1, TRUE ~ 0)) %>% 
       dplyr::select(-presence.x, -presence.y)
   } else if(model_choice == "agarum"){
@@ -373,7 +393,27 @@ model_compare_plot <- function(model_choice, add_legend = F){
     mutate(pred_present_round = plyr::round_any(pred_present_mean, 20),
            pred_present_round = ifelse(pred_present_round > 60, 60, pred_present_round),
            pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 10),
-           pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10))
+           pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10)) %>% 
+    na.omit()
+  
+  # Calculate sq area coverage per era
+  sq_area_labels <- model_join %>% 
+    filter(land_distance <= 50 | depth <= 100) %>% 
+    summarise(area_total = sum(sq_area),
+              area_pres = round(sum(sq_area*pred_present_round, na.rm = T)),
+              area_2050 = round(sum(sq_area*pred_diff_2050, na.rm = T)),
+              area_2100 = round(sum(sq_area*pred_diff_2100, na.rm = T))) %>% 
+    mutate(area_pres_perc = area_pres/area_total,
+           area_2050_perc = area_2050/area_total,
+           area_2100_perc = area_2100/area_total) %>% 
+    mutate(area_pres_label = paste0(round(area_pres_perc),"%"),
+           area_2050_label = ifelse(area_2050_perc > 0 , 
+                                    paste0("+",round(area_2050_perc),"%"),
+                                    paste0(round(area_2050_perc),"%")),
+           area_2100_label = ifelse(area_2100_perc > 0 , 
+                                    paste0("+",round(area_2100_perc),"%"),
+                                    paste0(round(area_2100_perc),"%")))
+  # pres_text <- paste0(round(sq_area_labels$area_pres/sq_area_labels$area_total), "%")
   
   # Plot
   p_present <- model_join %>% 
@@ -382,11 +422,13 @@ model_compare_plot <- function(model_choice, add_legend = F){
            depth <= 100 | land_distance <= 50) %>% 
     ggplot() +
     geom_tile(aes(x = lon, y = lat, fill = pred_present_round)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_richtext(data = sq_area_labels, size = 6, hjust = 1, show.legend = F,
+                  aes(x = -50, y = 51, label = area_pres_label, fill = area_pres_perc)) +
     scale_fill_gradientn("Cover (%)", colours = RColorBrewer::brewer.pal(9, "BuGn")[c(3,5,7,9)],
                          limits = c(0, 60), breaks = c(0, 20, 40, 60), guide = "legend") +
     # scale_fill_distiller("Cover (%)", palette = "BuGn", direction = 1, #low = "springgreen1", high = "springgreen4", 
     # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -410,6 +452,9 @@ model_compare_plot <- function(model_choice, add_legend = F){
            depth <= 100 | land_distance <= 50) %>% 
     ggplot() +
     geom_tile(aes(x = lon, y = lat, fill = pred_diff_2050)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_richtext(data = sq_area_labels, size = 6, hjust = 1, show.legend = F,
+                  aes(x = -50, y = 51, label = area_2050_label, fill = area_2050_perc)) +
     # scale_fill_gradient2("Change (%)", low = "red", mid = "grey80", high = "blue",
     scale_fill_gradientn("Change (%)", 
                          colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
@@ -417,7 +462,6 @@ model_compare_plot <- function(model_choice, add_legend = F){
                          limits = c(-40, 40), 
                          breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
                          guide = "legend", na.value = NA) +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -437,6 +481,9 @@ model_compare_plot <- function(model_choice, add_legend = F){
            depth <= 100 | land_distance <= 50) %>% 
     ggplot() +
     geom_tile(aes(x = lon, y = lat, fill = pred_diff_2100)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_richtext(data = sq_area_labels, size = 6, hjust = 1, show.legend = F,
+                  aes(x = -50, y = 51, label = area_2100_label, fill = area_2100_perc)) +
     # scale_fill_gradient2("Change (%)", low = "red", mid = "grey80", high = "blue",
     scale_fill_gradientn("Change (%)", 
                          colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
@@ -444,7 +491,6 @@ model_compare_plot <- function(model_choice, add_legend = F){
                          limits = c(-40, 40), 
                          breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40), 
                          guide = "legend", na.value = NA) +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -643,7 +689,7 @@ conf_plot_RF <- function(df, sps_choice){
     geom_hline(yintercept = 0, size = 2, alpha = 0.7, colour = "red") +
     geom_hline(yintercept = c(-50, 50), size = 0.5, alpha = 0.7, colour = "purple", linetype = "dashed") +
     # geom_hline(yintercept = -50, size = 1, alpha = 1, colour = "purple", linetype = "dashed") +
-    geom_label(aes(label = count, y = q95), size = 3) +
+    geom_label(aes(label = scales::comma(count, accuracy = 1), y = q95), size = 3) +
     # geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
     # colour = "purple", size = 1.2, alpha = 0.8) +
     # geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
