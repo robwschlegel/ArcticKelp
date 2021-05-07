@@ -399,13 +399,12 @@ model_compare_plot <- function(model_choice, add_legend = F){
   # Calculate sq area coverage per era
   sq_area_labels <- model_join %>% 
     filter(land_distance <= 50 | depth <= 100) %>% 
-    summarise(area_total = sum(sq_area),
-              area_pres = round(sum(sq_area*pred_present_round, na.rm = T)),
-              area_2050 = round(sum(sq_area*pred_diff_2050, na.rm = T)),
-              area_2100 = round(sum(sq_area*pred_diff_2100, na.rm = T))) %>% 
-    mutate(area_pres_perc = area_pres/area_total,
-           area_2050_perc = area_2050/area_total,
-           area_2100_perc = area_2100/area_total) %>% 
+    summarise(area_pres_mean = mean(pred_present_round, na.rm = T),
+              area_2050_mean = mean(pred_diff_2050, na.rm = T),
+              area_2100_mean = mean(pred_diff_2100, na.rm = T),
+              area_pres_perc = mean(pred_present_round*proj_pres, na.rm = T),
+              area_2050_perc = mean(pred_diff_2050*proj_2050, na.rm = T),
+              area_2100_perc = mean(pred_diff_2100*proj_2100, na.rm = T)) %>% 
     mutate(area_pres_label = paste0(round(area_pres_perc),"%"),
            area_2050_label = ifelse(area_2050_perc > 0 , 
                                     paste0("+",round(area_2050_perc),"%"),
@@ -413,7 +412,6 @@ model_compare_plot <- function(model_choice, add_legend = F){
            area_2100_label = ifelse(area_2100_perc > 0 , 
                                     paste0("+",round(area_2100_perc),"%"),
                                     paste0(round(area_2100_perc),"%")))
-  # pres_text <- paste0(round(sq_area_labels$area_pres/sq_area_labels$area_total), "%")
   
   # Plot
   p_present <- model_join %>% 
@@ -765,6 +763,20 @@ rf_plot <- function(kelp_choice, add_legend = F){
               alaria = plyr::round_any(mean(Alaria, na.rm = T), 20), .groups = "drop")
   # Add large dots to show real cover %
   
+  # Calculate sq area coverage per era
+  sq_area_labels <- project_diff %>% 
+    filter(land_distance <= 50 | depth <= 100) %>% 
+    summarise(area_pres_mean = mean(pred_present_round, na.rm = T),
+              area_2050_mean = mean(pred_diff_2050, na.rm = T),
+              area_2100_mean = mean(pred_diff_2100, na.rm = T)) %>% 
+    mutate(area_pres_label = paste0(round(area_pres_mean),"%"),
+           area_2050_label = ifelse(area_2050_mean > 0 , 
+                                    paste0("+",round(area_2050_mean),"%"),
+                                    paste0(round(area_2050_mean),"%")),
+           area_2100_label = ifelse(area_2100_mean > 0 , 
+                                    paste0("+",round(area_2100_mean),"%"),
+                                    paste0(round(area_2100_mean),"%")))
+  
   # Present plot
   p_present <-  ggplot() +
     # geom_tile(data = df, # No filter
@@ -772,11 +784,13 @@ rf_plot <- function(kelp_choice, add_legend = F){
                             pred_present_round >= 10,
                             depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_present_round)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_richtext(data = sq_area_labels, size = 6, hjust = 1, show.legend = F,
+                  aes(x = -50, y = 51, label = area_pres_label, fill = area_pres_mean)) +
     # scale_fill_viridis_c(paste0("cover (%)"), limits = c(10, 70)) +
     # scale_fill_distiller(palette = "Greens", direction = 1, limits = c(10, 70)) +
     scale_fill_gradient("Cover (%)", low = "grey90", high = "grey30", aesthetics = c("colour", "fill"),
-                        limits = c(20, 60), breaks = c(20, 40, 60), guide = "legend") +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+                        limits = c(0, 60), breaks = c(20, 40, 60), guide = "legend") +
     geom_point(data = kelp_mean, aes_string(x = "lon", y = "lat"), colour = "red", size = 2) +
     geom_point(data = kelp_mean, aes_string(x = "lon", y = "lat", colour = kelp_choice), size = 1.9) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
@@ -786,13 +800,12 @@ rf_plot <- function(kelp_choice, add_legend = F){
     labs(x = NULL, y = NULL, title = paste0(sps_title)) +
     # theme_bw() +
     theme(legend.position = "bottom",
-          panel.background = element_rect(fill = "grey100"),
+          panel.background = element_rect(fill = "grey95"),
           panel.border = element_rect(colour = "black", fill = NA))
-  # p_present
-  
   if(kelp_choice %in% c("agarum", "alaria")){
     p_present <- p_present + theme(plot.title = element_text(face = "italic"))
   }
+  p_present
   
   # 2050 plot
   p_2050 <- ggplot() +
@@ -801,6 +814,9 @@ rf_plot <- function(kelp_choice, add_legend = F){
                             pred_present_round >= 10,
                             depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_diff_2050)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_richtext(data = sq_area_labels, size = 6, hjust = 1, show.legend = F,
+                  aes(x = -50, y = 51, label = area_2050_label, fill = area_2050_mean)) +
     scale_fill_gradientn("Change (%)", 
                          colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
                                      RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
@@ -808,7 +824,6 @@ rf_plot <- function(kelp_choice, add_legend = F){
                          breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
                          guide = "legend", na.value = NA) +
     # scale_fill_discrete("2050 - present (%)") +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -819,7 +834,7 @@ rf_plot <- function(kelp_choice, add_legend = F){
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank(),
           # panel.grid = element_line(colour = "black"),
-          panel.background = element_rect(fill = "grey100"),
+          panel.background = element_rect(fill = "grey95"),
           panel.border = element_rect(colour = "black", fill = NA))
   # p_2050
   
@@ -830,6 +845,9 @@ rf_plot <- function(kelp_choice, add_legend = F){
                             pred_present_round >= 10,
                             depth <= 100 | land_distance <= 50),
               aes(x = lon, y = lat, fill = pred_diff_2100)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_richtext(data = sq_area_labels, size = 6, hjust = 1, show.legend = F,
+                  aes(x = -50, y = 51, label = area_2100_label, fill = area_2100_mean)) +
     scale_fill_gradientn("Change (%)", 
                          colours = c(RColorBrewer::brewer.pal(9, "Reds")[c(9,8,7,6)], "grey80",
                                      RColorBrewer::brewer.pal(9, "Blues")[c(6,7,8,9)]),
@@ -837,7 +855,6 @@ rf_plot <- function(kelp_choice, add_legend = F){
                          breaks = c(-40, -30, -20, -10, 0, 10, 20, 30, 40),
                          guide = "legend", na.value = NA) +
     # scale_fill_discrete("2100 - present (%)") +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
