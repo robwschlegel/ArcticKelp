@@ -129,9 +129,9 @@ fig_1a
 ggsave("figures/fig_1a.png", fig_1a, height = 6, width = 8)
 
 # Add the names of the main regions: Hudson Bay, Hudson Strait, Lancaster Sound
-label_df <- data.frame(lon = c(-85, -75.17, -82.92),
-                       lat = c(60, 62.544, 74.425),
-                       loc = c("Hudson Bay", "Hudson Straight", "Lancaster Sound"))
+label_df <- data.frame(lon = c(-85, -75.17, -82.92, -63.834153, -83.4011174, -90.0706224, -82.7015637),
+                       lat = c(60, 62.544, 74.425, 72.172485, 67.5202107, 70.5938471, 53.0693041),
+                       loc = c("Hudson Bay", "Hudson Strait", "Lancaster Sound", "Baffin Bay", "Foxe Basin", "Gulf of \nBoothia", "James Bay"))
 
 # ArcticKelp campaign map
 fig_1b <- ggplot() +
@@ -140,7 +140,7 @@ fig_1b <- ggplot() +
   geom_point(data = study_sites, shape = 21, colour = "black", 
              fill = "magenta", size = 2,
              aes(x = lon, y = lat)) +
-  geom_label(data = label_df, aes(x = lon, y = lat, label = loc)) +
+  geom_label(data = label_df, aes(x = lon, y = lat, label = loc), alpha = 0.9) +
   scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
