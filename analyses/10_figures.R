@@ -173,8 +173,6 @@ ggsave("figures/fig_1.png", fig_1, height = 12, width = 8)
 # Figure 3 ----------------------------------------------------------------
 # The ensemble model results
 
-# TODO: Add labels that show km in/decrease in habitat suitability
-
 # Function to convert rasters to data.frames
 rast_df <- function(rast, projection_name = NULL){
   df_out <- as.data.frame(rast[[1]], xy = T) %>% 
@@ -351,9 +349,22 @@ fig_3 <- ggpubr::ggarrange(ensemble_Acla, ensemble_Aesc, ensemble_Lsol, ensemble
                            ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
 ggsave("figures/fig_3.png", fig_3, width = 7, height = 15)
 
-# Agarum only for demo
+# Agarum only for demo/talk
 fig_3_agarum <- ggpubr::ggarrange(ensemble_Acla, ensemble_legend, ncol = 1, heights = c(1, 0.15))
 ggsave("graph/fig_3_agarum.png", fig_3_agarum, width = 7, height = 4)
+ggsave("talk/figure/fig_3_agarum.png", fig_3_agarum, width = 7, height = 4)
+
+# Alaria only for talk
+fig_3_alaria <- ggpubr::ggarrange(ensemble_Aesc, ensemble_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_3_alaria.png", fig_3_alaria, width = 7, height = 4)
+
+# Laminaria only for talk
+fig_3_laminaria <- ggpubr::ggarrange(ensemble_Lsol, ensemble_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_3_laminaria.png", fig_3_laminaria, width = 7, height = 4)
+
+# Saccharina only for talk
+fig_3_saccharina <- ggpubr::ggarrange(ensemble_Slat, ensemble_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_3_saccharina.png", fig_3_saccharina, width = 7, height = 4)
 
 
 # Figure 4 ----------------------------------------------------------------
@@ -530,9 +541,18 @@ fig_4 <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_com
                            ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
 ggsave("figures/fig_4.png", fig_4, width = 7, height = 11)
 
-# Agarum only as example
+# Agarum only for demo/talk
 fig_4_agarum <- ggpubr::ggarrange(model_compare_agarum, model_compare_legend, ncol = 1, heights = c(1, 0.15))
 ggsave("graph/fig_4_agarum.png", fig_4_agarum, width = 7, height = 4)
+ggsave("talk/figure/fig_4_agarum.png", fig_4_agarum, width = 7, height = 4)
+
+# Alaria only for talk
+fig_4_alaria <- ggpubr::ggarrange(model_compare_alaria, model_compare_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_4_alaria.png", fig_4_alaria, width = 7, height = 4)
+
+# Laminariales only for talk
+fig_4_lam <- ggpubr::ggarrange(model_compare_lam, model_compare_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_4_lam.png", fig_4_lam, width = 7, height = 4)
 
 
 # Figure 5 ----------------------------------------------------------------
@@ -612,6 +632,18 @@ fig_5 <- ggpubr::ggarrange(model_stats_Acla, model_stats_Aesc, model_stats_Lsol,
                            ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom", 
                            labels = c("A)", "B)", "C)", "D)"))
 ggsave("figures/fig_5.png", fig_5, width = 10, height = 10.5)
+
+# Agarum only for demo/talk
+ggsave("talk/figure/fig_5_agarum.png", model_stats_Acla, width = 7, height = 5)
+
+# Alaria only for talk
+ggsave("talk/figure/fig_5_alaria.png", model_stats_Aesc, width = 7, height = 5)
+
+# Laminaria only for talk
+ggsave("talk/figure/fig_5_laminaria.png", model_stats_Lsol, width = 7, height = 5)
+
+# Saccharina only for talk
+ggsave("talk/figure/fig_5_saccharina.png", model_stats_Slat, width = 7, height = 5)
 
 
 # Figure 6 ----------------------------------------------------------------
@@ -718,6 +750,15 @@ cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "alaria")
 fig_6 <- ggpubr::ggarrange(cover_agarum, cover_alaria, cover_lam, ncol = 1, 
                            labels = c("A)", "B)", "C)"))
 ggsave("figures/fig_6.png", fig_6, width = 7, height = 12)
+
+# Agarum only for demo/talk
+ggsave("talk/figure/fig_6_agarum.png", cover_agarum, width = 7, height = 4)
+
+# Alaria only for talk
+ggsave("talk/figure/fig_6_alaria.png", cover_alaria, width = 7, height = 4)
+
+# Laminariales only for talk
+ggsave("talk/figure/fig_6_lam.png", cover_lam, width = 7, height = 4)
 
 
 # Figure S1 ---------------------------------------------------------------
