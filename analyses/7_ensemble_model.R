@@ -76,7 +76,7 @@ global_coords <- dplyr::select(Arctic_BO, lon, lat) %>%
 # BO_vars
 # save(BO_vars, file = "metadata/BO_vars.RData")
 load("metadata/BO_vars.RData")
-print(paste0(c("Variables for model: ", BO_vars)))
+BO_vars
 
 # Exclude the collinear variables that were identified previously
 Arctic_excl <- Arctic_BO %>% 
@@ -185,7 +185,7 @@ biomod_pipeline <- function(sps_choice){
   
   # biomod_data # object summary
   # plot(biomod_data) # plot selected pseudo-absences
-
+  
   # Save the pre-model data for possible later use
   saveRDS(biomod_data, file = paste0(sps_name,"/",sps_name,".base.Rds"))
   
@@ -205,7 +205,7 @@ biomod_pipeline <- function(sps_choice){
   ## Creating DataSplitTable
   # DataSplitTable <- BIOMOD_cv(biomod_data)
   # DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F, 
-                                #do.full.models=T models calibrated and evaluated with the whole dataset are done
+  #do.full.models=T models calibrated and evaluated with the whole dataset are done
   #                             stratified.cv = F, stratify = "both", balance = "pres")
   # DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv = T, stratify = "y", k = 2)
   # colnames(DataSplitTable.y)[1:2] <- c("RUN11","RUN12")
@@ -254,8 +254,8 @@ biomod_pipeline <- function(sps_choice){
   
   # Load if the model has already been run
   # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
- 
-
+  
+  
   # 5. Present projections --------------------------------------------------
   
   # Create projections
