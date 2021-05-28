@@ -21,6 +21,7 @@ library(tidync)
 library(stringr)
 library(data.table)
 library(FNN)
+library(geosphere)
 library(correlation)
 
 # Set cores
@@ -108,16 +109,16 @@ rm(BO_layers_present); gc()
 
 # Visualise
 ggplot(Arctic_BO, aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = BO21_icethickltmax_ss)) +
+  geom_raster(aes(fill = BO_parmean)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
-  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4]),
-                 expand = F) +
+  # coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 # ylim = c(bbox_arctic[3], bbox_arctic[4]),
+                 # expand = F) +
   theme(legend.position = "bottom")
 
 
-# Load future Bio-ORACLE data ---------------------------------------------
+# Download future Bio-ORACLE data -----------------------------------------
 
 # Future scenario conversions
 # https://ar5-syr.ipcc.ch/topic_futurechanges.php
@@ -183,7 +184,7 @@ ggplot(Arctic_BO_2100, aes(x = lon, y = lat)) +
   theme(legend.position = "bottom")
 
 
-# Load GMED ASCII files ---------------------------------------------------
+# Bathymetry, land distance, surface area ---------------------------------
 
 # The .asc files loaded below were sent by Jesi
 # They are the Aqua Maps layers but have been 
@@ -216,11 +217,35 @@ Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat"))
   dplyr::select(-in_grid) #%>% 
   # mutate(lon = round(lon, 5),
          # lat = round(lat, 5))
+
+# Find average size of pixels
+unique_lon <- arrange(distinct(Arctic_AM[1]), lon) %>% 
+  mutate(diff = lon - lag(lon, default = first(lon)))
+unique_lat <- arrange(distinct(Arctic_AM[2]), lat) %>% 
+  mutate(diff = lat - lag(lat, default = first(lat)))
+
+# Calculate the square kilometre surface area of each pixel
+# This function assumes a lon lat column on a 0.08333333 degree grid
+grid_size <- function(df){
+  # Distance for longitude
+  lon_dist <- distm(c(df$lon-0.04166666, df$lat), c(df$lon+0.04166666, df$lat), fun = distHaversine)/1000
+  # Distance for latitude
+  lat_dist <- distm(c(df$lon, df$lat+0.04166666), c(df$lon, df$lat-0.04166666), fun = distHaversine)/1000
+  # Total area
+  sq_area <- data.frame(sq_area = lon_dist*lat_dist)
+  # Combine and exit
+  res <- cbind(df, sq_area)
+  return(res)
+}
+Arctic_AM <- plyr::ddply(mutate(Arctic_AM, plyr_idx = 1:n()), c("plyr_idx"), grid_size, .parallel = T)
+Arctic_AM$plyr_idx <- NULL
+
+# Save
 save(Arctic_AM, file = "data/Arctic_AM.RData")
 
 # Visualise
 ggplot(Arctic_AM, aes(x = lon, y = lat)) +
-  geom_tile(aes(fill = land_distance)) +
+  geom_tile(aes(fill = sq_area)) +
   borders(fill = "grey70", colour = "black") +
   scale_fill_viridis_c(option = "D") +
   # coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
