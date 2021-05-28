@@ -426,6 +426,7 @@ sps_choice <- sps_names[1]
 # Load chosen biomod_model and print evaluation scores
 biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
 (Model_scores <- get_evaluations(biomod_model))
+apply(Model_scores, c(1,2,3), mean, na.rm = T)
 # dim(Model_scores)
 # dimnames(Model_scores)
 
