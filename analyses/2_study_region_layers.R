@@ -23,9 +23,10 @@ library(data.table)
 library(FNN)
 library(geosphere)
 library(correlation)
+library(doParallel)
 
 # Set cores
-doParallel::registerDoParallel(cores = 50)
+registerDoParallel(cores = 50)
 
 # Disable scientific notation
 options(scipen = 999)

@@ -213,7 +213,7 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
   # Prepare label
   sq_area_label_proj <- sq_area_labels[colnames(sq_area_labels) == paste0("area_",year_label)][[1]]
   sq_area_label_sub <- sq_area_label_proj-sq_area_labels$area_pres[[1]]
-  sq_area_label_text <- paste0(scales::comma(sq_area_label_sub)," m<sup>2</sup>")
+  sq_area_label_text <- paste0(scales::comma(sq_area_label_sub)," km<sup>2</sup>")
   if(sq_area_label_sub > 0){
     sq_area_label_text <- paste0("+",sq_area_label_text)
     lab_col <- RColorBrewer::brewer.pal(9, "Blues")[7]
@@ -282,7 +282,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     summarise(area_pres = round(sum(sq_area*proj_pres, na.rm = T)),
               area_2050 = round(sum(sq_area*proj_2050, na.rm = T)),
               area_2100 = round(sum(sq_area*proj_2100, na.rm = T)))
-  pres_text <- paste0(scales::comma(sq_area_labels$area_pres), " m<sup>2</sup>")
+  pres_text <- paste0(scales::comma(sq_area_labels$area_pres), " km<sup>2</sup>")
   
   # Load the species points
   sps_points <- map_df(sps_files[grepl(paste(sps_choice, collapse = "|"), sps_files)], read_csv) %>% 
