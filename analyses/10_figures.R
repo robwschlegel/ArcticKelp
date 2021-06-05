@@ -173,7 +173,7 @@ ggsave("figures/fig_1.png", fig_1, height = 12, width = 8)
 # Figure 3 ----------------------------------------------------------------
 # The ensemble model results
 
-# TODO: Add labels that show km in/decrease in habitat suitability
+# TODO: Consider using the km^2 caluclations directly from the rasters
 
 # Function to convert rasters to data.frames
 rast_df <- function(rast, projection_name = NULL){
@@ -194,6 +194,9 @@ ensemble_prep <- function(sps_choice){
   biomod_project_2050 <- loadRData(paste0(sps_choice,"/proj_2050/proj_2050_",sps_choice,"_ensemble_TSSbin.RData"))
   biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
   
+  # Calculate sqaure are in kilometres directly
+  # sum(biomod_project_present[] == 1, na.rm = T) * res(biomod_project_present)[1]^2
+  
   # Convert to data.frames
   df_project_present <- rast_df(biomod_project_present[[1]], "proj_pres")
   df_project_2050 <- rast_df(biomod_project_2050[[1]], "proj_2050")
@@ -210,7 +213,7 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
   # Prepare label
   sq_area_label_proj <- sq_area_labels[colnames(sq_area_labels) == paste0("area_",year_label)][[1]]
   sq_area_label_sub <- sq_area_label_proj-sq_area_labels$area_pres[[1]]
-  sq_area_label_text <- paste0(scales::comma(sq_area_label_sub)," km<sup>2</sup>")
+  sq_area_label_text <- paste0(scales::comma(sq_area_label_sub)," m<sup>2</sup>")
   if(sq_area_label_sub > 0){
     sq_area_label_text <- paste0("+",sq_area_label_text)
     lab_col <- RColorBrewer::brewer.pal(9, "Blues")[7]
@@ -221,7 +224,7 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
   
   # Create plot
   diff_plot <- df %>%
-    filter(land_distance <= 50 | depth <= 100) %>% 
+    filter(land_distance <= 50 | depth <= 30) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes_string(fill = paste0("change_",year_label))) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
@@ -275,11 +278,11 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Calculate sq area coverage per era
   sq_area_labels <- df_project %>% 
-    filter(land_distance <= 50 | depth <= 100) %>% 
+    filter(land_distance <= 50 | depth <= 30) %>% 
     summarise(area_pres = round(sum(sq_area*proj_pres, na.rm = T)),
               area_2050 = round(sum(sq_area*proj_2050, na.rm = T)),
               area_2100 = round(sum(sq_area*proj_2100, na.rm = T)))
-  pres_text <- paste0(scales::comma(sq_area_labels$area_pres), " km<sup>2</sup>")
+  pres_text <- paste0(scales::comma(sq_area_labels$area_pres), " m<sup>2</sup>")
   
   # Load the species points
   sps_points <- map_df(sps_files[grepl(paste(sps_choice, collapse = "|"), sps_files)], read_csv) %>% 
@@ -291,7 +294,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Visualise present data
   plot_present <- df_project %>% 
-    filter(land_distance <= 50 | depth <= 100,
+    filter(land_distance <= 50 | depth <= 30,
            proj_pres == 1) %>%
     mutate(proj_pres = "") %>%
     ggplot(aes(x = lon, y = lat)) +
