@@ -185,7 +185,7 @@ biomod_pipeline <- function(sps_choice){
   
   # biomod_data # object summary
   # plot(biomod_data) # plot selected pseudo-absences
-
+  
   # Save the pre-model data for possible later use
   saveRDS(biomod_data, file = paste0(sps_name,"/",sps_name,".base.Rds"))
   
@@ -205,7 +205,7 @@ biomod_pipeline <- function(sps_choice){
   ## Creating DataSplitTable
   # DataSplitTable <- BIOMOD_cv(biomod_data)
   # DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F, 
-                                #do.full.models=T models calibrated and evaluated with the whole dataset are done
+  #do.full.models=T models calibrated and evaluated with the whole dataset are done
   #                             stratified.cv = F, stratify = "both", balance = "pres")
   # DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv = T, stratify = "y", k = 2)
   # colnames(DataSplitTable.y)[1:2] <- c("RUN11","RUN12")
@@ -254,8 +254,8 @@ biomod_pipeline <- function(sps_choice){
   
   # Load if the model has already been run
   # biomod_ensemble <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,"ensemble.models.out"))
- 
-
+  
+  
   # 5. Present projections --------------------------------------------------
   
   # Create projections
@@ -426,6 +426,7 @@ sps_choice <- sps_names[1]
 # Load chosen biomod_model and print evaluation scores
 biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
 (Model_scores <- get_evaluations(biomod_model))
+apply(Model_scores, c(1,2,3), mean, na.rm = T)
 # dim(Model_scores)
 # dimnames(Model_scores)
 

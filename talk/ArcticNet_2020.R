@@ -73,16 +73,13 @@ sps_full_names <- data.frame(sps = sps_names,
 # NB: Somehow the ensembles were given a different salinity variable
 # This will need to be corrected later
 load("metadata/BO_vars.RData")
-BO_vars[4] <- "BO2_salinityltmax_ss" 
 var_full_names <- data.frame(var = BO_vars,
-                             var_long = c("Temperature (bottom, min.)",
-                                          "Temperature (bottom, max.)",
-                                          "Temperature (surface, max.)",
-                                          "Salinity (surface, max.)",
-                                          "Ice thickness (surface, min.)",
-                                          "Iron (bottom, max.)",
-                                          "Phosphate (bottom, max.)",
-                                          "Current velocity (bottom, min.)"))
+                             var_long = c("Temperature (surface, max)",
+                                          "Salinity (surface, mean)",
+                                          "Ice thickness (surface, mean)",
+                                          "Current velocity (bottom, mean)",
+                                          "Iron (bottom, mean)",
+                                          "Phosphate (bottom, mean)"))
 
 # Load data used for maps etc.
 load("data/Arctic_AM.RData")

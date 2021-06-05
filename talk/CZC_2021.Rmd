@@ -1,0 +1,401 @@
+---
+title: "**Kelp in the Eastern Canadian Arctic: current and future predictions of habitat suitability and cover**"
+author: "_Jésica Goldsmit_^1,2^, **_Robert W Schlegel_**^3,4,5^, Karen Filbee-Dexter^6,7^, Kathleen A MacGregor^2,6^, Ladd E Johnson^2^, Christopher J Mundy^8^, Amanda Savoie^9^, Christopher W McKindsey^2^, Kimberly L Howland^1^, Philippe Archambault^6^"
+date: "June 16th, 2021"
+output:
+  html_document:
+    # code_folding: show
+    # css: acid.css
+    fig_caption: yes
+    fig_width: 2
+    fig_height: 2
+    highlight: default    
+    number_sections: yes
+    theme: yeti
+    toc: yes
+    toc_float: yes
+fontsize: 14pt
+language: Australian
+css: acid.css
+# mainfont: PT Serif  
+# monofont: PT Mono
+csl: frontiers.csl
+# sansfont: PT Sans
+bibliography: ArcticKelp.bib
+# papersize: A4
+---
+
+^1^Arctic and Aquatic Research Division, Fisheries and Oceans Canada, Winnipeg, Manitoba, Canada  
+^2^Demersal and Benthic Sciences Division, Maurice-Lamontagne Institute, Fisheries and Oceans Canada, Mont-Joli, Québec, Canada  
+^3^Dalhousie University, Department of Oceanography, Halifax, Nova Scotia, Canada  
+^4^Department of Physical Oceanography, Woods Hole Oceanographic Institution, Woods Hole, MA, United States  
+^5^Laboratoire d'Océanographie de Villefranche, Sorbonne Université, Villefranche-sur-mer, France  
+^6^ArcticNet, Québec Ocean, Takuvik, Departement de Biologie, Université Laval, Québec, Québec, Canada  
+^7^Institute of Marine Research, His, Norway  
+^8^Center of Earth Observation Science, University of Manitoba, Winnipeg, Manitoba, Canada  
+^9^Centre for Arctic Knowledge and Exploration, Canadian Museum of Nature, Ottawa, Ontario, Canada  
+
+***
+
+# Introduction
+
+## Current knowledge
+
+### Present
+
+- Evidence suggests that many Arctic coasts should support seaweed
+- In Canada, kelp has been reported and documented along Arctic and subarctic coastlines  
+- However, baseline measures of the extent of kelp communities are missing in much of the region  
+
+### Future
+
+- Rapid environmental changes, such as declining sea ice, increased ocean temperatures, and freshwater inputs are occurring along Canadian coasts 
+- Research suggests northern expansion of kelp forests with climate change
+- Therefore, the relationships between environmental factors and the presence of kelp forests in the Canadian Arctic are critical to understand 
+
+### Existing database
+
+- Canadian Museum of Nature (CANA)
+- Global Biodiversity Information Facility (GBIF; www.gbif.org)
+- Ocean Biogeographic Information System (OBIS; www.obis.org) 
+- Literature [@Borum2002; @Hop2016; @Schoenrock2018; @Filbee2019; @Ronowicz2020]
+- ArcticKelp project
+
+### ArcticKelp project {.tabset}
+
+![](figure/ArcticKelp logo.png){ width=100% }
+
+- Dive research conducted throughout the Canadian Arctic in 2014 - 2019 
+    - 5 - 20 m photograph quadrats
+
+#### Campaigns
+
+![](figure/study_site_campaign.png){ width=90% }
+
+#### Mean cover
+
+![](figure/study_site_mean_cover.png){ width=90% }
+
+## Questions
+
+- Is it possible to model the distribution (suitability + abundance) of different functional groups of kelps in the Arctic given our current knowledge?
+  - Laminariales (_Laminaria_ sp. + _Saccharina_ sp.)
+  - _Agarum_
+  - _Alaria_
+- How accurate are the models?
+- Which environmental variables are the most important?
+- What do present + future distributions look like?
+
+***
+
+# Methods
+
+## Study region
+
+![](figure/fig_1a.png){ width=100% }
+
+## Environmental data {.tabset}
+
+![](figure/BO_logo.png){ width=90% }  
+[@Tyberghein2012; @Assis2018b]  
+
+### Bio-ORACLE
+- Geophysical, biotic, and abiotic environmental variables
+- Collection from many different datasets
+- Surface and benthic coverage
+- Data from 2000 - 2014 for most
+- Single values per pixel: min, mean, max, and range for most
+- 5 arcdegree spatial resolution (~9.2 km at the equator)
+
+### Variables (9)
+- Sea surface temperature (long-term max)  
+- Sea surface salinity (mean)  
+- Ice thickness (mean)  
+- Bottom current velocity (mean)  
+- Dissolved oxygen (mean)  
+- Photosynthetically active radiation (PAR; mean)  
+- Bottom iron (mean)  
+- Bottom nitrate (mean)  
+- Bottom phosphate (mean)  
+
+### Final variables (6)
+
+- Sea surface temperature (long-term max)  
+- Sea surface salinity (mean)  
+- Ice thickness (mean)  
+- Bottom iron (mean)  
+- Bottom phosphate (mean) 
+- Bottom current velocity (mean)  
+
+### Future variables (4)
+
+- Sea surface temperature (long-term max)  
+- Sea surface salinity (mean)  
+- Ice thickness (mean)  
+- Bottom current velocity (mean)  
+
+## Ensemble model (suitability)
+
+- Presence data
+- Ensemble performed with default BIOMOD2 R package settings [@biomod2020]  
+- Models: MAXENT (Phillips), GLM, ANN, RF, GAM [@Goldsmit2020]  
+- Random pseudo-absence (PA); 1000 points; 5 repetitions  
+- 70/30 train test split  
+- 0.7 TSS cutoff  
+- Modelled for entire Arctic ecoregion  
+- Results cropped to Eastern Canadian Arctic  
+
+## Random forest model (abundance)
+
+- Percent cover data
+- 200 trees; 1000 repetitions  
+- 70/30 train test split  
+- Modeled only for Eastern Canadian Arctic
+
+***
+
+# Results {.tabset}
+
+## Ensemble {.tabset}
+
+### Confidence {.tabset -}
+
+#### _Agarum_ {-}
+
+![](figure/fig_5_agarum.png){ width=90% }
+
+***
+
+#### _Alaria_ {-}
+
+![](figure/fig_5_alaria.png){ width=90% }
+
+***
+
+#### Laminariales {.tabset -}
+
+##### _latissima_ {-}
+
+![](figure/fig_5_saccharina.png){ width=90% }
+
+***
+
+##### _solidungula_ {-}
+
+![](figure/fig_5_laminaria.png){ width=90% }
+
+***
+
+### Variables {.tabset -}
+
+#### _Agarum_  {-}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+load("data/var_imp_ensemble_Acla.RData")
+knitr::kable(x = var_import, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+#### _Alaria_  {-}
+
+```{r, echo=FALSE}
+load("data/var_imp_ensemble_Aesc.RData")
+knitr::kable(x = var_import, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+#### Laminariales {.tabset -}
+
+##### _latissima_ {-}
+
+```{r, echo=FALSE}
+load("data/var_imp_ensemble_Slat.RData")
+knitr::kable(x = var_import, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+##### _solidungula_ {-}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+load("data/var_imp_ensemble_Lsol.RData")
+knitr::kable(x = var_import, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+##### _digitata_ {-}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+load("data/var_imp_ensemble_Ldig.RData")
+knitr::kable(x = var_import, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+### Projections {.tabset -}
+
+#### _Agarum_ {-}
+
+![](figure/fig_3_agarum.png){ width=100% }
+
+***
+
+#### _Alaria_ {-}
+
+![](figure/fig_3_alaria.png){ width=100% }
+
+***
+
+#### Laminariales {.tabset -}
+
+##### _latissima_ {-}
+
+![](figure/fig_3_saccharina.png){ width=100% }
+
+***
+
+##### _solidungula_ {-}
+
+![](figure/fig_3_laminaria.png){ width=100% }
+
+***
+
+## Random Forest {.tabset}
+
+### Confidence {.tabset -}
+
+#### _Agarum_ {-}
+
+![](figure/fig_6_agarum.png){ width=90% }
+
+***
+
+#### _Alaria_ {-}
+
+![](figure/fig_6_alaria.png){ width=90% }
+
+***
+
+#### Laminariales {-}
+
+![](figure/fig_6_lam.png){ width=90% }
+
+***
+
+### Variables {.tabset -}
+
+#### _Agarum_ {-}
+
+```{r, echo=FALSE}
+load("data/var_imp_RF_agarum.RData")
+knitr::kable(x = var_imp_RF_agarum, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+#### _Alaria_ {-}
+
+```{r, echo=FALSE}
+load("data/var_imp_RF_alaria.RData")
+knitr::kable(x = var_imp_RF_alaria, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+#### Laminariales {-}
+
+```{r, echo=FALSE}
+load("data/var_imp_RF_laminariales.RData")
+knitr::kable(x = var_imp_RF_laminariales, format = "html") %>%
+  kableExtra::kable_styling(full_width = T, font_size = 20)
+```
+
+***
+
+### Projections {.tabset -}
+
+#### _Agarum_ {-}
+
+![](figure/fig_4_agarum.png){ width=100% }
+
+***
+
+#### _Alaria_ {-}
+
+![](figure/fig_4_alaria.png){ width=100% }
+
+***
+
+#### Laminariales {-}
+
+![](figure/fig_4_lam.png){ width=100% }
+
+***
+
+# Conclusions
+
+- Confidence in MAXENT and GLM models in the ensembles is low
+- Random forests tend to underestimate large values, and overestimate small ones
+- Ice thickness is almost always in the top 3 variables for both models
+- Temperature is also important, but more so for ensemble models
+- _Agarum_ and _Alaria_ show primarily increases in both models
+- _Laminaria solidungula_ is projected to decline in the future in both models
+- These projections provide a good platform for deciding future sampling locations
+
+***
+
+# Acknowledgements
+
+- Funding support was received from DFO
+<br>
+
+![](figure/DFO_Logo.png)
+
+- This research was undertaken thanks in part to funding from the Canada First Research Excellence Fund, through the Ocean Frontier Institute.  
+<br>
+  
+![](figure/ofi_logo.jpg){ width=50% }  
+<br>
+
+***
+
+# Questions ? 
+<!-- {.tabset} -->
+
+<!-- ## Alaria {-} -->
+
+![](photo/alaria_1.jpg){ width=70% }
+
+<!-- *** -->
+
+<!-- ## Linear regression {.tabset -} -->
+
+<!-- ### _Agarum_ {-} -->
+
+<!-- ![](figure/var_scatter_Agarum.png){ width=100% } -->
+
+<!-- *** -->
+
+<!-- ### _Alaria_ {-} -->
+
+<!-- ![](figure/var_scatter_Alaria.png){ width=100% } -->
+
+<!-- *** -->
+
+<!-- ### Laminariales {-} -->
+
+<!-- ![](figure/var_scatter_Laminariales.png){ width=100% } -->
+
+<!-- *** -->
+
+# References
