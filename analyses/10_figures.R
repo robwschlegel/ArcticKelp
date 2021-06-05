@@ -173,7 +173,7 @@ ggsave("figures/fig_1.png", fig_1, height = 12, width = 8)
 # Figure 3 ----------------------------------------------------------------
 # The ensemble model results
 
-# TODO: Consider using the km^2 caluclations directly from the rasters
+# TODO: Consider using the km^2 calculations directly from the rasters
 
 # Function to convert rasters to data.frames
 rast_df <- function(rast, projection_name = NULL){
@@ -195,7 +195,7 @@ ensemble_prep <- function(sps_choice){
   biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
   
   # Calculate sqaure are in kilometres directly
-  # sum(biomod_project_present[] == 1, na.rm = T) * res(biomod_project_present)[1]^2
+  sum(biomod_project_present[] == 1, na.rm = T) * res(biomod_project_present)[1]^2
   
   # Convert to data.frames
   df_project_present <- rast_df(biomod_project_present[[1]], "proj_pres")
@@ -371,9 +371,20 @@ ggsave("talk/figure/fig_3_laminaria.png", fig_3_laminaria, width = 7, height = 4
 fig_3_saccharina <- ggpubr::ggarrange(ensemble_Slat, ensemble_legend, ncol = 1, heights = c(1, 0.15))
 ggsave("talk/figure/fig_3_saccharina.png", fig_3_saccharina, width = 7, height = 4)
 
+# Find current surface area of all species overlayed
+proj_present_Acla <- rast_df(loadRData("Acla/proj_present/proj_present_Acla_ensemble_TSSbin.RData")[[1]], "proj_pres")
+proj_present_Aesc <- rast_df(loadRData("Aesc/proj_present/proj_present_Aesc_ensemble_TSSbin.RData")[[1]], "proj_pres")
+proj_present_Lsol <- rast_df(loadRData("Lsol/proj_present/proj_present_Lsol_ensemble_TSSbin.RData")[[1]], "proj_pres")
+proj_present_Slat <- rast_df(loadRData("Slat/proj_present/proj_present_Slat_ensemble_TSSbin.RData")[[1]], "proj_pres")
+proj_present_overlay <- rbind(proj_present_Acla, proj_present_Aesc, proj_present_Lsol, proj_present_Slat) %>% 
+  filter(presence == T) %>% 
+  dplyr::select(lon, lat, sq_area) %>% 
+  distinct()
+sum(proj_present_overlay$sq_area)
+
 
 # Figure 4 ----------------------------------------------------------------
-# Combination of the modelling approaches
+# Combination of the modeling approaches
 
 # Join ensemble and random forest results
 # model_choice <- "agarum"
