@@ -224,7 +224,8 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
   
   # Create plot
   diff_plot <- df %>%
-    filter(land_distance <= 50 | depth <= 30) %>% 
+    filter(depth <= 30) %>%
+    # filter(land_distance <= 50 | depth <= 30) %>% 
     ggplot(aes(x = lon, y = lat)) +
     geom_tile(aes_string(fill = paste0("change_",year_label))) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
@@ -278,7 +279,8 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Calculate sq area coverage per era
   sq_area_labels <- df_project %>% 
-    filter(land_distance <= 50 | depth <= 30) %>% 
+    filter(depth <= 30) %>%
+    # filter(land_distance <= 50 | depth <= 30) %>% 
     summarise(area_pres = round(sum(sq_area*proj_pres, na.rm = T)),
               area_2050 = round(sum(sq_area*proj_2050, na.rm = T)),
               area_2100 = round(sum(sq_area*proj_2100, na.rm = T)))
@@ -294,7 +296,8 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Visualise present data
   plot_present <- df_project %>% 
-    filter(land_distance <= 50 | depth <= 30,
+    filter(depth <= 30,
+    # filter(land_distance <= 50 | depth <= 30,
            proj_pres == 1) %>%
     mutate(proj_pres = "") %>%
     ggplot(aes(x = lon, y = lat)) +
