@@ -462,49 +462,6 @@ sp_name_GAM <- BIOMOD_LoadModels(biomod_model, models = 'GAM')
 sp_name_ALL <- BIOMOD_LoadModels(biomod_model, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
 
 # Evaluate individual models
-sp_curve_data <- response.plot2(
-  models  = sp_name_ALL,
-  Data = get_formal_data(biomod_model, 'expl.var'),
-  show.variables = get_formal_data(biomod_model, 'expl.var.names'),
-  data_species = get_formal_data(biomod_model, 'resp.var'),
-  do.bivariate = FALSE,
-  fixed.var.metric = 'median',
-  # col = c("blue", "red"),
-  legend = FALSE,
-  plot = FALSE
-)
-
-# ggplot2 response curves
-sp_curve_data %>%
-  ## transform the pred.name to extract model, cv run and data info
-  mutate(
-    species = pred.name %>% strsplit('_') %>% sapply(function(x) x[1]),
-    pa.dat = pred.name %>% strsplit('_') %>% sapply(function(x) x[2]),
-    cv.rep = pred.name %>% strsplit('_') %>% sapply(function(x) x[3]),
-    model = pred.name %>% strsplit('_') %>% sapply(function(x) x[4])
-  ) %>%
-  ggplot(
-    aes(
-      x = expl.val,
-      y = pred.val,
-      colour = model,
-      group = pred.name
-    )
-  ) +
-  geom_line(size = 1) +
-  facet_wrap(~ expl.name, scales = 'free_x') + 
-  labs(
-    x = '',
-    y = 'probability of occurence',
-    colour = 'model type'
-  ) + 
-  scale_color_brewer(type = 'qual', palette = 4) +
-  theme_minimal() +
-  theme(
-    legend.position = 'bottom'
-  )
-
-
 Maxent_eval_strip <- biomod2::response.plot2(
   models = sp_name_Maxent,
   Data = get_formal_data(biomod_model, 'expl.var'),
@@ -708,3 +665,63 @@ plyr::d_ply(quick_grid, c("plyr_id"), RData_to_grd, .parallel = T)
 test_rast <- raster("data/ascii_results/proj_2050_Acla_ensemble_TSSbin_EMmeanByTSS.asc")
 plot(test_rast)
 
+
+# 12: Response curves -----------------------------------------------------
+
+# Function for extracting species response curve data
+# sps_choice <- sps_names[1]
+sps_response_data <- function(sps_choice){
+  # Load chosen biomod_model and print evaluation scores
+  biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
+  
+  # Target all model data
+  sp_name_ALL <- BIOMOD_LoadModels(biomod_model, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+  
+  # Get the species response curve data
+  sp_curve_data <- response.plot2(
+    models  = sp_name_ALL,
+    Data = get_formal_data(biomod_model, 'expl.var'),
+    show.variables = get_formal_data(biomod_model, 'expl.var.names'),
+    data_species = get_formal_data(biomod_model, 'resp.var'),
+    do.bivariate = FALSE,
+    fixed.var.metric = 'median',
+    # col = c("blue", "red"),
+    legend = FALSE,
+    plot = FALSE) %>% 
+    mutate(species = pred.name %>% strsplit('_') %>% sapply(function(x) x[1]),
+           pa.dat = pred.name %>% strsplit('_') %>% sapply(function(x) x[2]),
+           cv.rep = pred.name %>% strsplit('_') %>% sapply(function(x) x[3]),
+           model = pred.name %>% strsplit('_') %>% sapply(function(x) x[4])) 
+  
+  # Exit
+  return(sp_curve_data)
+}
+
+# Get all data for all species
+test1 <- sps_response_data(sps_names[1])
+
+
+
+# ggplot2 response curves
+sp_curve_data %>%
+  ## transform the pred.name to extract model, cv run and data info
+  ggplot(
+    aes(
+      x = expl.val,
+      y = pred.val,
+      colour = model,
+      group = pred.name
+    )
+  ) +
+  geom_line(size = 1) +
+  facet_wrap(~ expl.name, scales = 'free_x') + 
+  labs(
+    x = '',
+    y = 'probability of occurence',
+    colour = 'model type'
+  ) + 
+  scale_color_brewer(type = 'qual', palette = 4) +
+  theme_minimal() +
+  theme(
+    legend.position = 'bottom'
+  )
