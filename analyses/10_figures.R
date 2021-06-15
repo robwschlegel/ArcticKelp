@@ -117,31 +117,34 @@ Arctic_boundary <- rbind(Arctic_boundary,
 
 # Overall regions
 fig_1a <- basemap(limits = c(-180, 180, 40, 90), bathymetry = T) +
-  annotation_spatial(bbox_spatial, fill = "forestgreen", alpha = 0.2) +
-  annotation_spatial(Arctic_poly, fill = "cadetblue1", alpha = 0.2) +
+  annotation_spatial(Arctic_poly, fill = "gold", alpha = 0.2) +
+  annotation_spatial(bbox_spatial, fill = "darkgreen", alpha = 0.2) +
   # annotation_spatial(MEOW, aes(colour = ECOREGION), fill = NA) +
   # NB: This overplotting of Slat needs to be addressed
   # This may be due to the points needing to be converted to a spatial points file first
   geom_spatial_point(data = sps_data, crs = 4326, shape = 21,
-                     aes(x = lon, y = lat), fill = "hotpink", colour = "black")+
+                     aes(x = lon, y = lat), fill = "hotpink", colour = "black") +
   geom_spatial_point(data = study_sites, crs = 4326, shape = 22,
-                     aes(x = lon, y = lat), fill = "purple", colour = "black")
-fig_1a
-ggsave("figures/fig_1a.png", fig_1a, height = 6, width = 8)
+                     aes(x = lon, y = lat), fill = "purple", colour = "black") +
+  # guides(fill = guide_legend(nrow = 3, byrow = TRUE)) +
+  theme(legend.position = "bottom")
+# fig_1a
+ggsave("figures/fig_1a.png", fig_1a, height = 8, width = 6)
 
 # Add the names of the main regions: Hudson Bay, Hudson Strait, Lancaster Sound
-label_df <- data.frame(lon = c(-85, -75.17, -82.92, -63.834153, -83.4011174, -90.0706224, -82.7015637),
-                       lat = c(60, 62.544, 74.425, 72.172485, 67.5202107, 70.5938471, 53.0693041),
-                       loc = c("Hudson Bay", "Hudson Strait", "Lancaster Sound", "Baffin Bay", "Foxe Basin", "Gulf of \nBoothia", "James Bay"))
+label_df <- data.frame(lon = c(-85, -75.17, -82.92, -63.834153, -79.0, -90.0706224, -82.7015637, -58.16),
+                       lat = c(60, 63.0, 74.425, 72.172485, 67.5202107, 70.5938471, 53.0693041, 66.0),
+                       loc = c("Hudson Bay", "Hudson Strait", "Lancaster Sound", "Baffin Bay", 
+                               "Foxe Basin", "Gulf of \nBoothia", "James Bay", "Davis Strait"))
 
 # ArcticKelp campaign map
 fig_1b <- ggplot() +
   # geom_tile(aes(fill = presence)) +
   borders(fill = "grey30", colour = "black") +
-  geom_point(data = study_sites, shape = 21, colour = "black", 
-             fill = "magenta", size = 2,
-             aes(x = lon, y = lat)) +
   geom_label(data = label_df, aes(x = lon, y = lat, label = loc), alpha = 0.9) +
+  geom_point(data = study_sites, shape = 22, colour = "black", 
+             fill = "purple", size = 2,
+             aes(x = lon, y = lat)) +
   scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -154,11 +157,11 @@ fig_1b <- ggplot() +
         plot.title = element_text(face = "italic"),
         panel.background = element_rect(fill = "grey95"),
         panel.border = element_rect(colour = "black", fill = NA))
-fig_1b
+# fig_1b
 
 # Combine and save
-fig_1 <- ggpubr::ggarrange(fig_1a, fig_1b, ncol = 1, labels = c("A)", "B)"))
-ggsave("figures/fig_1.png", fig_1, height = 12, width = 8)
+fig_1 <- ggpubr::ggarrange(fig_1a, fig_1b, ncol = 2, labels = c("A)", "B)"), widths = c(1.5, 1))
+ggsave("figures/fig_1.png", fig_1, height = 6, width = 10)
 
 
 # Table 1 -----------------------------------------------------------------
