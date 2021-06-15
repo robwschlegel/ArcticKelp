@@ -669,59 +669,124 @@ plot(test_rast)
 # 12: Response curves -----------------------------------------------------
 
 # Function for extracting species response curve data
-# sps_choice <- sps_names[1]
+# sps_choice <- sps_names[5]
 sps_response_data <- function(sps_choice){
   # Load chosen biomod_model and print evaluation scores
   biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
+  
+  # Model scores
+  model_scores <- t(data.frame(get_evaluations(biomod_model))) %>% 
+    data.frame() %>% 
+    mutate(idx = rownames(.),
+           idx = str_replace(idx, "MAXENT.Phillips", "MAXENT_Phillips"),
+           idx = str_replace(idx, "Testing.data", "Testing_data")) %>% 
+    separate(idx, c("type", "model", "run", "PA"), sep = "[.]", remove = T) %>% 
+    mutate(model = case_when(model == "MAXENT_Phillips" ~ "MAXENT.Phillips", TRUE ~ model)) %>% 
+    filter(type == "Testing_data") %>%
+    `row.names<-`(NULL) %>% 
+    dplyr::select(type, model, run, PA, everything())
   
   # Target all model data
   sp_name_ALL <- BIOMOD_LoadModels(biomod_model, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
   
   # Get the species response curve data
-  sp_curve_data <- response.plot2(
+  sp_dat <- response.plot2(
     models  = sp_name_ALL,
     Data = get_formal_data(biomod_model, 'expl.var'),
     show.variables = get_formal_data(biomod_model, 'expl.var.names'),
     data_species = get_formal_data(biomod_model, 'resp.var'),
     do.bivariate = FALSE,
     fixed.var.metric = 'median',
-    # col = c("blue", "red"),
     legend = FALSE,
-    plot = FALSE) %>% 
-    mutate(species = pred.name %>% strsplit('_') %>% sapply(function(x) x[1]),
-           pa.dat = pred.name %>% strsplit('_') %>% sapply(function(x) x[2]),
-           cv.rep = pred.name %>% strsplit('_') %>% sapply(function(x) x[3]),
-           model = pred.name %>% strsplit('_') %>% sapply(function(x) x[4])) 
+    plot = FALSE)
   
-  # Exit
-  return(sp_curve_data)
+  # Clean up and exit
+  sp_res <- sp_dat %>% 
+    separate(pred.name, c("species", "PA", "run", "model"), sep = "_", remove = T) %>% 
+    left_join(model_scores, by = c("model", "run", "PA"))
+  return(sp_res)
 }
 
 # Get all data for all species
-test1 <- sps_response_data(sps_names[1])
+# NB: For some reason these won't run in parallel
+# It's probably a complication from the loadRData function
+# Or it may be some issue with Slat, which only works occasionally... 
+# registerDoParallel(cores = 5)
+# sp_curve_data <- plyr::ldply(sps_names, sps_response_data, .parallel = F)
+curve_data_Acla <- sps_response_data(sps_names[1])
+curve_data_Aesc <- sps_response_data(sps_names[2])
+curve_data_Lsol <- sps_response_data(sps_names[4])
+curve_data_Slat <- sps_response_data(sps_names[5])
+curve_data_ALL <- rbind(curve_data_Acla, curve_data_Aesc, curve_data_Lsol, curve_data_Slat) %>% 
+  mutate(expl.name = case_when(expl.name == "BO21_templtmax_ss" ~ "surface temperature (max)",
+                               expl.name == "BO21_salinitymean_ss" ~ "surface salinity (mean)",
+                               expl.name == "BO21_icethickmean_ss" ~ "ice thickness (mean)",
+                               expl.name == "BO21_curvelmean_bdmax" ~ "bottom current velocity (mean)",
+                               expl.name == "BO21_ironmean_bdmax" ~ "bottom iron (mean)",
+                               expl.name == "BO21_phosphatemean_bdmax" ~ "bottom phosphate (mean)"),
+         run_PA_model = paste0(run,"_",PA,"_",model))
 
-
-
-# ggplot2 response curves
-sp_curve_data %>%
-  ## transform the pred.name to extract model, cv run and data info
-  ggplot(
-    aes(
-      x = expl.val,
-      y = pred.val,
-      colour = model,
-      group = pred.name
-    )
-  ) +
+## ggplot2 response curves
+# tester...
+curve_data_ALL %>%
+  filter(species == "Aesc") %>%
+  filter(model == "RF") %>%
+  # filter(model == "MAXENT.Phillips") %>%
+  filter(TSS >= 0.7) %>% 
+  ggplot(aes(x = expl.val, y = pred.val, colour = model, group = run_PA_model)) +
   geom_line(size = 1) +
-  facet_wrap(~ expl.name, scales = 'free_x') + 
-  labs(
-    x = '',
-    y = 'probability of occurence',
-    colour = 'model type'
-  ) + 
+  facet_grid(species~expl.name, scales = 'free_x', switch = "x") + 
+  labs(x = NULL, y = 'probability of occurence', colour = 'model type') + 
   scale_color_brewer(type = 'qual', palette = 4) +
-  theme_minimal() +
-  theme(
-    legend.position = 'bottom'
-  )
+  theme(legend.position = 'bottom',
+        panel.background = element_rect(colour = "black", fill = NULL))
+
+# All data
+response_curve_ALL <- curve_data_ALL %>%
+  # filter(species == "Aesc") %>%
+  # filter(model == "RF") %>%
+  filter(TSS >= 0.7) %>% 
+  ggplot(aes(x = expl.val, y = pred.val, colour = model, group = run_PA_model)) +
+  geom_line(size = 1) +
+  facet_grid(species~expl.name, scales = 'free_x', switch = "x") + 
+  labs(x = NULL, y = 'probability of occurence', colour = 'model',
+       title = "Response curves for all species, models, runs, PA") + 
+  scale_color_brewer(type = 'qual', palette = 4) +
+  theme(legend.position = 'bottom',
+        panel.background = element_rect(colour = "black", fill = NULL))
+ggsave("graph/response_curve_ALL.png", response_curve_ALL, height = 8, width = 12)
+
+# Mean across all PA and runs
+response_curve_model_mean <- curve_data_ALL %>%
+  filter(TSS >= 0.7) %>% 
+  group_by(id, expl.name, species, model) %>% 
+  summarise(expl.val = mean(expl.val, na.rm = T),
+            pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
+  ggplot(aes(x = expl.val, y = pred.val, colour = model)) +
+  geom_line(size = 1) +
+  facet_grid(species~expl.name, scales = 'free_x', switch = "x") + 
+  labs(x = NULL, y = 'probability of occurence', colour = 'model type',
+       title = "Response curves for all species, means over runs and PA for models") + 
+  scale_color_brewer(type = 'qual', palette = 4) +
+  # theme_minimal() +
+  theme(legend.position = 'bottom',
+        panel.background = element_rect(colour = "black", fill = NULL))
+ggsave("graph/response_curve_model_mean.png", response_curve_model_mean, height = 8, width = 12)
+
+# Mean across all models
+response_curve_species_mean <- curve_data_ALL %>%
+  filter(TSS >= 0.7) %>% 
+  group_by(id, expl.name, species) %>% 
+  summarise(expl.val = mean(expl.val, na.rm = T),
+            pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
+  ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
+  geom_line(size = 1) +
+  facet_wrap(~expl.name, scales = 'free_x', switch = "x") + 
+  labs(x = NULL, y = 'probability of occurence', colour = 'model type',
+       title = "Response curves for all species, means over all models") + 
+  scale_color_brewer(type = 'qual', palette = 4) +
+  # theme_minimal() +
+  theme(legend.position = 'bottom',
+        panel.background = element_rect(colour = "black", fill = NULL))
+ggsave("graph/response_curve_species_mean.png", response_curve_species_mean, height = 8, width = 12)
+
