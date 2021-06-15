@@ -459,8 +459,52 @@ sp_name_GLM <- BIOMOD_LoadModels(biomod_model, models = 'GLM')
 sp_name_ANN <- BIOMOD_LoadModels(biomod_model, models = 'ANN')
 sp_name_RF <- BIOMOD_LoadModels(biomod_model, models = 'RF')
 sp_name_GAM <- BIOMOD_LoadModels(biomod_model, models = 'GAM')
+sp_name_ALL <- BIOMOD_LoadModels(biomod_model, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
 
 # Evaluate individual models
+sp_curve_data <- response.plot2(
+  models  = sp_name_ALL,
+  Data = get_formal_data(biomod_model, 'expl.var'),
+  show.variables = get_formal_data(biomod_model, 'expl.var.names'),
+  data_species = get_formal_data(biomod_model, 'resp.var'),
+  do.bivariate = FALSE,
+  fixed.var.metric = 'median',
+  # col = c("blue", "red"),
+  legend = FALSE,
+  plot = FALSE
+)
+
+# ggplot2 response curves
+sp_curve_data %>%
+  ## transform the pred.name to extract model, cv run and data info
+  mutate(
+    species = pred.name %>% strsplit('_') %>% sapply(function(x) x[1]),
+    pa.dat = pred.name %>% strsplit('_') %>% sapply(function(x) x[2]),
+    cv.rep = pred.name %>% strsplit('_') %>% sapply(function(x) x[3]),
+    model = pred.name %>% strsplit('_') %>% sapply(function(x) x[4])
+  ) %>%
+  ggplot(
+    aes(
+      x = expl.val,
+      y = pred.val,
+      colour = model,
+      group = pred.name
+    )
+  ) +
+  geom_line(size = 1) +
+  facet_wrap(~ expl.name, scales = 'free_x') + 
+  labs(
+    x = '',
+    y = 'probability of occurence',
+    colour = 'model type'
+  ) + 
+  scale_color_brewer(type = 'qual', palette = 4) +
+  theme_minimal() +
+  theme(
+    legend.position = 'bottom'
+  )
+
+
 Maxent_eval_strip <- biomod2::response.plot2(
   models = sp_name_Maxent,
   Data = get_formal_data(biomod_model, 'expl.var'),
@@ -471,6 +515,7 @@ Maxent_eval_strip <- biomod2::response.plot2(
   display_title = F,
   data_species = get_formal_data(biomod_model, 'resp.var')
 )
+ggsave("", Maxent_eval_strip)
 GLM_eval_strip <- biomod2::response.plot2(
   models = sp_name_GLM,
   Data = get_formal_data(biomod_model, 'expl.var'),
