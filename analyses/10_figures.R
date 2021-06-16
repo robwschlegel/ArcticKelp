@@ -228,7 +228,6 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
     lab_col <- RColorBrewer::brewer.pal(9, "Reds")[7]
   }
   
-  
   # Create plot
   diff_plot <- df %>%
     filter(depth <= 30) %>%
@@ -1233,4 +1232,84 @@ response_curve_RF <-  curve_rf_ALL %>%
         # strip.placement = "outside", 
         strip.background = element_blank())
 ggsave("figures/fig_S5.png", response_curve_RF, height = 8, width = 12)
+
+
+# Figure S6 ---------------------------------------------------------------
+# Simple maps of physical variables over time
+
+# Load future data
+Arctic_BO_present <- Arctic_BO %>% mutate(proj = "present") %>% 
+  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
+  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
+Arctic_BO_2050 <- loadRData("data/Arctic_BO_2050.RData") %>% mutate(proj = "2050") %>% 
+  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
+  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
+Arctic_BO_2100 <- loadRData("data/Arctic_BO_2100.RData") %>% mutate(proj = "2100") %>% 
+  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
+  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
+Arctic_BO_futures <- rbind(Arctic_BO_present, Arctic_BO_2050, Arctic_BO_2100) %>% 
+  mutate(proj = factor(proj, levels = c("present", "2050", "2100"))) %>% 
+  mutate(name = case_when(name == "BO21_templtmax_ss" ~ "Temperature (°C)",
+                          name == "BO21_salinitymean_ss" ~ "Salinity (PSS)",
+                          name == "BO21_icethickmean_ss" ~ "Ice thickness (m)"))
+
+# Ice plot
+futures_plot_ice <- Arctic_BO_futures %>%
+  filter(name == "Ice thickness (m)") %>%
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = value)) +
+  borders(fill = "grey50", colour = "grey90", size = 0.2) +
+  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+  scale_fill_distiller(palette = "Blues") +
+  facet_grid(name ~ proj, switch = "y") +
+  labs(x = NULL, y = NULL, fill = "m") +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        panel.border = element_rect(colour = "black", fill = NA))
+futures_plot_ice
+
+# Salinity plot
+futures_plot_sal <- Arctic_BO_futures %>%
+  filter(name == "Salinity (PSS)") %>%
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = value)) +
+  borders(fill = "grey50", colour = "grey90", size = 0.2) +
+  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+  scale_fill_distiller(palette = "Spectral") +
+  facet_grid(name ~ proj, switch = "y") +
+  labs(x = NULL, y = NULL, fill = "PSS") +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        strip.text.x = element_blank(), strip.background.x = element_blank(),
+        panel.border = element_rect(colour = "black", fill = NA))
+# futures_plot_sal
+
+# Temperature plot
+futures_plot_temp <- Arctic_BO_futures %>%
+  filter(name == "Temperature (°C)") %>%
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = value)) +
+  borders(fill = "grey50", colour = "grey90", size = 0.2) +
+  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+  scale_fill_viridis_c() +
+  facet_grid(name ~ proj, switch = "y") +
+  labs(x = NULL, y = NULL, fill = "°C") +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        strip.text.x = element_blank(), strip.background.x = element_blank(),
+        panel.border = element_rect(colour = "black", fill = NA))
+# futures_plot_temp
+
+# Stitch them together
+futures_plot_all <- ggpubr::ggarrange(futures_plot_ice, futures_plot_sal, futures_plot_temp, ncol = 1, align = "h")
+ggsave("figures/fig_S6.png", futures_plot_all, width = 7, height = 10)
 
