@@ -86,11 +86,12 @@ Arctic_excl <- Arctic_BO %>%
 
 # One more layer of correlation screening
 # Correlation plots
-# excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
-# dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
-# corrplot(dataVIF.cor, type = "lower", method = "number")
-# heatmap(x = dataVIF.cor, symm = T)
-# Pearson_cor <- cor(excl_VIF_df)
+excl_VIF_df <- na.omit(as.data.frame(Arctic_excl[,-c(1,2)]))
+dataVIF.cor <- cor(excl_VIF_df, method = c('pearson'))
+corrplot::corrplot(dataVIF.cor, type = "lower", method = "number")
+heatmap(x = dataVIF.cor, symm = T)
+Pearson_cor <- cor(excl_VIF_df)
+write.csv(Pearson_cor, "data/var_correlations.csv")
 
 
 # 2: Load data ------------------------------------------------------------

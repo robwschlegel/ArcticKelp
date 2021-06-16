@@ -197,8 +197,11 @@ ensemble_prep <- function(sps_choice){
   biomod_project_2050 <- loadRData(paste0(sps_choice,"/proj_2050/proj_2050_",sps_choice,"_ensemble_TSSbin.RData"))
   biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
   
-  # Calculate sqaure are in kilometres directly
-  sum(biomod_project_present[] == 1, na.rm = T) * res(biomod_project_present)[1]^2
+  # Calculate square are in kilometres directly
+  # This doesn't work well close to the poles
+  # sum(biomod_project_present[] == TRUE, na.rm = T) * raster::res(biomod_project_present)[1]^2
+  # area(biomod_project_present,  na.rm=TRUE, weights=FALSE)
+  # tapply(area(biomod_project_present), biomod_project_present[], sum)
   
   # Convert to data.frames
   df_project_present <- rast_df(biomod_project_present[[1]], "proj_pres")
@@ -314,7 +317,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    scale_fill_manual("Suitable", values = c("grey80")) +
+    scale_fill_manual("Suitable", values = c("forestgreen")) +
     labs(x = NULL, y = NULL, title = sps_title) +
     # theme_bw() +
     theme(legend.position = "bottom",
@@ -383,7 +386,7 @@ proj_present_Aesc <- rast_df(loadRData("Aesc/proj_present/proj_present_Aesc_ense
 proj_present_Lsol <- rast_df(loadRData("Lsol/proj_present/proj_present_Lsol_ensemble_TSSbin.RData")[[1]], "proj_pres")
 proj_present_Slat <- rast_df(loadRData("Slat/proj_present/proj_present_Slat_ensemble_TSSbin.RData")[[1]], "proj_pres")
 proj_present_overlay <- rbind(proj_present_Acla, proj_present_Aesc, proj_present_Lsol, proj_present_Slat) %>% 
-  filter(presence == T) %>% 
+  filter(presence == T, depth <= 30) %>% 
   dplyr::select(lon, lat, sq_area) %>% 
   distinct()
 sum(proj_present_overlay$sq_area)
@@ -398,7 +401,7 @@ model_compare_plot <- function(model_choice, add_legend = F){
   
   # Create full species name and load ensemble data
   if(model_choice == "laminariales"){
-    sps_title <- "Laminariales spp."
+    sps_title <- "Laminareacea"
     df_project <- left_join(ensemble_prep("Lsol"), ensemble_prep("Slat"),
                             by = c("lon", "lat", "land_distance", "depth", "projection", "sq_area")) %>% 
       mutate(presence = case_when(presence.x == 1 | presence.y == 1 ~ 1, TRUE ~ 0)) %>% 
@@ -682,7 +685,7 @@ conf_plot_RF <- function(df, sps_choice){
   
   # Create full species name and load ensemble data
   if(sps_choice == "laminariales"){
-    sps_title <- "Laminariales spp."
+    sps_title <- "Laminareacea"
   } else if(sps_choice == "agarum"){
     sps_title <- "Agarum clathratum"
   } else if(sps_choice == "alaria"){
@@ -794,7 +797,7 @@ rf_plot <- function(kelp_choice, add_legend = F){
   
   # Create full species name
   if(kelp_choice == "laminariales"){
-    sps_title <- "Laminariales spp."
+    sps_title <- "Laminareacea."
   } else if(kelp_choice == "agarum"){
     sps_title <- "Agarum clathratum"
   } else if(kelp_choice == "alaria"){
@@ -974,7 +977,7 @@ rf_var_plot <- function(kelp_choice, add_legend = F){
   
   # Create full species name
   if(kelp_choice == "laminariales"){
-    sps_title <- "Laminariales spp."
+    sps_title <- "Laminareacea"
   } else if(kelp_choice == "agarum"){
     sps_title <- "Agarum clathratum"
   } else if(kelp_choice == "alaria"){
