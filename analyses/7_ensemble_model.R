@@ -668,6 +668,8 @@ plot(test_rast)
 
 
 # 12: Response curves -----------------------------------------------------
+# NB: See the code near the bottom of 10_figures.R for a more polished version
+# NB: This is not working as expected due to BIOMOD2 inability to run within a function environment
 
 # Function for extracting species response curve data
 # sps_choice <- sps_names[5]

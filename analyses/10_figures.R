@@ -20,6 +20,7 @@ library(FNN)
 library(sdmpredictors)
 library(sf)
 library(sp)
+library(biomod2)
 
 # Function for re-loading .RData files as necessary
 loadRData <- function(fileName){
@@ -1091,4 +1092,110 @@ rf_var_legend <- rf_var_plot("laminariales", add_legend = T)
 rf_var_ALL <- ggpubr::ggarrange(rf_var_agarum, rf_var_alaria, rf_var_lam, rf_var_legend,
                                 ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
 ggsave("figures/fig_S3.png", rf_var_ALL, width = 7, height = 11)
+
+
+# Figure S4 ---------------------------------------------------------------
+# Response curves for ensemble models
+
+# Function for extracting species response curve data
+# sps_choice <- sps_names[1]
+sps_response_data <- function(biomod_model, sp_dat){
+  # Model scores
+  model_scores <- t(data.frame(get_evaluations(biomod_model))) %>% 
+    data.frame() %>% 
+    mutate(idx = rownames(.),
+           idx = str_replace(idx, "MAXENT.Phillips", "MAXENT_Phillips"),
+           idx = str_replace(idx, "Testing.data", "Testing_data")) %>% 
+    separate(idx, c("type", "model", "run", "PA"), sep = "[.]", remove = T) %>% 
+    mutate(model = case_when(model == "MAXENT_Phillips" ~ "MAXENT.Phillips", TRUE ~ model)) %>% 
+    filter(type == "Testing_data") %>%
+    `row.names<-`(NULL) %>% 
+    dplyr::select(type, model, run, PA, everything())
+  
+  # Clean up and exit
+  sp_res <- sp_dat %>% 
+    separate(pred.name, c("species", "PA", "run", "model"), sep = "_", remove = T) %>% 
+    left_join(model_scores, by = c("model", "run", "PA")) %>% 
+    mutate(expl.name = case_when(expl.name == "BO21_templtmax_ss" ~ "__F)__    temperature (°C)",
+                                 expl.name == "BO21_salinitymean_ss" ~ "__E)__    salinity (PSS)",
+                                 expl.name == "BO21_icethickmean_ss" ~ "__B)__    ice thickness (m)",
+                                 expl.name == "BO21_curvelmean_bdmax" ~ "__A)__    current velocity (m-1)",
+                                 expl.name == "BO21_ironmean_bdmax" ~ "__C)__    iron (umol.m-3)",
+                                 expl.name == "BO21_phosphatemean_bdmax" ~ "__D)__    phosphate (umol.m-3)"),
+           run_PA_model = paste0(run,"_",PA,"_",model))
+  return(sp_res)
+}
+
+## Load model data per species
+# NB: Due to BIOMOD2 internal structure, much of this needs to be run in the global environment...
+# Acla
+biomod_model_Acla <- loadRData(paste0(sps_names[1],"/",sps_names[1],".",sps_names[1],".models.out"))
+sp_name_Acla <- BIOMOD_LoadModels(biomod_model_Acla, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+sp_dat_Acla <- response.plot2(models  = sp_name_Acla,
+                              Data = get_formal_data(biomod_model_Acla, 'expl.var'),
+                              show.variables = get_formal_data(biomod_model_Acla, 'expl.var.names'),
+                              data_species = get_formal_data(biomod_model_Acla, 'resp.var'),
+                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
+curve_data_Acla <- sps_response_data(biomod_model_Acla, sp_dat_Acla)
+rm(list = grep("Acla_",names(.GlobalEnv),value = TRUE)); gc()
+# Aesc
+biomod_model_Aesc <- loadRData(paste0(sps_names[2],"/",sps_names[2],".",sps_names[2],".models.out"))
+sp_name_Aesc <- BIOMOD_LoadModels(biomod_model_Aesc, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+sp_dat_Aesc <- response.plot2(models  = sp_name_Aesc,
+                              Data = get_formal_data(biomod_model_Aesc, 'expl.var'),
+                              show.variables = get_formal_data(biomod_model_Aesc, 'expl.var.names'),
+                              data_species = get_formal_data(biomod_model_Aesc, 'resp.var'),
+                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
+curve_data_Aesc <- sps_response_data(biomod_model_Aesc, sp_dat_Aesc)
+rm(list = grep("Aesc_",names(.GlobalEnv),value = TRUE)); gc()
+# Lsol
+biomod_model_Lsol <- loadRData(paste0(sps_names[4],"/",sps_names[4],".",sps_names[4],".models.out"))
+sp_name_Lsol <- BIOMOD_LoadModels(biomod_model_Lsol, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+sp_dat_Lsol <- response.plot2(models  = sp_name_Lsol,
+                              Data = get_formal_data(biomod_model_Lsol, 'expl.var'),
+                              show.variables = get_formal_data(biomod_model_Lsol, 'expl.var.names'),
+                              data_species = get_formal_data(biomod_model_Lsol, 'resp.var'),
+                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
+curve_data_Lsol <- sps_response_data(biomod_model_Lsol, sp_dat_Lsol)
+rm(list = grep("Lsol_",names(.GlobalEnv),value = TRUE)); gc()
+# Slat
+biomod_model_Slat <- loadRData(paste0(sps_names[5],"/",sps_names[5],".",sps_names[5],".models.out"))
+sp_name_Slat <- BIOMOD_LoadModels(biomod_model_Slat, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+# NB: Sometimes this fails on the first go. Just run it again... I don't know why...
+sp_dat_Slat <- response.plot2(models  = sp_name_Slat,
+                              Data = get_formal_data(biomod_model_Slat, 'expl.var'),
+                              show.variables = get_formal_data(biomod_model_Slat, 'expl.var.names'),
+                              data_species = get_formal_data(biomod_model_Slat, 'resp.var'),
+                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
+curve_data_Slat <- sps_response_data(biomod_model_Slat, sp_dat_Slat)
+rm(list = grep("Slat_",names(.GlobalEnv),value = TRUE)); gc()
+# All together now
+curve_data_ALL <- rbind(curve_data_Acla, curve_data_Aesc, curve_data_Lsol, curve_data_Slat)
+
+# Plot RC for all species
+response_curve_species_mean <-  curve_data_ALL %>%
+  filter(TSS >= 0.7) %>% 
+  group_by(id, expl.name, species) %>% 
+  summarise(expl.val = mean(expl.val, na.rm = T),
+            pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
+  ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
+  geom_line(size = 1) +
+  facet_wrap(~expl.name, scales = 'free_x') +#, strip.position = "bottom") + 
+  labs(x = NULL, y = 'probability of occurence', colour = 'model') + 
+  scale_color_brewer(type = 'qual', palette = 1) +
+  # theme_minimal() +
+  theme(legend.position = 'bottom',
+        panel.border = element_rect(colour = "black", fill = NA),
+        strip.text = ggtext::element_markdown(hjust = 0),
+        # strip.placement = "outside", 
+        strip.background = element_blank())
+ggsave("figures/fig_S4.png", response_curve_species_mean, height = 8, width = 12)
+
+
+# Figure S5 ---------------------------------------------------------------
+# Response curves for RF
+
+# Merge RF % cover predictions to BO data
+
+# Create line plot from that with y = pred and x = var
 
