@@ -1116,12 +1116,12 @@ sps_response_data <- function(biomod_model, sp_dat){
   sp_res <- sp_dat %>% 
     separate(pred.name, c("species", "PA", "run", "model"), sep = "_", remove = T) %>% 
     left_join(model_scores, by = c("model", "run", "PA")) %>% 
-    mutate(expl.name = case_when(expl.name == "BO21_templtmax_ss" ~ "__F)__    temperature (°C)",
-                                 expl.name == "BO21_salinitymean_ss" ~ "__E)__    salinity (PSS)",
-                                 expl.name == "BO21_icethickmean_ss" ~ "__B)__    ice thickness (m)",
-                                 expl.name == "BO21_curvelmean_bdmax" ~ "__A)__    current velocity (m-1)",
-                                 expl.name == "BO21_ironmean_bdmax" ~ "__C)__    iron (umol.m-3)",
-                                 expl.name == "BO21_phosphatemean_bdmax" ~ "__D)__    phosphate (umol.m-3)"),
+    mutate(expl.name = case_when(expl.name == "BO21_templtmax_ss" ~ "__B)__    Temperature (°C)",
+                                 expl.name == "BO21_salinitymean_ss" ~ "__C)__    Salinity (PSS)",
+                                 expl.name == "BO21_icethickmean_ss" ~ "__A)__    Ice thickness (m)",
+                                 expl.name == "BO21_curvelmean_bdmax" ~ "__F)__    Current velocity (m-1)",
+                                 expl.name == "BO21_ironmean_bdmax" ~ "__D)__    Iron (umol.m-3)",
+                                 expl.name == "BO21_phosphatemean_bdmax" ~ "__E)__    Phosphate (umol.m-3)"),
            run_PA_model = paste0(run,"_",PA,"_",model))
   return(sp_res)
 }
@@ -1181,8 +1181,8 @@ response_curve_species_mean <-  curve_data_ALL %>%
   ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
   geom_line(size = 1) +
   facet_wrap(~expl.name, scales = 'free_x') +#, strip.position = "bottom") + 
-  labs(x = NULL, y = 'probability of occurence', colour = 'model') + 
-  scale_color_brewer(type = 'qual', palette = 1) +
+  labs(x = NULL, y = 'probability of occurence', colour = 'species') + 
+  scale_color_brewer(type = 'qual', palette = 3) +
   # theme_minimal() +
   theme(legend.position = 'bottom',
         panel.border = element_rect(colour = "black", fill = NA),
@@ -1195,7 +1195,42 @@ ggsave("figures/fig_S4.png", response_curve_species_mean, height = 8, width = 12
 # Figure S5 ---------------------------------------------------------------
 # Response curves for RF
 
+# Load RF model results
+best_rf_laminariales <- loadRData("data/best_rf_laminariales.RData")$project_multi %>% mutate(species = "Lam")
+best_rf_agarum <- loadRData("data/best_rf_agarum.RData")$project_multi %>% mutate(species = "Acla")
+best_rf_alaria <- loadRData("data/best_rf_alaria.RData")$project_multi %>% mutate(species = "Aesc")
+
 # Merge RF % cover predictions to BO data
+curve_rf_ALL <- rbind(best_rf_laminariales, best_rf_agarum, best_rf_alaria) %>% 
+  filter(depth <= 30,
+         !is.na(pred_present_mean)) %>% 
+  left_join(Arctic_BO, by = c("lon", "lat")) %>% 
+  dplyr::select(species, pred_present_mean, BO21_templtmax_ss, BO21_salinitymean_ss, 
+                BO21_icethickmean_ss, BO21_curvelmean_bdmax, BO21_ironmean_bdmax, BO21_phosphatemean_bdmax) %>% 
+  group_by(species, pred_present_mean) %>% 
+  # summarise_all(mean, na.rm = T, .groups = "drop") %>% 
+  pivot_longer(BO21_templtmax_ss:BO21_phosphatemean_bdmax) %>% 
+  mutate(name = case_when(name == "BO21_templtmax_ss" ~ "__B)__    Temperature (°C)",
+                          name == "BO21_salinitymean_ss" ~ "__C)__    Salinity (PSS)",
+                          name == "BO21_icethickmean_ss" ~ "__A)__    Ice thickness (m)",
+                          name == "BO21_curvelmean_bdmax" ~ "__F)__    Current velocity (m-1)",
+                          name == "BO21_ironmean_bdmax" ~ "__D)__    Iron (umol.m-3)",
+                          name == "BO21_phosphatemean_bdmax" ~ "__E)__    Phosphate (umol.m-3)"))
 
 # Create line plot from that with y = pred and x = var
+response_curve_RF <-  curve_rf_ALL %>%
+  ggplot(aes(x = value, y = pred_present_mean, colour = species)) +
+  # geom_line(size = 1) +
+  geom_point(alpha = 0.01) +
+  geom_smooth() +
+  facet_wrap(~name, scales = 'free_x') +#, strip.position = "bottom") + 
+  labs(x = NULL, y = 'predicted cover (%)', colour = 'species') + 
+  scale_color_brewer(type = 'qual', palette = 3) +
+  # theme_minimal() +
+  theme(legend.position = 'bottom',
+        panel.border = element_rect(colour = "black", fill = NA),
+        strip.text = ggtext::element_markdown(hjust = 0),
+        # strip.placement = "outside", 
+        strip.background = element_blank())
+ggsave("figures/fig_S5.png", response_curve_RF, height = 8, width = 12)
 
