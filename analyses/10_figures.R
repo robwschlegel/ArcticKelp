@@ -1,9 +1,7 @@
 # analyses/10_figures
 # This script houses the code used to create the final figures for the manuscript
 
-# TODO: Figures showing response curves between RF % cover and variables used
-# Would be good to have for ensemble models results, too
-# Calculate amount of change in cover over time
+# TODO: Slightly expand the edge of the bbox to allow the reader to be certain of the boundary of Hudson Bay
 
 
 # Setup -------------------------------------------------------------------
@@ -177,7 +175,12 @@ ggsave("figures/fig_1.png", fig_1, height = 6, width = 10)
 # Figure 3 ----------------------------------------------------------------
 # The ensemble model results
 
-# TODO: Consider using the km^2 calculations directly from the rasters
+# TODO: Create a table and versions of figures of current projections that show the difference in projections/surface area km2
+# Depending on which depth and land distance filter is used. This should be discussed in the paper.
+# Consider creating a sub panel of a specific area where the choice of filter has a big effect
+# For the area calculations a weighted average could be used by depth to determine the contribution to the total
+# Consider filtering by depth south of 75°N, and by land distance above that
+# Focus on the 75°N line as the most problematic shift to smaller pixels
 
 # Function to convert rasters to data.frames
 rast_df <- function(rast, projection_name = NULL){
@@ -230,11 +233,13 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
   
   # Create plot
   diff_plot <- df %>%
-    filter(depth <= 30) %>%
-    # filter(land_distance <= 50 | depth <= 30) %>% 
+    # filter(depth <= 30) %>%
+    # filter(depth <= 50) %>%
+    # filter(land_distance <= 10) %>%
+    filter(land_distance <= 15 | depth <= 50) %>%
     ggplot(aes(x = lon, y = lat)) +
-    geom_tile(aes_string(fill = paste0("change_",year_label))) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_tile(aes_string(fill = paste0("change_",year_label))) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -286,10 +291,10 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   # Calculate sq area coverage per era
   sq_area_labels <- df_project %>% 
     filter(depth <= 30) %>%
-    # filter(land_distance <= 50 | depth <= 30) %>% 
-    summarise(area_pres = round(sum(sq_area*proj_pres, na.rm = T)),
-              area_2050 = round(sum(sq_area*proj_2050, na.rm = T)),
-              area_2100 = round(sum(sq_area*proj_2100, na.rm = T)))
+    # filter(land_distance <= 50 | depth <= 100) %>%
+    summarise(area_pres = round(sum(sq_area*proj_pres, na.rm = T), -3),
+              area_2050 = round(sum(sq_area*proj_2050, na.rm = T), -3),
+              area_2100 = round(sum(sq_area*proj_2100, na.rm = T), -3))
   pres_text <- paste0(scales::comma(sq_area_labels$area_pres), " km<sup>2</sup>")
   
   # Load the species points
@@ -302,13 +307,15 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Visualise present data
   plot_present <- df_project %>% 
-    filter(depth <= 30,
-    # filter(land_distance <= 50 | depth <= 30,
+    # filter(depth <= 30,
+    # filter(depth <= 50,
+    # filter(land_distance <= 10,
+    filter(land_distance <= 15 | depth <= 50,
            proj_pres == 1) %>%
     mutate(proj_pres = "") %>%
     ggplot(aes(x = lon, y = lat)) +
-    geom_tile(aes(fill = proj_pres)) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    geom_tile(aes(fill = proj_pres)) +
     geom_point(data = sps_points, shape = 21, colour = "black", fill = "hotpink", size = 0.5) +
     geom_richtext(data = sq_area_labels, size = 4, hjust = 1,
                   aes(x = -50, y = 51, label = pres_text)) +
