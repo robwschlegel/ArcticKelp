@@ -233,10 +233,11 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
   
   # Create plot
   diff_plot <- df %>%
+    mutate(land_distance_lat = land_distance*(lat/2)/100) %>% 
     # filter(depth <= 30) %>%
     # filter(depth <= 50) %>%
     # filter(land_distance <= 10) %>%
-    filter(land_distance <= 15 | depth <= 50) %>%
+    filter(land_distance_lat <= 15 | depth <= 50) %>%
     ggplot(aes(x = lon, y = lat)) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
     geom_tile(aes_string(fill = paste0("change_",year_label))) +
@@ -307,10 +308,11 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Visualise present data
   plot_present <- df_project %>% 
+    mutate(land_distance_lat = land_distance*(lat/2)/100) %>%  
     # filter(depth <= 30,
     # filter(depth <= 50,
     # filter(land_distance <= 10,
-    filter(land_distance <= 15 | depth <= 50,
+    filter(land_distance_lat <= 15 | depth <= 50,
            proj_pres == 1) %>%
     mutate(proj_pres = "") %>%
     ggplot(aes(x = lon, y = lat)) +
