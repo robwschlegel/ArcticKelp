@@ -159,6 +159,7 @@ fig_1b <- ggplot() +
 # Combine and save
 fig_1 <- ggpubr::ggarrange(fig_1a, fig_1b, ncol = 2, labels = c("A)", "B)"), widths = c(1.5, 1))
 ggsave("figures/fig_1.png", fig_1, height = 6, width = 10, dpi = 600)
+ggsave("figures/fig_1.jpg", fig_1, height = 6, width = 10, dpi = 600)
 
 
 # Table 1 -----------------------------------------------------------------
@@ -369,6 +370,7 @@ ensemble_legend <- ensemble_plot("Acla", add_legend = T)
 fig_3 <- ggpubr::ggarrange(ensemble_Acla, ensemble_Aesc, ensemble_Lsol, ensemble_Slat, ensemble_legend,
                            ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
 ggsave("figures/fig_3.png", fig_3, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_3.jpg", fig_3, width = 7, height = 15, dpi = 600)
 
 # Agarum only for demo/talk
 fig_3_agarum <- ggpubr::ggarrange(ensemble_Acla, ensemble_legend, ncol = 1, heights = c(1, 0.15))
@@ -576,6 +578,7 @@ model_compare_legend <- model_compare_plot("laminariales", add_legend = T)
 fig_4 <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_compare_lam, model_compare_legend,
                            ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
 ggsave("figures/fig_4.png", fig_4, width = 7, height = 11, dpi = 600)
+ggsave("figures/fig_4.jpg", fig_4, width = 7, height = 11, dpi = 600)
 
 # Agarum only for demo/talk
 fig_4_agarum <- ggpubr::ggarrange(model_compare_agarum, model_compare_legend, ncol = 1, heights = c(1, 0.15))
@@ -668,6 +671,7 @@ fig_5 <- ggpubr::ggarrange(model_stats_Acla, model_stats_Aesc, model_stats_Lsol,
                            ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom", 
                            labels = c("A)", "B)", "C)", "D)"))
 ggsave("figures/fig_5.png", fig_5, width = 10, height = 10.5,  dpi = 600)
+ggsave("figures/fig_5.jpg", fig_5, width = 10, height = 10.5,  dpi = 600)
 
 # Agarum only for demo/talk
 ggsave("talk/figure/fig_5_agarum.png", model_stats_Acla, width = 7, height = 5)
@@ -786,6 +790,7 @@ cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "alaria")
 fig_6 <- ggpubr::ggarrange(cover_agarum, cover_alaria, cover_lam, ncol = 1, 
                            labels = c("A)", "B)", "C)"))
 ggsave("figures/fig_6.png", fig_6, width = 7, height = 12, dpi = 600)
+ggsave("figures/fig_6.jpg", fig_6, width = 7, height = 12, dpi = 600)
 
 # Agarum only for demo/talk
 ggsave("talk/figure/fig_6_agarum.png", cover_agarum, width = 7, height = 4)
@@ -977,9 +982,11 @@ rf_legend <- rf_plot("laminariales", add_legend = T)
 fig_S1 <- ggpubr::ggarrange(rf_agarum, rf_alaria, rf_lam, rf_legend,
                             ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
 ggsave("figures/fig_S1.png", fig_S1, width = 7, height = 11, dpi = 600)
+ggsave("figures/fig_S1.jpg", fig_S1, width = 7, height = 11, dpi = 600)
 
 
 # Figure S2 ---------------------------------------------------------------
+
 
 # Variance plot for ensemble model results
 
@@ -1108,6 +1115,7 @@ rf_var_legend <- rf_var_plot("laminariales", add_legend = T)
 rf_var_ALL <- ggpubr::ggarrange(rf_var_agarum, rf_var_alaria, rf_var_lam, rf_var_legend,
                                 ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
 ggsave("figures/fig_S3.png", rf_var_ALL, width = 7, height = 11, dpi = 600)
+ggsave("figures/fig_S3.jpg", rf_var_ALL, width = 7, height = 11, dpi = 600)
 
 
 # Figure S4 ---------------------------------------------------------------
@@ -1189,7 +1197,7 @@ rm(list = grep("Slat_",names(.GlobalEnv),value = TRUE)); gc()
 curve_data_ALL <- rbind(curve_data_Acla, curve_data_Aesc, curve_data_Lsol, curve_data_Slat)
 
 # Plot RC for all species
-response_curve_species_mean <-  curve_data_ALL %>%
+response_curve_species_mean <- curve_data_ALL %>%
   filter(TSS >= 0.7) %>% 
   group_by(id, expl.name, species) %>% 
   summarise(expl.val = mean(expl.val, na.rm = T),
@@ -1205,7 +1213,8 @@ response_curve_species_mean <-  curve_data_ALL %>%
         strip.text = ggtext::element_markdown(hjust = 0),
         # strip.placement = "outside", 
         strip.background = element_blank())
-ggsave("figures/fig_S4.png", response_curve_species_mean, height = 8, width = 12)
+ggsave("figures/fig_S4.png", response_curve_species_mean, height = 8, width = 12, dpi = 600)
+ggsave("figures/fig_S4.jpg", response_curve_species_mean, height = 8, width = 12, dpi = 600)
 
 
 # Figure S5 ---------------------------------------------------------------
@@ -1248,7 +1257,8 @@ response_curve_RF <-  curve_rf_ALL %>%
         strip.text = ggtext::element_markdown(hjust = 0),
         # strip.placement = "outside", 
         strip.background = element_blank())
-ggsave("figures/fig_S5.png", response_curve_RF, height = 8, width = 12)
+ggsave("figures/fig_S5.png", response_curve_RF, height = 8, width = 12, dpi = 600)
+ggsave("figures/fig_S5.jpg", response_curve_RF, height = 8, width = 12, dpi = 600)
 
 
 # Figure S6 ---------------------------------------------------------------
@@ -1286,7 +1296,7 @@ futures_plot_ice <- Arctic_BO_futures %>%
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
         axis.text.x = element_blank(), axis.ticks.x = element_blank(),
         panel.border = element_rect(colour = "black", fill = NA))
-futures_plot_ice
+# futures_plot_ice
 
 # Salinity plot
 futures_plot_sal <- Arctic_BO_futures %>%
@@ -1328,5 +1338,6 @@ futures_plot_temp <- Arctic_BO_futures %>%
 
 # Stitch them together
 futures_plot_all <- ggpubr::ggarrange(futures_plot_ice, futures_plot_sal, futures_plot_temp, ncol = 1, align = "h")
-ggsave("figures/fig_S6.png", futures_plot_all, width = 7, height = 10)
+ggsave("figures/fig_S6.png", futures_plot_all, width = 7, height = 10, dpi = 600)
+ggsave("figures/fig_S6.jpg", futures_plot_all, width = 7, height = 10, dpi = 600)
 
