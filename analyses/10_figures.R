@@ -1355,3 +1355,34 @@ futures_plot_all <- ggpubr::ggarrange(futures_plot_ice, futures_plot_sal, future
 ggsave("figures/fig_S6.png", futures_plot_all, width = 6.5, height = 8.5, dpi = 600)
 ggsave("figures/fig_S6.jpg", futures_plot_all, width = 6.5, height = 8.5, dpi = 600)
 
+
+# Table S2 ----------------------------------------------------------------
+# Cutoff values
+
+model_cutoff <- function(sps_choice){
+  
+  # Load chosen biomod_model and print evaluation scores
+  biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
+  
+  # Create full species name
+  if(sps_choice == "Lsol"){
+    sps_title <- "Laminaria solidungula"
+  } else if(sps_choice == "Slat"){
+    sps_title <- "Saccharina latissima"
+  } else if(sps_choice == "Acla"){
+    sps_title <- "Agarum clathratum"
+  } else if(sps_choice == "Aesc"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }  
+  
+  # Extract raw results for geom_point()
+  scores <- biomod2:::get_evaluations(biomod_model, as.data.frame = T) %>% 
+    mutate(sps = sps_choice)
+  return(scores)
+}
+
+full_cutoff <- plyr::ldply(c("Acla", "Aesc", "Lsol", "Slat"), model_cutoff)
+write_csv(full_cutoff, "data/full_cutoff.csv")
+
