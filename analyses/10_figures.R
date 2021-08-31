@@ -1283,14 +1283,16 @@ Arctic_BO_futures <- rbind(Arctic_BO_present, Arctic_BO_2050, Arctic_BO_2100) %>
 # Ice plot
 futures_plot_ice <- Arctic_BO_futures %>%
   filter(name == "Ice thickness (m)") %>%
+  mutate(value = round(value, 1)) %>% 
+  mutate(value_cut = base::cut(value, c(0, 0.2, 0.4, 0.6, 0.8, 1, 2, 7.3), include.lowest = T)) %>% 
   ggplot(aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = value)) +
+  geom_raster(aes(fill = value_cut)) +
   borders(fill = "grey50", colour = "grey90", size = 0.2) +
   scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                  ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_distiller(palette = "Blues") +
+  scale_fill_brewer(palette = "Blues", direction = -1) +
   facet_grid(name ~ proj, switch = "y") +
   labs(x = NULL, y = NULL, fill = "m") +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
@@ -1301,14 +1303,16 @@ futures_plot_ice <- Arctic_BO_futures %>%
 # Salinity plot
 futures_plot_sal <- Arctic_BO_futures %>%
   filter(name == "Salinity (PSS)") %>%
+  mutate(value = round(value, 0)) %>% 
+  mutate(value_cut = base::cut(value, c(7, 11, 15, 19, 23, 27, 31, 35), include.lowest = T)) %>% 
   ggplot(aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = value)) +
+  geom_raster(aes(fill = value_cut)) +
   borders(fill = "grey50", colour = "grey90", size = 0.2) +
   scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                  ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_distiller(palette = "Spectral") +
+  scale_fill_brewer(palette = "Spectral", direction = -1) +
   facet_grid(name ~ proj, switch = "y") +
   labs(x = NULL, y = NULL, fill = "PSS") +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
@@ -1320,14 +1324,16 @@ futures_plot_sal <- Arctic_BO_futures %>%
 # Temperature plot
 futures_plot_temp <- Arctic_BO_futures %>%
   filter(name == "Temperature (°C)") %>%
+  mutate(value = round(value, 0)) %>% 
+  mutate(value_cut = base::cut(value, c(-1, 2, 5, 8, 11, 14, 17, 22), include.lowest = T)) %>% 
   ggplot(aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = value)) +
+  geom_raster(aes(fill = value_cut)) +
   borders(fill = "grey50", colour = "grey90", size = 0.2) +
   scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                  ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_viridis_c() +
+  scale_fill_viridis_d() +
   facet_grid(name ~ proj, switch = "y") +
   labs(x = NULL, y = NULL, fill = "°C") +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
@@ -1337,7 +1343,7 @@ futures_plot_temp <- Arctic_BO_futures %>%
 # futures_plot_temp
 
 # Stitch them together
-futures_plot_all <- ggpubr::ggarrange(futures_plot_ice, futures_plot_sal, futures_plot_temp, ncol = 1, align = "h")
-ggsave("figures/fig_S6.png", futures_plot_all, width = 7, height = 10, dpi = 600)
-ggsave("figures/fig_S6.jpg", futures_plot_all, width = 7, height = 10, dpi = 600)
+futures_plot_all <- ggpubr::ggarrange(futures_plot_ice, futures_plot_sal, futures_plot_temp, ncol = 1, align = "hv")
+ggsave("figures/fig_S6.png", futures_plot_all, width = 6.5, height = 8.5, dpi = 600)
+ggsave("figures/fig_S6.jpg", futures_plot_all, width = 6.5, height = 8.5, dpi = 600)
 
