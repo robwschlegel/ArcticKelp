@@ -1199,11 +1199,12 @@ curve_data_ALL <- rbind(curve_data_Acla, curve_data_Aesc, curve_data_Lsol, curve
 # Plot RC for all species
 response_curve_species_mean <- curve_data_ALL %>%
   filter(TSS >= 0.7) %>% 
-  group_by(id, expl.name, species) %>% 
-  summarise(expl.val = mean(expl.val, na.rm = T),
-            pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
+  # group_by(id, expl.name, species) %>% 
+  # summarise(expl.val = mean(expl.val, na.rm = T),
+            # pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
   ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
-  geom_line(size = 1) +
+  # geom_line(size = 1) +
+  geom_smooth() +
   facet_wrap(~expl.name, scales = 'free_x') +#, strip.position = "bottom") + 
   labs(x = NULL, y = 'probability of occurence', colour = 'species') + 
   scale_color_brewer(type = 'qual', palette = 3) +
