@@ -1,6 +1,10 @@
 # analyses/10_figures
 # This script houses the code used to create the final figures for the manuscript
 
+# NB: The most up-to-date model results are on the IMEV computer
+# Running this on tikoraluk will not work correctly
+# The model reults are too large and are not synced via GitHub
+
 
 # Setup -------------------------------------------------------------------
 
@@ -1204,10 +1208,12 @@ response_curve_species_mean <- curve_data_ALL %>%
             # pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
   ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
   # geom_line(size = 1) +
-  geom_smooth() +
+  geom_point(alpha = 0.05) +
+  geom_smooth(fill = "grey30") +
   facet_wrap(~expl.name, scales = 'free_x') +#, strip.position = "bottom") + 
-  labs(x = NULL, y = 'probability of occurence', colour = 'species') + 
+  labs(x = NULL, y = 'Probability of occurence', colour = 'Species') + 
   scale_color_brewer(type = 'qual', palette = 3) +
+  coord_cartesian(expand = F, ylim = c(0, 1)) +
   # theme_minimal() +
   theme(legend.position = 'bottom',
         panel.border = element_rect(colour = "black", fill = NA),
@@ -1247,11 +1253,12 @@ curve_rf_ALL <- rbind(best_rf_laminariales, best_rf_agarum, best_rf_alaria) %>%
 response_curve_RF <-  curve_rf_ALL %>%
   ggplot(aes(x = value, y = pred_present_mean, colour = species)) +
   # geom_line(size = 1) +
-  geom_point(alpha = 0.01) +
-  geom_smooth() +
+  geom_point(alpha = 0.05) +
+  geom_smooth(fill = "grey30") +
   facet_wrap(~name, scales = 'free_x') +#, strip.position = "bottom") + 
-  labs(x = NULL, y = 'predicted cover (%)', colour = 'species') + 
+  labs(x = NULL, y = 'Predicted cover (%)', colour = 'Species') + 
   scale_color_brewer(type = 'qual', palette = 3) +
+  coord_cartesian(expand = F, ylim = c(0, 60)) +
   # theme_minimal() +
   theme(legend.position = 'bottom',
         panel.border = element_rect(colour = "black", fill = NA),
