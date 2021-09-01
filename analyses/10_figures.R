@@ -991,8 +991,52 @@ ggsave("figures/fig_S1.jpg", fig_S1, width = 7, height = 11, dpi = 600)
 
 # Figure S2 ---------------------------------------------------------------
 
-
 # Variance plot for ensemble model results
+
+# Function to convert rasters to data.frames
+rast_df <- function(rast, projection_name = NULL){
+  df_out <- as.data.frame(rast[[1]], xy = T) %>% 
+    `colnames<-`(c("lon", "lat", "presence")) %>% 
+    mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
+    left_join(Arctic_AM, by = c("lon", "lat")) %>% 
+    na.omit()
+  if(!is.null(projection_name)) df_out$projection <- projection_name
+  return(df_out)
+}
+
+
+# Function for prepping the ensemble model data
+ensemble_CI_prep <- function(sps_choice){
+  
+  # It may work to load these values
+  # Then convert them into data.frames
+  # Then merge them with the cutoff values to get 1's and 0's
+  # Then calculate the variance per pixel
+  proj_present_all <- loadRData("Acla/proj_present/proj_present_Acla.RData")
+  # load("Acla/proj_present/proj_present_Acla_ensemble.RData") # Don't think it's here either
+  # plot(proj_present_all)
+  
+  # This doesn't look like it has the per pixel answers we are after
+  # biomod_ensemble <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,"ensemble.models.out")) # This doesn't look right
+  # get_formal_model(biomod_ensemble@em.models$Acla_EMciInfByTSS_mergedAlgo_mergedRun_mergedData)
+  # plot(biomod_ensemble@em.models$Acla_EMciInfByTSS_mergedAlgo_mergedRun_mergedData)
+  # plot(biomod_ensemble@em.models)
+  
+  # Load the ensemble projections
+  biomod_project_present <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,"_ensemble_TSSbin.RData"))
+  biomod_project_2050 <- loadRData(paste0(sps_choice,"/proj_2050/proj_2050_",sps_choice,"_ensemble_TSSbin.RData"))
+  biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
+  
+  # Convert to data.frames
+  df_project_present <- rast_df(biomod_project_present[[4]], "proj_pres")
+  df_project_2050 <- rast_df(biomod_project_2050[[4]], "proj_2050")
+  df_project_2100 <- rast_df(biomod_project_2100[[4]], "proj_2100")
+  
+  # Combine and exit
+  df_project_all <- rbind(df_project_present, df_project_2050, df_project_2100) %>% 
+    mutate(presence = as.integer(presence))
+  return(df_project_all)
+}
 
 
 # Figure S3 ---------------------------------------------------------------
@@ -1288,11 +1332,30 @@ Arctic_BO_futures <- rbind(Arctic_BO_present, Arctic_BO_2050, Arctic_BO_2100) %>
                           name == "BO21_salinitymean_ss" ~ "Salinity (PSS)",
                           name == "BO21_icethickmean_ss" ~ "Ice thickness (m)"))
 
+# Li,it to bounding box for stats
+bbox_BO_futures <- Arctic_BO_futures %>% 
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+
+# Find the specific limits within the bounding boxes
+lims_ice <- bbox_BO_futures %>% 
+  filter(name == "Ice thickness (m)")
+range(lims_ice$value)
+lims_sal <- bbox_BO_futures %>% 
+  filter(name == "Salinity (PSS)")
+range(lims_sal$value)
+lims_temp <- bbox_BO_futures %>% 
+  filter(name == "Temperature (°C)")
+range(lims_temp$value)
+
 # Ice plot
 futures_plot_ice <- Arctic_BO_futures %>%
   filter(name == "Ice thickness (m)") %>%
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4]) %>%
+  na.omit() %>% 
   mutate(value = round(value, 1)) %>% 
-  mutate(value_cut = base::cut(value, c(0, 0.2, 0.4, 0.6, 0.8, 1, 2, 7.3), include.lowest = T)) %>% 
+  mutate(value_cut = base::cut(value, c(0, 0.2, 0.4, 0.6, 0.8, 1, 2, 5.1), include.lowest = T)) %>% 
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = value_cut)) +
   borders(fill = "grey50", colour = "grey90", size = 0.2) +
@@ -1300,7 +1363,7 @@ futures_plot_ice <- Arctic_BO_futures %>%
   scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
   coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                  ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_brewer(palette = "Blues", direction = -1) +
+  scale_fill_brewer(palette = "Blues", direction = 1) +
   facet_grid(name ~ proj, switch = "y") +
   labs(x = NULL, y = NULL, fill = "m") +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
@@ -1312,7 +1375,7 @@ futures_plot_ice <- Arctic_BO_futures %>%
 futures_plot_sal <- Arctic_BO_futures %>%
   filter(name == "Salinity (PSS)") %>%
   mutate(value = round(value, 0)) %>% 
-  mutate(value_cut = base::cut(value, c(7, 11, 15, 19, 23, 27, 31, 35), include.lowest = T)) %>% 
+  mutate(value_cut = base::cut(value, c(7, 10, 15, 20, 25, 30, 35), include.lowest = T)) %>% 
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = value_cut)) +
   borders(fill = "grey50", colour = "grey90", size = 0.2) +
@@ -1333,7 +1396,7 @@ futures_plot_sal <- Arctic_BO_futures %>%
 futures_plot_temp <- Arctic_BO_futures %>%
   filter(name == "Temperature (°C)") %>%
   mutate(value = round(value, 0)) %>% 
-  mutate(value_cut = base::cut(value, c(-1, 2, 5, 8, 11, 14, 17, 22), include.lowest = T)) %>% 
+  mutate(value_cut = base::cut(value, c(-1, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 22), include.lowest = T)) %>% 
   ggplot(aes(x = lon, y = lat)) +
   geom_raster(aes(fill = value_cut)) +
   borders(fill = "grey50", colour = "grey90", size = 0.2) +
