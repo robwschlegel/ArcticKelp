@@ -21,6 +21,7 @@ library(sdmpredictors)
 library(sf)
 library(sp)
 library(biomod2)
+library(doParallel)
 
 # Function for re-loading .RData files as necessary
 loadRData <- function(fileName){
@@ -991,29 +992,49 @@ ggsave("figures/fig_S1.jpg", fig_S1, width = 7, height = 11, dpi = 600)
 
 # Figure S2 ---------------------------------------------------------------
 
-# Variance plot for ensemble model results
+# Standard error plot for ensemble model results
 
-# Function to convert rasters to data.frames
-rast_df <- function(rast, projection_name = NULL){
-  df_out <- as.data.frame(rast[[1]], xy = T) %>% 
-    `colnames<-`(c("lon", "lat", "presence")) %>% 
-    mutate(lon = round(lon, 4), lat = round(lat, 4)) %>% 
-    left_join(Arctic_AM, by = c("lon", "lat")) %>% 
-    na.omit()
-  if(!is.null(projection_name)) df_out$projection <- projection_name
-  return(df_out)
+# Function to process CI by latitude due to RAM limitations
+# df <- proj_present_df %>% 
+#   filter(y == proj_present_df$y[1])
+# score_df <- scores
+std_err_calc <- function(df, score_df){
+  
+  # Make data long and combine with cutoff info
+  df_long <- df %>% 
+    pivot_longer(values_to = "value", names_to = "Model_run", 
+                 cols = colnames(df)[3]:colnames(df)[length(df)]) %>% 
+    separate(Model_run, into = c("sps", "PA", "Run", "Model"), sep = "_") %>%
+  left_join(score_df, by = c("Model", "Run", "PA"))
+  
+  # Create filtered version
+  df_prep <- df_long %>% 
+    filter(Testing.data >= 0.7) %>% 
+    mutate(binary_score = ifelse(value >= Cutoff, 1, 0))
+  
+  # Calculate CI
+  df_std_err <- df_prep %>% 
+    group_by(x, y) %>% 
+    summarise(std_err = round(sd(binary_score)/sqrt(n()), 4), .groups = "drop")
+  
+  # Exit
+  return(df_std_err)
 }
 
-
 # Function for prepping the ensemble model data
-ensemble_CI_plot <- function(sps_choice){
+# sps_choice <- "Slat"
+std_err_plot <- function(sps_choice){
   
   # Load chosen biomod_model and print evaluation scores
   biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
   
   # Extract raw results for geom_point()
+  suppressWarnings(
   scores <- biomod2:::get_evaluations(biomod_model, as.data.frame = T) %>% 
-    mutate(sps = sps_choice)
+    filter(Eval.metric == "TSS") %>% 
+    separate(Model.name, into = c("Model", "Run", "PA"), sep = "_") %>% 
+    dplyr::select(Model:Eval.metric, Cutoff, Testing.data)
+  )
   
   # Load raw model projections
   proj_present_all <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,".RData"))
@@ -1021,32 +1042,63 @@ ensemble_CI_plot <- function(sps_choice){
   # Convert to data.frames
   proj_present_df <- data.frame(rasterToPoints(proj_present_all))
   
-  # Join with cutoff scores
+  # Calculate standard error per pixel
+  proj_present_std_err <- plyr::ddply(proj_present_df, c("y"), std_err_calc, .parallel = T, score_df = scores)
   
-  # Create binary results
-  
-  # Calculate CI
+  # Create full species name
+  if(sps_choice == "Lsol"){
+    sps_title <- "Laminaria solidungula"
+  } else if(sps_choice == "Slat"){
+    sps_title <- "Saccharina latissima"
+  } else if(sps_choice == "Acla"){
+    sps_title <- "Agarum clathratum"
+  } else if(sps_choice == "Aesc"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }
   
   # Plot values
+  val_plot <- ggplot(data = proj_present_std_err, aes(x = x, y = y)) +
+    geom_raster(aes(fill = std_err)) +
+    borders(fill = "grey50", colour = "grey90", size = 0.2) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    scale_fill_distiller(palette = "Reds", direction = 1, limits = c(0, 0.065)) +
+    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+    labs(x = NULL, y = NULL, title = sps_title, fill = "Standard\nError") +
+    theme(plot.title = element_text(face = "italic"),
+          axis.line = element_line(colour = NA),
+          panel.background = element_rect(fill = "grey100"),
+          panel.border = element_rect(colour = "black", fill = NA))
   
-  # ...profit
-  
-  
-  # Load the ensemble projections
-  biomod_project_present <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,"_ensemble_TSSbin.RData"))
-  biomod_project_2050 <- loadRData(paste0(sps_choice,"/proj_2050/proj_2050_",sps_choice,"_ensemble_TSSbin.RData"))
-  biomod_project_2100 <- loadRData(paste0(sps_choice,"/proj_2100/proj_2100_",sps_choice,"_ensemble_TSSbin.RData"))
-  
-  # Convert to data.frames
-  df_project_present <- rast_df(biomod_project_present[[4]], "proj_pres")
-  df_project_2050 <- rast_df(biomod_project_2050[[4]], "proj_2050")
-  df_project_2100 <- rast_df(biomod_project_2100[[4]], "proj_2100")
-  
-  # Combine and exit
-  df_project_all <- rbind(df_project_present, df_project_2050, df_project_2100) %>% 
-    mutate(presence = as.integer(presence))
-  return(df_project_all)
+  # Exit
+  return(val_plot)
 }
+
+# Set core usage
+# NB: Be careful here...
+doParallel::registerDoParallel(cores = 4)
+
+# Create all visuals
+# These take about a minute each
+std_err_Acla <- std_err_plot("Acla"); gc()
+std_err_Aesc <- std_err_plot("Aesc"); gc()
+std_err_Lsol <- std_err_plot("Lsol"); gc()
+std_err_Slat <- std_err_plot("Slat"); gc()
+# ensemble_legend <- ensemble_plot("Acla", add_legend = T)
+
+# Combine into one mecha-figure
+fig_S2 <- ggpubr::ggarrange(std_err_Acla, std_err_Aesc, std_err_Lsol, std_err_Slat, #ensemble_legend,
+                            ncol = 1, labels = c("A)", "B)", "C)", "D)"), #heights = c(1, 1, 1, 1), 
+                            common.legend = T, legend = "bottom")
+ggsave("figures/fig_S2.png", fig_S2, width = 2.5, height = 15, dpi = 600)
+ggsave("figures/fig_S2.jpg", fig_S2, width = 2.5, height = 15, dpi = 600)
 
 
 # Figure S3 ---------------------------------------------------------------
