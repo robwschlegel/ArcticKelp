@@ -1006,7 +1006,7 @@ rast_df <- function(rast, projection_name = NULL){
 
 
 # Function for prepping the ensemble model data
-ensemble_CI_prep <- function(sps_choice){
+ensemble_CI_plot <- function(sps_choice){
   
   # Load chosen biomod_model and print evaluation scores
   biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
@@ -1015,19 +1015,22 @@ ensemble_CI_prep <- function(sps_choice){
   scores <- biomod2:::get_evaluations(biomod_model, as.data.frame = T) %>% 
     mutate(sps = sps_choice)
   
-  # It may work to load these values
-  # Then convert them into data.frames
-  # Then merge them with the cutoff values to get 1's and 0's
-  # Then calculate the variance per pixel
-  proj_present_all <- loadRData("Acla/proj_present/proj_present_Acla.RData")
-  # load("Acla/proj_present/proj_present_Acla_ensemble.RData") # Don't think it's here either
-  # plot(proj_present_all)
+  # Load raw model projections
+  proj_present_all <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,".RData"))
   
-  # This doesn't look like it has the per pixel answers we are after
-  # biomod_ensemble <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,"ensemble.models.out")) # This doesn't look right
-  # get_formal_model(biomod_ensemble@em.models$Acla_EMciInfByTSS_mergedAlgo_mergedRun_mergedData)
-  # plot(biomod_ensemble@em.models$Acla_EMciInfByTSS_mergedAlgo_mergedRun_mergedData)
-  # plot(biomod_ensemble@em.models)
+  # Convert to data.frames
+  proj_present_df <- data.frame(rasterToPoints(proj_present_all))
+  
+  # Join with cutoff scores
+  
+  # Create binary results
+  
+  # Calculate CI
+  
+  # Plot values
+  
+  # ...profit
+  
   
   # Load the ensemble projections
   biomod_project_present <- loadRData(paste0(sps_choice,"/proj_present/proj_present_",sps_choice,"_ensemble_TSSbin.RData"))
