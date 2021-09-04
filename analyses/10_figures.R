@@ -1008,6 +1008,13 @@ rast_df <- function(rast, projection_name = NULL){
 # Function for prepping the ensemble model data
 ensemble_CI_prep <- function(sps_choice){
   
+  # Load chosen biomod_model and print evaluation scores
+  biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
+  
+  # Extract raw results for geom_point()
+  scores <- biomod2:::get_evaluations(biomod_model, as.data.frame = T) %>% 
+    mutate(sps = sps_choice)
+  
   # It may work to load these values
   # Then convert them into data.frames
   # Then merge them with the cutoff values to get 1's and 0's
@@ -1410,7 +1417,8 @@ futures_plot_temp <- Arctic_BO_futures %>%
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
         axis.text.x = element_blank(), axis.ticks.x = element_blank(),
         strip.text.x = element_blank(), strip.background.x = element_blank(),
-        panel.border = element_rect(colour = "black", fill = NA))
+        panel.border = element_rect(colour = "black", fill = NA),
+        legend.key.size = unit(0.5, 'cm'))
 # futures_plot_temp
 
 # Stitch them together
