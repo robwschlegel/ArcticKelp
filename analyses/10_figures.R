@@ -995,7 +995,7 @@ ggsave("figures/fig_S1.jpg", fig_S1, width = 7, height = 11, dpi = 600)
 # Standard error plot for ensemble model results
 
 # Function to process CI by latitude due to RAM limitations
-# df <- proj_present_df %>% 
+# df <- proj_present_df %>%
 #   filter(y == proj_present_df$y[1])
 # score_df <- scores
 std_err_calc <- function(df, score_df){
@@ -1012,10 +1012,16 @@ std_err_calc <- function(df, score_df){
     filter(Testing.data >= 0.7) %>% 
     mutate(binary_score = ifelse(value >= Cutoff, 1, 0))
   
-  # Calculate CI
+  # Calculate uncertainty
   df_std_err <- df_prep %>% 
     group_by(x, y) %>% 
-    summarise(std_err = round(sd(binary_score)/sqrt(n()), 4), .groups = "drop")
+    summarise(mean = mean(binary_score),
+              sd = sd(binary_score),
+              count = n(),
+              std_err = round(sd(binary_score)/sqrt(n()), 4),
+              CI_lower = Rmisc::CI(binary_score, 0.95)[3],
+              CI_upper = Rmisc::CI(binary_score, 0.95)[1], .groups = "drop") %>% 
+    mutate(CI_range = CI_upper-CI_lower)
   
   # Exit
   return(df_std_err)
@@ -1066,7 +1072,7 @@ std_err_plot <- function(sps_choice){
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
                    ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    scale_fill_distiller(palette = "Reds", direction = 1, limits = c(0, 0.065)) +
+    scale_fill_distiller(palette = "YlGnBu", direction = 1, limits = c(0, 0.065)) +
     scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
     scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
     coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
@@ -1095,10 +1101,10 @@ std_err_Slat <- std_err_plot("Slat"); gc()
 
 # Combine into one mecha-figure
 fig_S2 <- ggpubr::ggarrange(std_err_Acla, std_err_Aesc, std_err_Lsol, std_err_Slat, #ensemble_legend,
-                            ncol = 1, labels = c("A)", "B)", "C)", "D)"), #heights = c(1, 1, 1, 1), 
+                            ncol = 2, nrow = 2, labels = c("A)", "B)", "C)", "D)"), #heights = c(1, 1, 1, 1), 
                             common.legend = T, legend = "bottom")
-ggsave("figures/fig_S2.png", fig_S2, width = 2.5, height = 15, dpi = 600)
-ggsave("figures/fig_S2.jpg", fig_S2, width = 2.5, height = 15, dpi = 600)
+ggsave("figures/fig_S2.png", fig_S2, width = 5, height = 8, dpi = 600)
+ggsave("figures/fig_S2.jpg", fig_S2, width = 5, height = 8, dpi = 600)
 
 
 # Figure S3 ---------------------------------------------------------------
@@ -1309,22 +1315,16 @@ curve_data_ALL <- rbind(curve_data_Acla, curve_data_Aesc, curve_data_Lsol, curve
 # Plot RC for all species
 response_curve_species_mean <- curve_data_ALL %>%
   filter(TSS >= 0.7) %>% 
-  # group_by(id, expl.name, species) %>% 
-  # summarise(expl.val = mean(expl.val, na.rm = T),
-            # pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
   ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
-  # geom_line(size = 1) +
   geom_point(alpha = 0.05) +
   geom_smooth(fill = "grey30") +
-  facet_wrap(~expl.name, scales = 'free_x') +#, strip.position = "bottom") + 
+  facet_wrap(~expl.name, scales = 'free_x') +#
   labs(x = NULL, y = 'Probability of occurence', colour = 'Species') + 
   scale_color_brewer(type = 'qual', palette = 3) +
   coord_cartesian(expand = F, ylim = c(0, 1)) +
-  # theme_minimal() +
   theme(legend.position = 'bottom',
         panel.border = element_rect(colour = "black", fill = NA),
         strip.text = ggtext::element_markdown(hjust = 0),
-        # strip.placement = "outside", 
         strip.background = element_blank())
 ggsave("figures/fig_S4.png", response_curve_species_mean, height = 8, width = 12, dpi = 600)
 ggsave("figures/fig_S4.jpg", response_curve_species_mean, height = 8, width = 12, dpi = 600)
