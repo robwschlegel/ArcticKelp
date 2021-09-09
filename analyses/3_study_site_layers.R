@@ -17,8 +17,8 @@ library(FNN)
 
 # NB: The following code chunks require Arctic_coast.RData
 # This is not hosted on GitHub as it is 30.3 MB
-# E-mail robert.schlegel@dal.ca for the file
-# Or create it from '2_monthly_clims.R'
+# e-mail robert.schlegel@imev-mer.fr for the file
+# Or create it by running '2_monthly_clims.R'
 load("data/Arctic_BO.RData")
 Arctic_BO <- Arctic_BO %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))

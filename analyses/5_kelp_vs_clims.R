@@ -1,6 +1,6 @@
 # analyses/5_kelp_vs_clims.R
 # The purpose of this script is to load the kelp and monthly clim data
-# and then squish them together to see if anything interesting falls out
+# and then squish them together to see if anything interesting falls out.
 
 
 # Source scripts ----------------------------------------------------------
@@ -14,7 +14,7 @@ library(vegan)
 # Check for site mismatches -----------------------------------------------
 
 # NB: The following two lines of code should return 'character(0)'
-# This means there are no differences in the sites for the ArctcKelp and env data
+# This means there are no differences in the sites for the ArcticKelp and env data
 # If there are, re-run '3_study_site_clims.R'
 
 # Sites from Kelp data not in study site names

@@ -1,11 +1,11 @@
 # analyses/4_kelp_cover.R
-# The purpose of this script is to load the kelp cover data
-# It then goes about making some summaries and visualisations
+# The purpose of this script is to load the kelp cover data.
+# It then goes about making some summaries and visualisations.
 
 
 # Libraries ---------------------------------------------------------------
 
-# If new sites have been added it is necessary to run this script
+# If new sites have been added it is necessary to run this script first
 # source("analyses/3_study_site_clims.R")
 
 # Load study sites and base packages
@@ -17,9 +17,7 @@ library(ggridges)
 
 # Load data ---------------------------------------------------------------
 
-# If the following excel file is opened in Excel on a Windows computer it will 
-# change the comma (,) separation into semicolon (;) separation and the commented out 
-# bit in the following line needs to be turned back on
+# Load kelp survey data
 adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep = ';', dec = ',') %>%
   dplyr::rename(site = Site, depth = Depth.m, 
                 sand = Sand.., Agarum = Agarum.., Alaria = Alaria.., Alaria = Alaria.., Sacharrina = S..latissima.., 
@@ -35,7 +33,7 @@ adf <- read.csv("data/Kelp cover photograph quadrats 2019.csv", sep = ';', dec =
          Saccorhiza.. = replace_na(Saccorhiza.., 0),
          kelp.density = S.latissima.No. + Agarum.No. + Alaria.No.,
          kelp.cover = Agarum + Alaria + L.solidungula + L.digitata + Laminariales.unspecified + Sacharrina,
-         Laminariales = L.solidungula + Sacharrina,# + L.digitata + Laminariales.unspecified, 
+         Laminariales = L.solidungula + Sacharrina,
          Bedrock.. = replace_na(Bedrock.., 0),
          Boulders.. = replace_na(Boulders.., 0),
          Cobbles.. = replace_na(Cobbles.., 0),

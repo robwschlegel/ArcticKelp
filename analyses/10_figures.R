@@ -3,7 +3,7 @@
 
 # NB: The most up-to-date model results are on the IMEV computer
 # Running this on tikoraluk will not work correctly
-# The model reults are too large and are not synced via GitHub
+# The model results are too large and are not synced via GitHub
 
 
 # Setup -------------------------------------------------------------------
@@ -65,13 +65,10 @@ MEOW <- read_sf("metadata/MEOW/meow_ecos.shp") %>%
 
 
 # Figure 1 ----------------------------------------------------------------
-
 # The map of the study area with the sample points
 
 # Load all species points
 sps_data <- map_df(sps_files, read_csv) %>% 
-  # mutate(Sp = case_when(Sp == "Slat" ~ "Aaa",
-  #                       TRUE ~ Sp)) %>% 
   mutate(Sp = factor(Sp, levels = c("Acla", "Aesc", "Ldig", "Lsol", "Slat")))
 
 # Site coordinates
@@ -90,7 +87,7 @@ bbox_bottom <- data.frame(lon = seq(bbox_arctic[2], bbox_arctic[1], length.out =
                           lat = bbox_arctic[4], id = "bbox")
 bbox_df <- rbind(bbox_top, bbox_bottom)
 
-# only want lon-lats in the list, not the names
+# Only want lon-lats in the list, not the names
 bbox_list <- lapply(split(bbox_df, bbox_df$id), function(x) { x["id"] <- NULL; x })
 
 # Convert to polygon and add id variable 
@@ -122,8 +119,6 @@ fig_1a <- basemap(limits = c(-180, 180, 40, 90), bathymetry = T) +
   annotation_spatial(Arctic_poly, fill = "gold", alpha = 0.2) +
   annotation_spatial(bbox_spatial, fill = "darkgreen", alpha = 0.2) +
   # annotation_spatial(MEOW, aes(colour = ECOREGION), fill = NA) +
-  # NB: This overplotting of Slat needs to be addressed
-  # This may be due to the points needing to be converted to a spatial points file first
   geom_spatial_point(data = sps_data, crs = 4326, shape = 21,
                      aes(x = lon, y = lat), fill = "hotpink", colour = "black") +
   geom_spatial_point(data = study_sites, crs = 4326, shape = 22,
@@ -167,24 +162,155 @@ ggsave("figures/fig_1.png", fig_1, height = 6, width = 10, dpi = 600)
 ggsave("figures/fig_1.jpg", fig_1, height = 6, width = 10, dpi = 600)
 
 
-# Table 1 -----------------------------------------------------------------
-# Importance of variables by kelps and models
-
-
 # Figure 2 ----------------------------------------------------------------
 # Importance of variables per taxonomic group
 # Jesi made this figure with image editing software
 
 
-# Figure 3 ----------------------------------------------------------------
-# The ensemble model results
+# Figure 3.1 --------------------------------------------------------------
+# Response curves for ensemble models
 
-# TODO: Create a table and versions of figures of current projections that show the difference in projections/surface area km2
-# Depending on which depth and land distance filter is used. This should be discussed in the paper.
-# Consider creating a sub panel of a specific area where the choice of filter has a big effect
-# For the area calculations a weighted average could be used by depth to determine the contribution to the total
-# Consider filtering by depth south of 75°N, and by land distance above that
-# Focus on the 75°N line as the most problematic shift to smaller pixels
+# Function for extracting species response curve data
+# sps_choice <- sps_names[1]
+sps_response_data <- function(biomod_model, sp_dat){
+  # Model scores
+  model_scores <- t(data.frame(get_evaluations(biomod_model))) %>% 
+    data.frame() %>% 
+    mutate(idx = rownames(.),
+           idx = str_replace(idx, "MAXENT.Phillips", "MAXENT_Phillips"),
+           idx = str_replace(idx, "Testing.data", "Testing_data")) %>% 
+    separate(idx, c("type", "model", "run", "PA"), sep = "[.]", remove = T) %>% 
+    mutate(model = case_when(model == "MAXENT_Phillips" ~ "MAXENT.Phillips", TRUE ~ model)) %>% 
+    filter(type == "Testing_data") %>%
+    `row.names<-`(NULL) %>% 
+    dplyr::select(type, model, run, PA, everything())
+  
+  # Clean up and exit
+  sp_res <- sp_dat %>% 
+    separate(pred.name, c("species", "PA", "run", "model"), sep = "_", remove = T) %>% 
+    left_join(model_scores, by = c("model", "run", "PA")) %>% 
+    mutate(expl.name = case_when(expl.name == "BO21_templtmax_ss" ~ "__B)__    Temperature (°C)",
+                                 expl.name == "BO21_salinitymean_ss" ~ "__C)__    Salinity (PSS)",
+                                 expl.name == "BO21_icethickmean_ss" ~ "__A)__    Ice thickness (m)",
+                                 expl.name == "BO21_curvelmean_bdmax" ~ "__F)__    Current velocity (m-1)",
+                                 expl.name == "BO21_ironmean_bdmax" ~ "__D)__    Iron (umol.m-3)",
+                                 expl.name == "BO21_phosphatemean_bdmax" ~ "__E)__    Phosphate (umol.m-3)"),
+           run_PA_model = paste0(run,"_",PA,"_",model))
+  return(sp_res)
+}
+
+## Load model data per species
+# NB: Due to BIOMOD2 internal structure, much of this needs to be run in the global environment...
+# Acla
+biomod_model_Acla <- loadRData(paste0(sps_names[1],"/",sps_names[1],".",sps_names[1],".models.out"))
+sp_name_Acla <- BIOMOD_LoadModels(biomod_model_Acla, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+sp_dat_Acla <- response.plot2(models  = sp_name_Acla,
+                              Data = get_formal_data(biomod_model_Acla, 'expl.var'),
+                              show.variables = get_formal_data(biomod_model_Acla, 'expl.var.names'),
+                              data_species = get_formal_data(biomod_model_Acla, 'resp.var'),
+                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
+curve_data_Acla <- sps_response_data(biomod_model_Acla, sp_dat_Acla)
+rm(list = grep("Acla_",names(.GlobalEnv),value = TRUE)); gc()
+# Aesc
+biomod_model_Aesc <- loadRData(paste0(sps_names[2],"/",sps_names[2],".",sps_names[2],".models.out"))
+sp_name_Aesc <- BIOMOD_LoadModels(biomod_model_Aesc, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+sp_dat_Aesc <- response.plot2(models  = sp_name_Aesc,
+                              Data = get_formal_data(biomod_model_Aesc, 'expl.var'),
+                              show.variables = get_formal_data(biomod_model_Aesc, 'expl.var.names'),
+                              data_species = get_formal_data(biomod_model_Aesc, 'resp.var'),
+                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
+curve_data_Aesc <- sps_response_data(biomod_model_Aesc, sp_dat_Aesc)
+rm(list = grep("Aesc_",names(.GlobalEnv),value = TRUE)); gc()
+# Lsol
+biomod_model_Lsol <- loadRData(paste0(sps_names[4],"/",sps_names[4],".",sps_names[4],".models.out"))
+sp_name_Lsol <- BIOMOD_LoadModels(biomod_model_Lsol, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+sp_dat_Lsol <- response.plot2(models  = sp_name_Lsol,
+                              Data = get_formal_data(biomod_model_Lsol, 'expl.var'),
+                              show.variables = get_formal_data(biomod_model_Lsol, 'expl.var.names'),
+                              data_species = get_formal_data(biomod_model_Lsol, 'resp.var'),
+                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
+curve_data_Lsol <- sps_response_data(biomod_model_Lsol, sp_dat_Lsol)
+rm(list = grep("Lsol_",names(.GlobalEnv),value = TRUE)); gc()
+# Slat
+biomod_model_Slat <- loadRData(paste0(sps_names[5],"/",sps_names[5],".",sps_names[5],".models.out"))
+sp_name_Slat <- BIOMOD_LoadModels(biomod_model_Slat, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
+# NB: Sometimes this fails on the first go. Just run it again... I don't know why...
+sp_dat_Slat <- response.plot2(models  = sp_name_Slat,
+                              Data = get_formal_data(biomod_model_Slat, 'expl.var'),
+                              show.variables = get_formal_data(biomod_model_Slat, 'expl.var.names'),
+                              data_species = get_formal_data(biomod_model_Slat, 'resp.var'),
+                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
+curve_data_Slat <- sps_response_data(biomod_model_Slat, sp_dat_Slat)
+rm(list = grep("Slat_",names(.GlobalEnv),value = TRUE)); gc()
+# All together now
+curve_data_ALL <- rbind(curve_data_Acla, curve_data_Aesc, curve_data_Lsol, curve_data_Slat)
+
+# Plot RC for all species
+response_curve_species_mean <- curve_data_ALL %>%
+  filter(TSS >= 0.7) %>% 
+  ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(fill = "grey30") +
+  facet_wrap(~expl.name, scales = 'free_x') +#
+  labs(x = NULL, y = 'Probability of occurence', colour = 'Species') + 
+  scale_color_brewer(type = 'qual', palette = 3) +
+  coord_cartesian(expand = F, ylim = c(0, 1)) +
+  theme(legend.position = 'bottom',
+        panel.border = element_rect(colour = "black", fill = NA),
+        strip.text = ggtext::element_markdown(hjust = 0),
+        strip.background = element_blank())
+ggsave("figures/fig_3.1.png", response_curve_species_mean, height = 8, width = 12, dpi = 600)
+ggsave("figures/fig_3.1.jpg", response_curve_species_mean, height = 8, width = 12, dpi = 600)
+
+
+
+# Figure 3.2 --------------------------------------------------------------
+# Response curves for RF
+
+# Load RF model results
+best_rf_laminariales <- loadRData("data/best_rf_laminariales.RData")$project_multi %>% mutate(species = "Lam")
+best_rf_agarum <- loadRData("data/best_rf_agarum.RData")$project_multi %>% mutate(species = "Acla")
+best_rf_alaria <- loadRData("data/best_rf_alaria.RData")$project_multi %>% mutate(species = "Aesc")
+
+# Merge RF % cover predictions to BO data
+curve_rf_ALL <- rbind(best_rf_laminariales, best_rf_agarum, best_rf_alaria) %>% 
+  filter(depth <= 30,
+         !is.na(pred_present_mean)) %>% 
+  left_join(Arctic_BO, by = c("lon", "lat")) %>% 
+  dplyr::select(species, pred_present_mean, BO21_templtmax_ss, BO21_salinitymean_ss, 
+                BO21_icethickmean_ss, BO21_curvelmean_bdmax, BO21_ironmean_bdmax, BO21_phosphatemean_bdmax) %>% 
+  group_by(species, pred_present_mean) %>% 
+  # summarise_all(mean, na.rm = T, .groups = "drop") %>% 
+  pivot_longer(BO21_templtmax_ss:BO21_phosphatemean_bdmax) %>% 
+  mutate(name = case_when(name == "BO21_templtmax_ss" ~ "__B)__    Temperature (°C)",
+                          name == "BO21_salinitymean_ss" ~ "__C)__    Salinity (PSS)",
+                          name == "BO21_icethickmean_ss" ~ "__A)__    Ice thickness (m)",
+                          name == "BO21_curvelmean_bdmax" ~ "__F)__    Current velocity (m-1)",
+                          name == "BO21_ironmean_bdmax" ~ "__D)__    Iron (umol.m-3)",
+                          name == "BO21_phosphatemean_bdmax" ~ "__E)__    Phosphate (umol.m-3)"))
+
+# Create line plot from that with y = pred and x = var
+response_curve_RF <-  curve_rf_ALL %>%
+  ggplot(aes(x = value, y = pred_present_mean, colour = species)) +
+  # geom_line(size = 1) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(fill = "grey30") +
+  facet_wrap(~name, scales = 'free_x') +#, strip.position = "bottom") + 
+  labs(x = NULL, y = 'Predicted cover (%)', colour = 'Species') + 
+  scale_color_brewer(type = 'qual', palette = 3) +
+  coord_cartesian(expand = F, ylim = c(0, 60)) +
+  # theme_minimal() +
+  theme(legend.position = 'bottom',
+        panel.border = element_rect(colour = "black", fill = NA),
+        strip.text = ggtext::element_markdown(hjust = 0),
+        # strip.placement = "outside", 
+        strip.background = element_blank())
+ggsave("figures/fig_3.2.png", response_curve_RF, height = 8, width = 12, dpi = 600)
+ggsave("figures/fig_3.2.jpg", response_curve_RF, height = 8, width = 12, dpi = 600)
+
+
+# Figure 4 ----------------------------------------------------------------
+# The ensemble model results
 
 # Function to convert rasters to data.frames
 rast_df <- function(rast, projection_name = NULL){
@@ -238,9 +364,6 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
   # Create plot
   diff_plot <- df %>%
     mutate(land_distance_lat = land_distance*(lat)/100) %>% 
-    # filter(depth <= 30) %>%
-    # filter(depth <= 50) %>%
-    # filter(land_distance <= 10) %>%
     filter(land_distance_lat <= 15 | depth <= 50) %>%
     ggplot(aes(x = lon, y = lat)) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
@@ -264,7 +387,6 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
 }
 
 # Function for plotting ensemble model results
-# sps_choice <- "Acla"
 ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Create full species name
@@ -313,11 +435,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   # Visualise present data
   plot_present <- df_project %>% 
     mutate(land_distance_lat = land_distance*lat/100) %>% 
-    # filter(depth <= 30,
-    # filter(depth <= 50,
-    # filter(land_distance <= 10,
-    filter(land_distance_lat <= 15 | depth <= 50,
-           proj_pres == 1) %>%
+    filter(land_distance_lat <= 15 | depth <= 50, proj_pres == 1) %>%
     mutate(proj_pres = "") %>%
     ggplot(aes(x = lon, y = lat)) +
     borders(fill = "grey50", colour = "grey90", size = 0.2) +
@@ -372,27 +490,27 @@ ensemble_Slat <- ensemble_plot("Slat")
 ensemble_legend <- ensemble_plot("Acla", add_legend = T)
 
 # Combine into one mecha-figure
-fig_3 <- ggpubr::ggarrange(ensemble_Acla, ensemble_Aesc, ensemble_Lsol, ensemble_Slat, ensemble_legend,
+fig_4 <- ggpubr::ggarrange(ensemble_Acla, ensemble_Aesc, ensemble_Lsol, ensemble_Slat, ensemble_legend,
                            ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
-ggsave("figures/fig_3.png", fig_3, width = 7, height = 15, dpi = 600)
-ggsave("figures/fig_3.jpg", fig_3, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_4.png", fig_4, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_4.jpg", fig_4, width = 7, height = 15, dpi = 600)
 
 # Agarum only for demo/talk
-fig_3_agarum <- ggpubr::ggarrange(ensemble_Acla, ensemble_legend, ncol = 1, heights = c(1, 0.15))
-ggsave("graph/fig_3_agarum.png", fig_3_agarum, width = 7, height = 4)
-ggsave("talk/figure/fig_3_agarum.png", fig_3_agarum, width = 7, height = 4)
+fig_4_agarum <- ggpubr::ggarrange(ensemble_Acla, ensemble_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("graph/fig_4_agarum.png", fig_4_agarum, width = 7, height = 4)
+ggsave("talk/figure/fig_4_agarum.png", fig_4_agarum, width = 7, height = 4)
 
 # Alaria only for talk
-fig_3_alaria <- ggpubr::ggarrange(ensemble_Aesc, ensemble_legend, ncol = 1, heights = c(1, 0.15))
-ggsave("talk/figure/fig_3_alaria.png", fig_3_alaria, width = 7, height = 4)
+fig_4_alaria <- ggpubr::ggarrange(ensemble_Aesc, ensemble_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_4_alaria.png", fig_4_alaria, width = 7, height = 4)
 
 # Laminaria only for talk
-fig_3_laminaria <- ggpubr::ggarrange(ensemble_Lsol, ensemble_legend, ncol = 1, heights = c(1, 0.15))
-ggsave("talk/figure/fig_3_laminaria.png", fig_3_laminaria, width = 7, height = 4)
+fig_4_laminaria <- ggpubr::ggarrange(ensemble_Lsol, ensemble_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_4_laminaria.png", fig_4_laminaria, width = 7, height = 4)
 
 # Saccharina only for talk
-fig_3_saccharina <- ggpubr::ggarrange(ensemble_Slat, ensemble_legend, ncol = 1, heights = c(1, 0.15))
-ggsave("talk/figure/fig_3_saccharina.png", fig_3_saccharina, width = 7, height = 4)
+fig_4_saccharina <- ggpubr::ggarrange(ensemble_Slat, ensemble_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_4_saccharina.png", fig_4_saccharina, width = 7, height = 4)
 
 # Find current surface area of all species overlayed
 proj_present_Acla <- rast_df(loadRData("Acla/proj_present/proj_present_Acla_ensemble_TSSbin.RData")[[1]], "proj_pres")
@@ -406,11 +524,10 @@ proj_present_overlay <- rbind(proj_present_Acla, proj_present_Aesc, proj_present
 sum(proj_present_overlay$sq_area)
 
 
-# Figure 4 ----------------------------------------------------------------
-# Combination of the modeling approaches
+# Figure 5 ----------------------------------------------------------------
+# Combination of the modelling approaches
 
 # Join ensemble and random forest results
-# model_choice <- "agarum"
 model_compare_plot <- function(model_choice, add_legend = F){
   
   # Create full species name and load ensemble data
@@ -580,240 +697,144 @@ model_compare_alaria <- model_compare_plot("alaria")
 model_compare_legend <- model_compare_plot("laminariales", add_legend = T)
 
 # Combine into one mecha-figure
-fig_4 <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_compare_lam, model_compare_legend,
+fig_5 <- ggpubr::ggarrange(model_compare_agarum, model_compare_alaria, model_compare_lam, model_compare_legend,
                            ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
-ggsave("figures/fig_4.png", fig_4, width = 7, height = 11, dpi = 600)
-ggsave("figures/fig_4.jpg", fig_4, width = 7, height = 11, dpi = 600)
+ggsave("figures/fig_5.png", fig_5, width = 7, height = 11, dpi = 600)
+ggsave("figures/fig_5.jpg", fig_5, width = 7, height = 11, dpi = 600)
 
 # Agarum only for demo/talk
-fig_4_agarum <- ggpubr::ggarrange(model_compare_agarum, model_compare_legend, ncol = 1, heights = c(1, 0.15))
-ggsave("graph/fig_4_agarum.png", fig_4_agarum, width = 7, height = 4)
-ggsave("talk/figure/fig_4_agarum.png", fig_4_agarum, width = 7, height = 4)
+fig_5_agarum <- ggpubr::ggarrange(model_compare_agarum, model_compare_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("graph/fig_5_agarum.png", fig_5_agarum, width = 7, height = 4)
+ggsave("talk/figure/fig_5_agarum.png", fig_5_agarum, width = 7, height = 4)
 
 # Alaria only for talk
-fig_4_alaria <- ggpubr::ggarrange(model_compare_alaria, model_compare_legend, ncol = 1, heights = c(1, 0.15))
-ggsave("talk/figure/fig_4_alaria.png", fig_4_alaria, width = 7, height = 4)
+fig_5_alaria <- ggpubr::ggarrange(model_compare_alaria, model_compare_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_5_alaria.png", fig_5_alaria, width = 7, height = 4)
 
 # Laminariales only for talk
-fig_4_lam <- ggpubr::ggarrange(model_compare_lam, model_compare_legend, ncol = 1, heights = c(1, 0.15))
-ggsave("talk/figure/fig_4_lam.png", fig_4_lam, width = 7, height = 4)
-
-
-# Figure 5 ----------------------------------------------------------------
-
-# The model values from the ensembles; ROC vs AUC
-model_stats_plot <- function(sps_choice){
-  
-  # Load chosen biomod_model and print evaluation scores
-  biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
-  
-  # Create full species name
-  if(sps_choice == "Lsol"){
-    sps_title <- "Laminaria solidungula"
-  } else if(sps_choice == "Slat"){
-    sps_title <- "Saccharina latissima"
-  } else if(sps_choice == "Acla"){
-    sps_title <- "Agarum clathratum"
-  } else if(sps_choice == "Aesc"){
-    sps_title <- "Alaria esculenta"
-  } else{
-    stop("*sad robot noises*")
-  }  
-  
-  # Extract raw results for geom_point()
-  scores <- biomod2:::get_evaluations(biomod_model, as.data.frame = T) %>% 
-    separate(Model.name, into = c("model", "run", "PA"), sep = "_") %>% 
-    dplyr::select(model:Testing.data) %>% 
-    pivot_wider(names_from = Eval.metric, values_from = Testing.data) %>% 
-    mutate(model = ifelse(model == "MAXENT.Phillips", "MAXENT", model))
-  
-  # Index of possible combos to catch 0 model psases
-  scores_index <- data.frame(model = c("ANN", "GAM", "GLM", "MAXENT", "RF"),
-                             total_count = 25)
-  
-  # Count of models that passed
-  scores_passed <- scores %>% 
-    group_by(model) %>% 
-    mutate(total_count = n()) %>% 
-    filter(TSS >= 0.7) %>% 
-    group_by(model, total_count) %>% 
-    summarise(pass_count = n(), .groups = "drop") %>% 
-    right_join(scores_index, by = c("model", "total_count")) %>% 
-    replace(is.na(.), 0) %>% 
-    mutate(pass_label = paste0(pass_count,"/",total_count)) %>% 
-    dplyr::arrange(model)
-  
-  # Model evaluation by algorithm
-  # model_res <- biomod2::models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS')) + 
-    # geom_point(data = scores, aes(x = ROC, y = TSS, colour = model)) +
-  model_res <- ggplot(scores) +
-    geom_label(data = scores_passed, label.size = 1.5, size = 6, show.legend = F,
-               aes(x = model, y = 0.95, label = pass_label, colour = model)) +
-    geom_boxplot(aes(x = model, y = TSS, fill = model)) +
-    geom_hline(aes(yintercept = 0.7), colour = "hotpink", size = 2) +
-    labs(x = NULL, y = "TSS", title = sps_title, fill = "Model") +
-    scale_y_continuous(limits = c(0, 1.0), expand = c(0, 0)) +
-    scale_fill_brewer(palette = "Set1", aesthetics = c("colour", "fill")) +
-    # guides(fill = guide_legend(override.aes = list(shape = 15))) +
-    # coord_cartesian(xlim = c(0.6,1), ylim = c(0.3,1), expand = F) +
-    theme(plot.title = element_text(face = "italic"),
-          axis.text.x = element_blank(),
-          axis.ticks.x = element_blank(),
-          panel.border = element_rect(colour = "black", fill = NA))
-  # model_res
-
-  return(model_res)
-}
-
-# Create plots
-model_stats_Acla <- model_stats_plot("Acla")
-model_stats_Aesc <- model_stats_plot("Aesc")
-model_stats_Lsol <- model_stats_plot("Lsol")
-model_stats_Slat <- model_stats_plot("Slat")
-
-# Combine and save
-fig_5 <- ggpubr::ggarrange(model_stats_Acla, model_stats_Aesc, model_stats_Lsol, model_stats_Slat, 
-                           ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom", 
-                           labels = c("A)", "B)", "C)", "D)"))
-ggsave("figures/fig_5.png", fig_5, width = 10, height = 10.5,  dpi = 600)
-ggsave("figures/fig_5.jpg", fig_5, width = 10, height = 10.5,  dpi = 600)
-
-# Agarum only for demo/talk
-ggsave("talk/figure/fig_5_agarum.png", model_stats_Acla, width = 7, height = 5)
-
-# Alaria only for talk
-ggsave("talk/figure/fig_5_alaria.png", model_stats_Aesc, width = 7, height = 5)
-
-# Laminaria only for talk
-ggsave("talk/figure/fig_5_laminaria.png", model_stats_Lsol, width = 7, height = 5)
-
-# Saccharina only for talk
-ggsave("talk/figure/fig_5_saccharina.png", model_stats_Slat, width = 7, height = 5)
+fig_5_lam <- ggpubr::ggarrange(model_compare_lam, model_compare_legend, ncol = 1, heights = c(1, 0.15))
+ggsave("talk/figure/fig_5_lam.png", fig_5_lam, width = 7, height = 4)
 
 
 # Figure 6 ----------------------------------------------------------------
+# Simple maps of physical variables over time
 
-# Random forest model results
-load("data/best_rf_kelpcover.RData")
-load("data/best_rf_laminariales.RData")
-load("data/best_rf_agarum.RData")
-load("data/best_rf_alaria.RData")
+# Load future data
+Arctic_BO_present <- Arctic_BO %>% mutate(proj = "present") %>% 
+  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
+  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
+Arctic_BO_2050 <- loadRData("data/Arctic_BO_2050.RData") %>% mutate(proj = "2050") %>% 
+  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
+  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
+Arctic_BO_2100 <- loadRData("data/Arctic_BO_2100.RData") %>% mutate(proj = "2100") %>% 
+  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
+  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
+Arctic_BO_futures <- rbind(Arctic_BO_present, Arctic_BO_2050, Arctic_BO_2100) %>% 
+  mutate(proj = factor(proj, levels = c("present", "2050", "2100"))) %>% 
+  mutate(name = case_when(name == "BO21_templtmax_ss" ~ "Temperature (°C)",
+                          name == "BO21_salinitymean_ss" ~ "Salinity (PSS)",
+                          name == "BO21_icethickmean_ss" ~ "Ice thickness (m)"))
 
-# Confidence in RF output
-# Function for creating figure showing confidence intervals of prediction accuracy
-conf_plot_RF <- function(df, sps_choice){
-  
-  # Create full species name and load ensemble data
-  if(sps_choice == "laminariales"){
-    sps_title <- "Laminareacea"
-  } else if(sps_choice == "agarum"){
-    sps_title <- "Agarum clathratum"
-  } else if(sps_choice == "alaria"){
-    sps_title <- "Alaria esculenta"
-  } else{
-    stop("*sad robot noises*")
-  }
-  
-  # 90 CI around predictions per step
-  conf_acc <- df %>% 
-    filter(portion == "validate") %>% 
-    group_by(original) %>% 
-    mutate(accuracy = round(accuracy, -1)) %>% 
-    summarise(count = n(),
-              q05 = quantile(accuracy, 0.05),
-              q25 = quantile(accuracy, 0.25),
-              q50 = median(accuracy),
-              mean = mean(accuracy),
-              q75 = quantile(accuracy, 0.75),
-              q95 = quantile(accuracy, 0.95), .groups = "drop")
-  
-  conf_mean <- df %>% 
-    filter(portion == "validate") %>% 
-    group_by(model_id) %>% 
-    mutate(accuracy = round(accuracy)) %>% 
-    summarise(mean_acc = mean(abs(accuracy)),
-              sd_acc = sd(abs(accuracy)),
-              r_acc = cor(x = original, y = pred), .groups = "drop")
-  
-  conf_mean_label <- conf_mean %>% 
-    summarise(mean_acc = round(mean(abs(mean_acc))),
-              sd_acc = round(mean(abs(sd_acc))),
-              r_acc = round(mean(r_acc), 2))
-  
-  conf_best_label <- conf_mean %>% 
-    filter(mean_acc == min(mean_acc)) %>% 
-    mutate(mean_acc = round(abs(mean_acc)),
-           sd_acc = round(sd_acc),
-           r_acc = round(r_acc, 2))
-  
-  conf_best <- df %>% 
-    filter(model_id == conf_best_label$model_id,
-           portion == "validate") %>% 
-    group_by(original) %>% 
-    summarise(mean_acc = mean(accuracy),
-              sd_acc = sd(accuracy), .groups = "drop")
-  
-  # Visualise
-  conf_plot <- ggplot(conf_acc, aes(x = original, y = mean)) +
-    geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
-                  fatten = 0, fill = "grey70", colour = NA, width = 10) +
-    geom_crossbar(aes(ymin = q25, ymax = q75),
-                  fatten = 0, fill = "grey50", width = 10) +
-    geom_crossbar(aes(ymin = q50, ymax = q50), size = 1.5,
-                  fatten = 0, fill = NA, colour = "black", width = 10) +
-    geom_hline(yintercept = 0, size = 2, alpha = 0.7, colour = "red") +
-    geom_hline(yintercept = c(-50, 50), size = 0.5, alpha = 0.7, colour = "purple", linetype = "dashed") +
-    # geom_hline(yintercept = -50, size = 1, alpha = 1, colour = "purple", linetype = "dashed") +
-    geom_label(aes(label = scales::comma(count, accuracy = 1), y = q95), size = 3) +
-    # geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
-    # colour = "purple", size = 1.2, alpha = 0.8) +
-    # geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
-    geom_label(data = conf_mean_label, 
-               aes(x = 75, y = 75, label = paste0("Mean accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
-    # geom_label(data = conf_best_label, colour = "purple",
-    # aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
-    scale_y_continuous(limits = c(-100, 100), breaks = c(-50, 0 ,50), labels = c(-50, 0 ,50), 
-                       minor_breaks = seq(-90, 90, 10), expand = c(0, 0)) +
-    scale_x_continuous(breaks = c(0, 20, 40, 60, 80, 100), expand = c(0, 0)) +
-    labs(y = "Difference from observed", x = "Observed value (% cover)", title = sps_title) +
-    theme(panel.border = element_rect(fill = NA, colour = "black"))
-  
-  # Correct title as necessary
-  if(sps_choice %in% c("agarum", "alaria")){
-    conf_plot <- conf_plot + theme(plot.title = element_text(face = "italic"))
-  }
-  conf_plot
-  return(conf_plot)
-}
+# Limit to bounding box for stats
+bbox_BO_futures <- Arctic_BO_futures %>% 
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
 
-# Create the plots
-cover_lam <- conf_plot_RF(best_rf_laminariales$accuracy_reg, "laminariales")
-cover_agarum <- conf_plot_RF(best_rf_agarum$accuracy_reg, "agarum")
-cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "alaria")
+# Find the specific limits within the bounding boxes
+lims_ice <- bbox_BO_futures %>% 
+  filter(name == "Ice thickness (m)")
+range(lims_ice$value)
+lims_sal <- bbox_BO_futures %>% 
+  filter(name == "Salinity (PSS)")
+range(lims_sal$value)
+lims_temp <- bbox_BO_futures %>% 
+  filter(name == "Temperature (°C)")
+range(lims_temp$value)
 
-# Steek'em
-fig_6 <- ggpubr::ggarrange(cover_agarum, cover_alaria, cover_lam, ncol = 1, 
-                           labels = c("A)", "B)", "C)"))
-ggsave("figures/fig_6.png", fig_6, width = 7, height = 12, dpi = 600)
-ggsave("figures/fig_6.jpg", fig_6, width = 7, height = 12, dpi = 600)
+# Ice plot
+futures_plot_ice <- Arctic_BO_futures %>%
+  filter(name == "Ice thickness (m)") %>%
+  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
+         lat >= bbox_arctic[3], lat <= bbox_arctic[4]) %>%
+  na.omit() %>% 
+  mutate(value = round(value, 1)) %>% 
+  mutate(value_cut = base::cut(value, c(0, 0.2, 0.4, 0.6, 0.8, 1, 2, 5.1), include.lowest = T)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = value_cut)) +
+  borders(fill = "grey50", colour = "grey90", size = 0.2) +
+  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+  scale_fill_brewer(palette = "Blues", direction = 1) +
+  facet_grid(name ~ proj, switch = "y") +
+  labs(x = NULL, y = NULL, fill = "m") +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        panel.border = element_rect(colour = "black", fill = NA))
+# futures_plot_ice
 
-# Agarum only for demo/talk
-ggsave("talk/figure/fig_6_agarum.png", cover_agarum, width = 7, height = 4)
+# Salinity plot
+futures_plot_sal <- Arctic_BO_futures %>%
+  filter(name == "Salinity (PSS)") %>%
+  mutate(value = round(value, 0)) %>% 
+  mutate(value_cut = base::cut(value, c(7, 10, 15, 20, 25, 30, 35), include.lowest = T)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = value_cut)) +
+  borders(fill = "grey50", colour = "grey90", size = 0.2) +
+  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+  scale_fill_brewer(palette = "Spectral", direction = -1) +
+  facet_grid(name ~ proj, switch = "y") +
+  labs(x = NULL, y = NULL, fill = "PSS") +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        strip.text.x = element_blank(), strip.background.x = element_blank(),
+        panel.border = element_rect(colour = "black", fill = NA))
+# futures_plot_sal
 
-# Alaria only for talk
-ggsave("talk/figure/fig_6_alaria.png", cover_alaria, width = 7, height = 4)
+# Temperature plot
+futures_plot_temp <- Arctic_BO_futures %>%
+  filter(name == "Temperature (°C)") %>%
+  mutate(value = round(value, 0)) %>% 
+  mutate(value_cut = base::cut(value, c(-1, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 22), include.lowest = T)) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_raster(aes(fill = value_cut)) +
+  borders(fill = "grey50", colour = "grey90", size = 0.2) +
+  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
+  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
+  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
+  scale_fill_viridis_d() +
+  facet_grid(name ~ proj, switch = "y") +
+  labs(x = NULL, y = NULL, fill = "°C") +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        strip.text.x = element_blank(), strip.background.x = element_blank(),
+        panel.border = element_rect(colour = "black", fill = NA),
+        legend.key.size = unit(0.5, 'cm'))
+# futures_plot_temp
 
-# Laminariales only for talk
-ggsave("talk/figure/fig_6_lam.png", cover_lam, width = 7, height = 4)
+# Stitch them together
+futures_plot_all <- ggpubr::ggarrange(futures_plot_ice, futures_plot_sal, futures_plot_temp, ncol = 1, align = "hv")
+ggsave("figures/fig_6.png", futures_plot_all, width = 6.5, height = 8.5, dpi = 600)
+ggsave("figures/fig_6.jpg", futures_plot_all, width = 6.5, height = 8.5, dpi = 600)
 
 
 # Figure S1 ---------------------------------------------------------------
-# The random forest model results
-# NB: This requires functions from the Figure 3 section
+# Created manually by Jesi
 
-# testers...
-# kelp_choice <- "laminariales"
-# kelp_choice <- "agarum"
+
+# Figure S2 ---------------------------------------------------------------
+# Created manually by Jesi
+
+
+# Figure S3 ---------------------------------------------------------------
+# The random forest model results
+
+# NB: This requires functions from the Figure 4 section
 rf_plot <- function(kelp_choice, add_legend = F){
   
   # Create full species name
@@ -984,20 +1005,108 @@ rf_alaria <- rf_plot("alaria")
 rf_legend <- rf_plot("laminariales", add_legend = T)
 
 # Combine into one mecha-figure
-fig_S1 <- ggpubr::ggarrange(rf_agarum, rf_alaria, rf_lam, rf_legend,
+fig_S3 <- ggpubr::ggarrange(rf_agarum, rf_alaria, rf_lam, rf_legend,
                             ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
-ggsave("figures/fig_S1.png", fig_S1, width = 7, height = 11, dpi = 600)
-ggsave("figures/fig_S1.jpg", fig_S1, width = 7, height = 11, dpi = 600)
+ggsave("figures/fig_S3.png", fig_S3, width = 7, height = 11, dpi = 600)
+ggsave("figures/fig_S3.jpg", fig_S3, width = 7, height = 11, dpi = 600)
 
 
-# Figure S2 ---------------------------------------------------------------
+# Figure S4 ---------------------------------------------------------------
+# The model values from the ensembles
 
+model_stats_plot <- function(sps_choice){
+  
+  # Load chosen biomod_model and print evaluation scores
+  biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
+  
+  # Create full species name
+  if(sps_choice == "Lsol"){
+    sps_title <- "Laminaria solidungula"
+  } else if(sps_choice == "Slat"){
+    sps_title <- "Saccharina latissima"
+  } else if(sps_choice == "Acla"){
+    sps_title <- "Agarum clathratum"
+  } else if(sps_choice == "Aesc"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }  
+  
+  # Extract raw results for geom_point()
+  scores <- biomod2:::get_evaluations(biomod_model, as.data.frame = T) %>% 
+    separate(Model.name, into = c("model", "run", "PA"), sep = "_") %>% 
+    dplyr::select(model:Testing.data) %>% 
+    pivot_wider(names_from = Eval.metric, values_from = Testing.data) %>% 
+    mutate(model = ifelse(model == "MAXENT.Phillips", "MAXENT", model))
+  
+  # Index of possible combos to catch 0 model psases
+  scores_index <- data.frame(model = c("ANN", "GAM", "GLM", "MAXENT", "RF"),
+                             total_count = 25)
+  
+  # Count of models that passed
+  scores_passed <- scores %>% 
+    group_by(model) %>% 
+    mutate(total_count = n()) %>% 
+    filter(TSS >= 0.7) %>% 
+    group_by(model, total_count) %>% 
+    summarise(pass_count = n(), .groups = "drop") %>% 
+    right_join(scores_index, by = c("model", "total_count")) %>% 
+    replace(is.na(.), 0) %>% 
+    mutate(pass_label = paste0(pass_count,"/",total_count)) %>% 
+    dplyr::arrange(model)
+  
+  # Model evaluation by algorithm
+  # model_res <- biomod2::models_scores_graph(biomod_model, by = "models", metrics = c('ROC','TSS')) + 
+  # geom_point(data = scores, aes(x = ROC, y = TSS, colour = model)) +
+  model_res <- ggplot(scores) +
+    geom_label(data = scores_passed, label.size = 1.5, size = 6, show.legend = F,
+               aes(x = model, y = 0.95, label = pass_label, colour = model)) +
+    geom_boxplot(aes(x = model, y = TSS, fill = model)) +
+    geom_hline(aes(yintercept = 0.7), colour = "hotpink", size = 2) +
+    labs(x = NULL, y = "TSS", title = sps_title, fill = "Model") +
+    scale_y_continuous(limits = c(0, 1.0), expand = c(0, 0)) +
+    scale_fill_brewer(palette = "Set1", aesthetics = c("colour", "fill")) +
+    # guides(fill = guide_legend(override.aes = list(shape = 15))) +
+    # coord_cartesian(xlim = c(0.6,1), ylim = c(0.3,1), expand = F) +
+    theme(plot.title = element_text(face = "italic"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          panel.border = element_rect(colour = "black", fill = NA))
+  # model_res
+  
+  return(model_res)
+}
+
+# Create plots
+model_stats_Acla <- model_stats_plot("Acla")
+model_stats_Aesc <- model_stats_plot("Aesc")
+model_stats_Lsol <- model_stats_plot("Lsol")
+model_stats_Slat <- model_stats_plot("Slat")
+
+# Combine and save
+fig_S4 <- ggpubr::ggarrange(model_stats_Acla, model_stats_Aesc, model_stats_Lsol, model_stats_Slat, 
+                            ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom", 
+                            labels = c("A)", "B)", "C)", "D)"))
+ggsave("figures/fig_S4.png", fig_S4, width = 10, height = 10.5,  dpi = 600)
+ggsave("figures/fig_S4.jpg", fig_S4, width = 10, height = 10.5,  dpi = 600)
+
+# Agarum only for demo/talk
+ggsave("talk/figure/fig_S4_agarum.png", model_stats_Acla, width = 7, height = 5)
+
+# Alaria only for talk
+ggsave("talk/figure/fig_S4_alaria.png", model_stats_Aesc, width = 7, height = 5)
+
+# Laminaria only for talk
+ggsave("talk/figure/fig_S4_laminaria.png", model_stats_Lsol, width = 7, height = 5)
+
+# Saccharina only for talk
+ggsave("talk/figure/fig_S4_saccharina.png", model_stats_Slat, width = 7, height = 5)
+
+
+# Figure S5 ---------------------------------------------------------------
 # Standard error plot for ensemble model results
 
 # Function to process CI by latitude due to RAM limitations
-# df <- proj_present_df %>%
-#   filter(y == proj_present_df$y[1])
-# score_df <- scores
 std_err_calc <- function(df, score_df){
   
   # Make data long and combine with cutoff info
@@ -1028,7 +1137,6 @@ std_err_calc <- function(df, score_df){
 }
 
 # Function for prepping the ensemble model data
-# sps_choice <- "Slat"
 std_err_plot <- function(sps_choice){
   
   # Load chosen biomod_model and print evaluation scores
@@ -1097,393 +1205,32 @@ std_err_Acla <- std_err_plot("Acla"); gc()
 std_err_Aesc <- std_err_plot("Aesc"); gc()
 std_err_Lsol <- std_err_plot("Lsol"); gc()
 std_err_Slat <- std_err_plot("Slat"); gc()
-# ensemble_legend <- ensemble_plot("Acla", add_legend = T)
 
 # Combine into one mecha-figure
-fig_S2 <- ggpubr::ggarrange(std_err_Acla, std_err_Aesc, std_err_Lsol, std_err_Slat, #ensemble_legend,
+fig_S5 <- ggpubr::ggarrange(std_err_Acla, std_err_Aesc, std_err_Lsol, std_err_Slat, #ensemble_legend,
                             ncol = 2, nrow = 2, labels = c("A)", "B)", "C)", "D)"), #heights = c(1, 1, 1, 1), 
                             common.legend = T, legend = "bottom")
-ggsave("figures/fig_S2.png", fig_S2, width = 5, height = 8, dpi = 600)
-ggsave("figures/fig_S2.jpg", fig_S2, width = 5, height = 8, dpi = 600)
+ggsave("figures/fig_S5.png", fig_S2, width = 5, height = 8, dpi = 600)
+ggsave("figures/fig_S5.jpg", fig_S2, width = 5, height = 8, dpi = 600)
 
 
-# Figure S3 ---------------------------------------------------------------
-
-# The variance per pixel in the random forest model results
-# testers...
-# kelp_choice <- "laminariales"
-# kelp_choice <- "agarum"
-rf_var_plot <- function(kelp_choice, add_legend = F){
-  
-  # Create full species name
-  if(kelp_choice == "laminariales"){
-    sps_title <- "Laminareacea"
-  } else if(kelp_choice == "agarum"){
-    sps_title <- "Agarum clathratum"
-  } else if(kelp_choice == "alaria"){
-    sps_title <- "Alaria esculenta"
-  } else{
-    stop("*sad robot noises*")
-  }
-  
-  # Load data
-  best_rf <- loadRData(paste0("data/best_rf_",kelp_choice,".RData"))
-  
-  # Calculate differences
-  project_diff <- best_rf$project_multi
-  
-  # Plot
-  p_present <-  ggplot() +
-    geom_tile(data = filter(project_diff,
-                            # proj_pres == 1,
-                            # pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 50),
-              aes(x = lon, y = lat, fill = pred_present_sd)) +
-    scale_fill_distiller("Cover (SD %)", palette = "Oranges", direction = 1, limits = c(0, 8)) +
-    # scale_fill_gradientn("Cover (%)", colours = RColorBrewer::brewer.pal(9, "BuGn")[c(5,6,7,8)],
-    # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
-    # scale_fill_distiller("Cover (%)", palette = "BuGn", direction = 1, #low = "springgreen1", high = "springgreen4", 
-    # limits = c(0, 70), breaks = c(0, 20, 40, 60), guide = "legend") +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
-    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    labs(x = NULL, y = NULL, title = paste0(sps_title)) +
-    theme(legend.position = "bottom",
-          axis.line = element_line(colour = NA),
-          panel.background = element_rect(fill = "grey100"),
-          panel.border = element_rect(colour = "black", fill = NA))
-  
-  # Correct title as necessary
-  if(kelp_choice %in% c("agarum", "alaria")){
-    p_present <- p_present + theme(plot.title = element_text(face = "italic"))
-  }
-  # p_present
-  
-  # 2050 plot
-  p_2050 <- ggplot() +
-    geom_tile(data = filter(project_diff,
-                            # proj_2050 == 1,
-                            # pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 50),
-              aes(x = lon, y = lat, fill = pred_2050_sd)) +
-    scale_fill_distiller("Cover (SD %)", palette = "Oranges", direction = 1, limits = c(0, 8)) +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
-    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    labs(x = NULL, y = NULL, title = "2050 - present") +
-    theme(legend.position = "bottom",
-          axis.text.y = element_blank(),
-          axis.ticks.y = element_blank(),
-          panel.background = element_rect(fill = "grey100"),
-          panel.border = element_rect(colour = "black", fill = NA))
-  # p_2050
-  
-  # 2050 plot
-  p_2100 <-  ggplot() +
-    geom_tile(data = filter(project_diff,
-                            # proj_2100 == 1,
-                            # pred_present_round >= 10,
-                            depth <= 100 | land_distance <= 50),
-              aes(x = lon, y = lat, fill = pred_2100_sd)) +
-    scale_fill_distiller("Cover (SD %)", palette = "Oranges", direction = 1, limits = c(0, 8)) +
-    borders(fill = "grey50", colour = "grey90", size = 0.2) +
-    scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-    scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-    coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                   ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-    labs(x = NULL, y = NULL, title = "2100 - present") +
-    theme(legend.position = "bottom",
-          axis.text.y = element_blank(),
-          axis.ticks.y = element_blank(),
-          panel.background = element_rect(fill = "grey100"),
-          panel.border = element_rect(colour = "black", fill = NA))
-  # p_2100
-  
-  # Combine and exit
-  p_ALL <- cowplot::plot_grid(
-    p_present + theme(legend.position = "none"),
-    p_2050 + theme(legend.position = "none"),
-    p_2100 + theme(legend.position = "none"),
-    ncol = 3,
-    align = "v")
-  if(add_legend){
-    p_ALL <- cowplot::plot_grid(
-      ggplot() + theme_void(),
-      cowplot::get_legend(p_present),
-      ggplot() + theme_void(),
-      # cowplot::get_legend(p_2100),
-      ncol = 3, rel_widths = c(1, 0, 1.5))
-  }
-  return(p_ALL)
-}
-
-# Create figures
-rf_var_lam <- rf_var_plot("laminariales")
-rf_var_agarum <- rf_var_plot("agarum")
-rf_var_alaria <- rf_var_plot("alaria")
-rf_var_legend <- rf_var_plot("laminariales", add_legend = T)
-
-# Combine into one mecha-figure
-rf_var_ALL <- ggpubr::ggarrange(rf_var_agarum, rf_var_alaria, rf_var_lam, rf_var_legend,
-                                ncol = 1, labels = c("A)", "B)", "C)", ""), heights = c(1, 1, 1, 0.15))
-ggsave("figures/fig_S3.png", rf_var_ALL, width = 7, height = 11, dpi = 600)
-ggsave("figures/fig_S3.jpg", rf_var_ALL, width = 7, height = 11, dpi = 600)
-
-
-# Figure S4 ---------------------------------------------------------------
-# Response curves for ensemble models
-
-# Function for extracting species response curve data
-# sps_choice <- sps_names[1]
-sps_response_data <- function(biomod_model, sp_dat){
-  # Model scores
-  model_scores <- t(data.frame(get_evaluations(biomod_model))) %>% 
-    data.frame() %>% 
-    mutate(idx = rownames(.),
-           idx = str_replace(idx, "MAXENT.Phillips", "MAXENT_Phillips"),
-           idx = str_replace(idx, "Testing.data", "Testing_data")) %>% 
-    separate(idx, c("type", "model", "run", "PA"), sep = "[.]", remove = T) %>% 
-    mutate(model = case_when(model == "MAXENT_Phillips" ~ "MAXENT.Phillips", TRUE ~ model)) %>% 
-    filter(type == "Testing_data") %>%
-    `row.names<-`(NULL) %>% 
-    dplyr::select(type, model, run, PA, everything())
-  
-  # Clean up and exit
-  sp_res <- sp_dat %>% 
-    separate(pred.name, c("species", "PA", "run", "model"), sep = "_", remove = T) %>% 
-    left_join(model_scores, by = c("model", "run", "PA")) %>% 
-    mutate(expl.name = case_when(expl.name == "BO21_templtmax_ss" ~ "__B)__    Temperature (°C)",
-                                 expl.name == "BO21_salinitymean_ss" ~ "__C)__    Salinity (PSS)",
-                                 expl.name == "BO21_icethickmean_ss" ~ "__A)__    Ice thickness (m)",
-                                 expl.name == "BO21_curvelmean_bdmax" ~ "__F)__    Current velocity (m-1)",
-                                 expl.name == "BO21_ironmean_bdmax" ~ "__D)__    Iron (umol.m-3)",
-                                 expl.name == "BO21_phosphatemean_bdmax" ~ "__E)__    Phosphate (umol.m-3)"),
-           run_PA_model = paste0(run,"_",PA,"_",model))
-  return(sp_res)
-}
-
-## Load model data per species
-# NB: Due to BIOMOD2 internal structure, much of this needs to be run in the global environment...
-# Acla
-biomod_model_Acla <- loadRData(paste0(sps_names[1],"/",sps_names[1],".",sps_names[1],".models.out"))
-sp_name_Acla <- BIOMOD_LoadModels(biomod_model_Acla, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
-sp_dat_Acla <- response.plot2(models  = sp_name_Acla,
-                              Data = get_formal_data(biomod_model_Acla, 'expl.var'),
-                              show.variables = get_formal_data(biomod_model_Acla, 'expl.var.names'),
-                              data_species = get_formal_data(biomod_model_Acla, 'resp.var'),
-                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
-curve_data_Acla <- sps_response_data(biomod_model_Acla, sp_dat_Acla)
-rm(list = grep("Acla_",names(.GlobalEnv),value = TRUE)); gc()
-# Aesc
-biomod_model_Aesc <- loadRData(paste0(sps_names[2],"/",sps_names[2],".",sps_names[2],".models.out"))
-sp_name_Aesc <- BIOMOD_LoadModels(biomod_model_Aesc, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
-sp_dat_Aesc <- response.plot2(models  = sp_name_Aesc,
-                              Data = get_formal_data(biomod_model_Aesc, 'expl.var'),
-                              show.variables = get_formal_data(biomod_model_Aesc, 'expl.var.names'),
-                              data_species = get_formal_data(biomod_model_Aesc, 'resp.var'),
-                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
-curve_data_Aesc <- sps_response_data(biomod_model_Aesc, sp_dat_Aesc)
-rm(list = grep("Aesc_",names(.GlobalEnv),value = TRUE)); gc()
-# Lsol
-biomod_model_Lsol <- loadRData(paste0(sps_names[4],"/",sps_names[4],".",sps_names[4],".models.out"))
-sp_name_Lsol <- BIOMOD_LoadModels(biomod_model_Lsol, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
-sp_dat_Lsol <- response.plot2(models  = sp_name_Lsol,
-                              Data = get_formal_data(biomod_model_Lsol, 'expl.var'),
-                              show.variables = get_formal_data(biomod_model_Lsol, 'expl.var.names'),
-                              data_species = get_formal_data(biomod_model_Lsol, 'resp.var'),
-                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
-curve_data_Lsol <- sps_response_data(biomod_model_Lsol, sp_dat_Lsol)
-rm(list = grep("Lsol_",names(.GlobalEnv),value = TRUE)); gc()
-# Slat
-biomod_model_Slat <- loadRData(paste0(sps_names[5],"/",sps_names[5],".",sps_names[5],".models.out"))
-sp_name_Slat <- BIOMOD_LoadModels(biomod_model_Slat, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
-# NB: Sometimes this fails on the first go. Just run it again... I don't know why...
-sp_dat_Slat <- response.plot2(models  = sp_name_Slat,
-                              Data = get_formal_data(biomod_model_Slat, 'expl.var'),
-                              show.variables = get_formal_data(biomod_model_Slat, 'expl.var.names'),
-                              data_species = get_formal_data(biomod_model_Slat, 'resp.var'),
-                              do.bivariate = FALSE, fixed.var.metric = 'median', legend = FALSE, plot = FALSE)
-curve_data_Slat <- sps_response_data(biomod_model_Slat, sp_dat_Slat)
-rm(list = grep("Slat_",names(.GlobalEnv),value = TRUE)); gc()
-# All together now
-curve_data_ALL <- rbind(curve_data_Acla, curve_data_Aesc, curve_data_Lsol, curve_data_Slat)
-
-# Plot RC for all species
-response_curve_species_mean <- curve_data_ALL %>%
-  filter(TSS >= 0.7) %>% 
-  ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
-  geom_point(alpha = 0.05) +
-  geom_smooth(fill = "grey30") +
-  facet_wrap(~expl.name, scales = 'free_x') +#
-  labs(x = NULL, y = 'Probability of occurence', colour = 'Species') + 
-  scale_color_brewer(type = 'qual', palette = 3) +
-  coord_cartesian(expand = F, ylim = c(0, 1)) +
-  theme(legend.position = 'bottom',
-        panel.border = element_rect(colour = "black", fill = NA),
-        strip.text = ggtext::element_markdown(hjust = 0),
-        strip.background = element_blank())
-ggsave("figures/fig_S4.png", response_curve_species_mean, height = 8, width = 12, dpi = 600)
-ggsave("figures/fig_S4.jpg", response_curve_species_mean, height = 8, width = 12, dpi = 600)
-
-
-# Figure S5 ---------------------------------------------------------------
-# Response curves for RF
-
-# Load RF model results
-best_rf_laminariales <- loadRData("data/best_rf_laminariales.RData")$project_multi %>% mutate(species = "Lam")
-best_rf_agarum <- loadRData("data/best_rf_agarum.RData")$project_multi %>% mutate(species = "Acla")
-best_rf_alaria <- loadRData("data/best_rf_alaria.RData")$project_multi %>% mutate(species = "Aesc")
-
-# Merge RF % cover predictions to BO data
-curve_rf_ALL <- rbind(best_rf_laminariales, best_rf_agarum, best_rf_alaria) %>% 
-  filter(depth <= 30,
-         !is.na(pred_present_mean)) %>% 
-  left_join(Arctic_BO, by = c("lon", "lat")) %>% 
-  dplyr::select(species, pred_present_mean, BO21_templtmax_ss, BO21_salinitymean_ss, 
-                BO21_icethickmean_ss, BO21_curvelmean_bdmax, BO21_ironmean_bdmax, BO21_phosphatemean_bdmax) %>% 
-  group_by(species, pred_present_mean) %>% 
-  # summarise_all(mean, na.rm = T, .groups = "drop") %>% 
-  pivot_longer(BO21_templtmax_ss:BO21_phosphatemean_bdmax) %>% 
-  mutate(name = case_when(name == "BO21_templtmax_ss" ~ "__B)__    Temperature (°C)",
-                          name == "BO21_salinitymean_ss" ~ "__C)__    Salinity (PSS)",
-                          name == "BO21_icethickmean_ss" ~ "__A)__    Ice thickness (m)",
-                          name == "BO21_curvelmean_bdmax" ~ "__F)__    Current velocity (m-1)",
-                          name == "BO21_ironmean_bdmax" ~ "__D)__    Iron (umol.m-3)",
-                          name == "BO21_phosphatemean_bdmax" ~ "__E)__    Phosphate (umol.m-3)"))
-
-# Create line plot from that with y = pred and x = var
-response_curve_RF <-  curve_rf_ALL %>%
-  ggplot(aes(x = value, y = pred_present_mean, colour = species)) +
-  # geom_line(size = 1) +
-  geom_point(alpha = 0.05) +
-  geom_smooth(fill = "grey30") +
-  facet_wrap(~name, scales = 'free_x') +#, strip.position = "bottom") + 
-  labs(x = NULL, y = 'Predicted cover (%)', colour = 'Species') + 
-  scale_color_brewer(type = 'qual', palette = 3) +
-  coord_cartesian(expand = F, ylim = c(0, 60)) +
-  # theme_minimal() +
-  theme(legend.position = 'bottom',
-        panel.border = element_rect(colour = "black", fill = NA),
-        strip.text = ggtext::element_markdown(hjust = 0),
-        # strip.placement = "outside", 
-        strip.background = element_blank())
-ggsave("figures/fig_S5.png", response_curve_RF, height = 8, width = 12, dpi = 600)
-ggsave("figures/fig_S5.jpg", response_curve_RF, height = 8, width = 12, dpi = 600)
-
-
-# Figure S6 ---------------------------------------------------------------
-# Simple maps of physical variables over time
-
-# Load future data
-Arctic_BO_present <- Arctic_BO %>% mutate(proj = "present") %>% 
-  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
-  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
-Arctic_BO_2050 <- loadRData("data/Arctic_BO_2050.RData") %>% mutate(proj = "2050") %>% 
-  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
-  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
-Arctic_BO_2100 <- loadRData("data/Arctic_BO_2100.RData") %>% mutate(proj = "2100") %>% 
-  dplyr::select(lon, lat, proj, BO21_templtmax_ss, BO21_salinitymean_ss, BO21_icethickmean_ss) %>% 
-  pivot_longer(BO21_templtmax_ss:BO21_icethickmean_ss)
-Arctic_BO_futures <- rbind(Arctic_BO_present, Arctic_BO_2050, Arctic_BO_2100) %>% 
-  mutate(proj = factor(proj, levels = c("present", "2050", "2100"))) %>% 
-  mutate(name = case_when(name == "BO21_templtmax_ss" ~ "Temperature (°C)",
-                          name == "BO21_salinitymean_ss" ~ "Salinity (PSS)",
-                          name == "BO21_icethickmean_ss" ~ "Ice thickness (m)"))
-
-# Li,it to bounding box for stats
-bbox_BO_futures <- Arctic_BO_futures %>% 
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-
-# Find the specific limits within the bounding boxes
-lims_ice <- bbox_BO_futures %>% 
-  filter(name == "Ice thickness (m)")
-range(lims_ice$value)
-lims_sal <- bbox_BO_futures %>% 
-  filter(name == "Salinity (PSS)")
-range(lims_sal$value)
-lims_temp <- bbox_BO_futures %>% 
-  filter(name == "Temperature (°C)")
-range(lims_temp$value)
-
-# Ice plot
-futures_plot_ice <- Arctic_BO_futures %>%
-  filter(name == "Ice thickness (m)") %>%
-  filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-         lat >= bbox_arctic[3], lat <= bbox_arctic[4]) %>%
-  na.omit() %>% 
-  mutate(value = round(value, 1)) %>% 
-  mutate(value_cut = base::cut(value, c(0, 0.2, 0.4, 0.6, 0.8, 1, 2, 5.1), include.lowest = T)) %>% 
-  ggplot(aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = value_cut)) +
-  borders(fill = "grey50", colour = "grey90", size = 0.2) +
-  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_brewer(palette = "Blues", direction = 1) +
-  facet_grid(name ~ proj, switch = "y") +
-  labs(x = NULL, y = NULL, fill = "m") +
-  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
-        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
-        panel.border = element_rect(colour = "black", fill = NA))
-# futures_plot_ice
-
-# Salinity plot
-futures_plot_sal <- Arctic_BO_futures %>%
-  filter(name == "Salinity (PSS)") %>%
-  mutate(value = round(value, 0)) %>% 
-  mutate(value_cut = base::cut(value, c(7, 10, 15, 20, 25, 30, 35), include.lowest = T)) %>% 
-  ggplot(aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = value_cut)) +
-  borders(fill = "grey50", colour = "grey90", size = 0.2) +
-  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_brewer(palette = "Spectral", direction = -1) +
-  facet_grid(name ~ proj, switch = "y") +
-  labs(x = NULL, y = NULL, fill = "PSS") +
-  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
-        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
-        strip.text.x = element_blank(), strip.background.x = element_blank(),
-        panel.border = element_rect(colour = "black", fill = NA))
-# futures_plot_sal
-
-# Temperature plot
-futures_plot_temp <- Arctic_BO_futures %>%
-  filter(name == "Temperature (°C)") %>%
-  mutate(value = round(value, 0)) %>% 
-  mutate(value_cut = base::cut(value, c(-1, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 22), include.lowest = T)) %>% 
-  ggplot(aes(x = lon, y = lat)) +
-  geom_raster(aes(fill = value_cut)) +
-  borders(fill = "grey50", colour = "grey90", size = 0.2) +
-  scale_y_continuous(breaks = c(60, 70), labels = c("60°N", "70°N")) +
-  scale_x_continuous(breaks = c(-80, -60), labels = c("80°W", "60°W")) +
-  coord_quickmap(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                 ylim = c(bbox_arctic[3], bbox_arctic[4]), expand = F) +
-  scale_fill_viridis_d() +
-  facet_grid(name ~ proj, switch = "y") +
-  labs(x = NULL, y = NULL, fill = "°C") +
-  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
-        axis.text.x = element_blank(), axis.ticks.x = element_blank(),
-        strip.text.x = element_blank(), strip.background.x = element_blank(),
-        panel.border = element_rect(colour = "black", fill = NA),
-        legend.key.size = unit(0.5, 'cm'))
-# futures_plot_temp
-
-# Stitch them together
-futures_plot_all <- ggpubr::ggarrange(futures_plot_ice, futures_plot_sal, futures_plot_temp, ncol = 1, align = "hv")
-ggsave("figures/fig_S6.png", futures_plot_all, width = 6.5, height = 8.5, dpi = 600)
-ggsave("figures/fig_S6.jpg", futures_plot_all, width = 6.5, height = 8.5, dpi = 600)
+# Table S1 ----------------------------------------------------------------
+# Created by Jesi
 
 
 # Table S2 ----------------------------------------------------------------
-# Cutoff values
+# Created by Jesi
+
+
+# Table S3 ----------------------------------------------------------------
+# Created by Jesi
+
+
+# Table S4 ----------------------------------------------------------------
+# Created by Jesi
+
+
+# Cutoff values -----------------------------------------------------------
 
 model_cutoff <- function(sps_choice){
   
