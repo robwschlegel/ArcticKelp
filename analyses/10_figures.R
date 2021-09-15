@@ -532,7 +532,7 @@ model_compare_plot <- function(model_choice, add_legend = F){
   
   # Create full species name and load ensemble data
   if(model_choice == "laminariales"){
-    sps_title <- "Laminareacea"
+    sps_title <- "Laminariaceae"
     df_project <- left_join(ensemble_prep("Lsol"), ensemble_prep("Slat"),
                             by = c("lon", "lat", "land_distance", "depth", "projection", "sq_area")) %>% 
       mutate(presence = case_when(presence.x == 1 | presence.y == 1 ~ 1, TRUE ~ 0)) %>% 
@@ -839,7 +839,7 @@ rf_plot <- function(kelp_choice, add_legend = F){
   
   # Create full species name
   if(kelp_choice == "laminariales"){
-    sps_title <- "Laminareacea"
+    sps_title <- "Laminariaceae"
   } else if(kelp_choice == "agarum"){
     sps_title <- "Agarum clathratum"
   } else if(kelp_choice == "alaria"){
@@ -1212,6 +1212,123 @@ fig_S5 <- ggpubr::ggarrange(std_err_Acla, std_err_Aesc, std_err_Lsol, std_err_Sl
                             common.legend = T, legend = "bottom")
 ggsave("figures/fig_S5.png", fig_S2, width = 5, height = 8, dpi = 600)
 ggsave("figures/fig_S5.jpg", fig_S2, width = 5, height = 8, dpi = 600)
+
+
+
+# Figure S6 ---------------------------------------------------------------
+
+# Random forest model results
+load("data/best_rf_kelpcover.RData")
+load("data/best_rf_laminariales.RData")
+load("data/best_rf_agarum.RData")
+load("data/best_rf_alaria.RData")
+
+# Confidence in RF output
+# Function for creating figure showing confidence intervals of prediction accuracy
+conf_plot_RF <- function(df, sps_choice){
+  
+  # Create full species name and load ensemble data
+  if(sps_choice == "laminariales"){
+    sps_title <- "Laminariaceae"
+  } else if(sps_choice == "agarum"){
+    sps_title <- "Agarum clathratum"
+  } else if(sps_choice == "alaria"){
+    sps_title <- "Alaria esculenta"
+  } else{
+    stop("*sad robot noises*")
+  }
+  
+  # 90 CI around predictions per step
+  conf_acc <- df %>% 
+    filter(portion == "validate") %>% 
+    group_by(original) %>% 
+    mutate(accuracy = round(accuracy, -1)) %>% 
+    summarise(count = n(),
+              q05 = quantile(accuracy, 0.05),
+              q25 = quantile(accuracy, 0.25),
+              q50 = median(accuracy),
+              mean = mean(accuracy),
+              q75 = quantile(accuracy, 0.75),
+              q95 = quantile(accuracy, 0.95), .groups = "drop")
+  
+  conf_mean <- df %>% 
+    filter(portion == "validate") %>% 
+    group_by(model_id) %>% 
+    mutate(accuracy = round(accuracy)) %>% 
+    summarise(mean_acc = mean(abs(accuracy)),
+              sd_acc = sd(abs(accuracy)),
+              r_acc = cor(x = original, y = pred), .groups = "drop")
+  
+  conf_mean_label <- conf_mean %>% 
+    summarise(mean_acc = round(mean(abs(mean_acc))),
+              sd_acc = round(mean(abs(sd_acc))),
+              r_acc = round(mean(r_acc), 2))
+  
+  conf_best_label <- conf_mean %>% 
+    filter(mean_acc == min(mean_acc)) %>% 
+    mutate(mean_acc = round(abs(mean_acc)),
+           sd_acc = round(sd_acc),
+           r_acc = round(r_acc, 2))
+  
+  conf_best <- df %>% 
+    filter(model_id == conf_best_label$model_id,
+           portion == "validate") %>% 
+    group_by(original) %>% 
+    summarise(mean_acc = mean(accuracy),
+              sd_acc = sd(accuracy), .groups = "drop")
+  
+  # Visualise
+  conf_plot <- ggplot(conf_acc, aes(x = original, y = mean)) +
+    geom_crossbar(aes(y = 0, ymin = q05, ymax = q95),
+                  fatten = 0, fill = "grey70", colour = NA, width = 10) +
+    geom_crossbar(aes(ymin = q25, ymax = q75),
+                  fatten = 0, fill = "grey50", width = 10) +
+    geom_crossbar(aes(ymin = q50, ymax = q50), size = 1.5,
+                  fatten = 0, fill = NA, colour = "black", width = 10) +
+    geom_hline(yintercept = 0, size = 2, alpha = 0.7, colour = "red") +
+    geom_hline(yintercept = c(-50, 50), size = 0.5, alpha = 0.7, colour = "purple", linetype = "dashed") +
+    # geom_hline(yintercept = -50, size = 1, alpha = 1, colour = "purple", linetype = "dashed") +
+    geom_label(aes(label = scales::comma(count, accuracy = 1), y = q95), size = 3) +
+    # geom_segment(data = conf_best, aes(xend = original, y = mean_acc, yend = 0), 
+    # colour = "purple", size = 1.2, alpha = 0.8) +
+    # geom_point(data = conf_best, aes(y = mean_acc), colour = "purple", size = 3, alpha = 0.8) +
+    geom_label(data = conf_mean_label, 
+               aes(x = 75, y = 75, label = paste0("Mean accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
+    # geom_label(data = conf_best_label, colour = "purple",
+    # aes(x = 75, y = 60, label = paste0("Best accuracy: ",mean_acc,"±",sd_acc,"; r = ",r_acc))) +
+    scale_y_continuous(limits = c(-100, 100), breaks = c(-50, 0 ,50), labels = c(-50, 0 ,50), 
+                       minor_breaks = seq(-90, 90, 10), expand = c(0, 0)) +
+    scale_x_continuous(breaks = c(0, 20, 40, 60, 80, 100), expand = c(0, 0)) +
+    labs(y = "Difference from observed", x = "Observed value (% cover)", title = sps_title) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))
+  
+  # Correct title as necessary
+  if(sps_choice %in% c("agarum", "alaria")){
+    conf_plot <- conf_plot + theme(plot.title = element_text(face = "italic"))
+  }
+  conf_plot
+  return(conf_plot)
+}
+
+# Create the plots
+cover_lam <- conf_plot_RF(best_rf_laminariales$accuracy_reg, "laminariales")
+cover_agarum <- conf_plot_RF(best_rf_agarum$accuracy_reg, "agarum")
+cover_alaria <- conf_plot_RF(best_rf_alaria$accuracy_reg, "alaria")
+
+# Steek'em
+fig_S6 <- ggpubr::ggarrange(cover_agarum, cover_alaria, cover_lam, ncol = 1, 
+                            labels = c("A)", "B)", "C)"))
+ggsave("figures/fig_S6.png", fig_S6, width = 7, height = 12, dpi = 600)
+ggsave("figures/fig_S6.jpg", fig_S6, width = 7, height = 12, dpi = 600)
+
+# Agarum only for demo/talk
+ggsave("talk/figure/fig_S6_agarum.png", cover_agarum, width = 7, height = 4)
+
+# Alaria only for talk
+ggsave("talk/figure/fig_S6_alaria.png", cover_alaria, width = 7, height = 4)
+
+# Laminariales only for talk
+ggsave("talk/figure/fig_S6_lam.png", cover_lam, width = 7, height = 4)
 
 
 # Table S1 ----------------------------------------------------------------
