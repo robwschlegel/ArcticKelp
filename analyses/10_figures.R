@@ -532,10 +532,10 @@ ensemble_Slat_20 <- ensemble_plot("Slat", depth_limit = 20)
 ensemble_legend_20 <- ensemble_plot("Acla", add_legend = T, depth_limit = 20)
 
 # Combine into one mecha-figure
-fig_3_20 <- ggpubr::ggarrange(ensemble_Acla_20, ensemble_Aesc_20, ensemble_Lsol_20, ensemble_Slat_20, ensemble_legend_20,
+fig_4_20 <- ggpubr::ggarrange(ensemble_Acla_20, ensemble_Aesc_20, ensemble_Lsol_20, ensemble_Slat_20, ensemble_legend_20,
                               ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
-ggsave("figures/fig_3_20.png", fig_3_20, width = 7, height = 15, dpi = 600)
-ggsave("figures/fig_3_20.jpg", fig_3_20, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_4_20.png", fig_4_20, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_4_20.jpg", fig_4_20, width = 7, height = 15, dpi = 600)
 
 
 # Project area covered with a 15 m depth limit
@@ -546,10 +546,10 @@ ensemble_Slat_15 <- ensemble_plot("Slat", depth_limit = 15)
 ensemble_legend_15 <- ensemble_plot("Acla", add_legend = T, depth_limit = 15)
 
 # Combine into one mecha-figure
-fig_3_15 <- ggpubr::ggarrange(ensemble_Acla_15, ensemble_Aesc_15, ensemble_Lsol_15, ensemble_Slat_15, ensemble_legend_15,
+fig_4_15 <- ggpubr::ggarrange(ensemble_Acla_15, ensemble_Aesc_15, ensemble_Lsol_15, ensemble_Slat_15, ensemble_legend_15,
                               ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
-ggsave("figures/fig_3_15.png", fig_3_15, width = 7, height = 15, dpi = 600)
-ggsave("figures/fig_3_15.jpg", fig_3_15, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_4_15.png", fig_4_15, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_4_15.jpg", fig_4_15, width = 7, height = 15, dpi = 600)
 
 
 # Figure 5 ----------------------------------------------------------------
