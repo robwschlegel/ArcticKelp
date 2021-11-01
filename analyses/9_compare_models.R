@@ -1,9 +1,5 @@
 # analyses/9_compare_models.R
-# The purpose of this script is to compare the outputs of the ensemble and RF models
-
-# TO DO
-# Split the results by ecoregions to see how well the models work per region
-# Make a figure showing the accuracy per region polygon
+# The purpose of this script is to compare the outputs of the ensemble and RF models.
 
 
 # Setup -------------------------------------------------------------------
@@ -57,24 +53,6 @@ MAXENT_points <- MAXENT_points %>%
                             Sp %in% c("Slat", "Ldig", "Lsol") ~ "Laminariales")) %>% 
   filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
          lat >= bbox_arctic[3], lat <= bbox_arctic[4])
-
-# The MAXENT lon/lat grid
-# NB: Not currently necessary, and too large to save and push to GitHub; ~117 MB
-# MAX_grid <- as.data.frame(sp::read.asciigrid(file_name), xy = T) %>% 
-#   `colnames<-`(c("suitability", "lon", "lat")) %>%
-#   dplyr::select(lon, lat)
-# save(MAX_grid, file = "metadata/Max_grid.RData")
-# load("metadata/Max_grid.RData")
-
-# MAXENT can be verified again by looking at where it predicts suitability and where the field data show high percentage covers
-
-# Consider depths of 60 to 80 metres as a filter after the models
-
-# Run a presence absence random forest to compare to MAXENT. And also the percent cover RF afterwards when the comparisons of the models has been made.
-
-# Build a story around model distribution, and as point B we can talk about percent cover projections.
-
-# Consider knocking out variables and seeing if some regions agreement change based on that one missing variable.
 
 
 # Predict coverage --------------------------------------------------------
@@ -186,9 +164,9 @@ project_reg_fig(ALL_alaria, "Alaria")
 
 # Category cover figure ---------------------------------------------------
 
-# Create categories for the kelps that are all relative to their own percent covers
-# Use binary models in combination with RF categories to see how well those match
-# Create a RF figure showing the categories, low-high, and panel that next to the binary MAXENT map
+# Create categories for the kelps that are all relative to their own percent covers.
+# Use binary models in combination with RF categories to see how well those match.
+# Create a RF figure showing the categories, low-high, and panel that next to the binary MAXENT map.
 project_cat_fig <- function(df, kelp_choice){
   cat_val_fig <- df %>% 
     filter(land_distance <= 100 | depth <= 100) %>% 
@@ -236,14 +214,13 @@ project_cat_fig(ALL_alaria, "Alaria")
 
 # Difference regression ---------------------------------------------------
 
-# Change the colour palette to show where they agree, but by how much.
+# Change the colour palette to show where they agree and by how much.
 # Also showing that they agree because they are both low or high, etc.
 # This may require a figure showing how they are similar at certain levels,
 # and a figure showing dissimilarity at similar levels.
 project_reg_diff_fig <- function(df, kelp_choice){
   reg_diff_map <- ggplot(filter(df, land_distance <= 100 | depth <= 100), aes(x = lon, y = lat)) +
     geom_tile(aes(fill = diff_relative_cat)) +
-    # geom_tile(aes(fill = diff_relative_cat)) +
     borders(fill = "white", colour = "grey70", size = 0.1) +
     geom_point(data = RF_points, colour = "black", shape = 21,
                aes_string(x = "lon", y = "lat", size = {{kelp_choice}})) +
@@ -257,8 +234,6 @@ project_reg_diff_fig <- function(df, kelp_choice){
     labs(x = NULL, y = NULL, size = paste0("cover (%)"), 
          fill = paste0("greater"), title = kelp_choice)
   # reg_diff_map
-  # reg_diff_fig <- ggpubr::ggarrange(reg_diff_map, reg_diff_ridge, ncol = 2, nrow = 1, 
-  #                                   align = "v", widths = c(1.5, 1))
   ggsave(paste0("graph/map_",tolower(kelp_choice),"_reg_diff.png"), reg_diff_map)
 }
 
@@ -271,7 +246,6 @@ project_reg_diff_fig(ALL_alaria, "Alaria")
 # Difference category -----------------------------------------------------
 
 # Could show the RF categories of low, medium, high but as increasing shades of the same colour
-# And then don't show where they don't agree or both predict none
 
 project_cat_diff_fig <- function(df, kelp_choice){
   cat_diff_map <- df %>% 
@@ -291,8 +265,6 @@ project_cat_diff_fig <- function(df, kelp_choice){
     labs(x = NULL, y = NULL, size = paste0("cover (%)"), 
          fill = paste0("presence"), title = kelp_choice)
   # cat_diff_map
-  # cat_diff_fig <- ggpubr::ggarrange(cat_diff_map, cat_diff_ridge, ncol = 2, nrow = 1, 
-  #                                   align = "v", widths = c(1.5, 1))
   ggsave(paste0("graph/map_",tolower(kelp_choice),"_cat_diff.png"), cat_diff_map)
 }
 

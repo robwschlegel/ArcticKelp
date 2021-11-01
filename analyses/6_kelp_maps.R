@@ -1,12 +1,14 @@
 # analyses/6_kelp_maps.R
-# The purpose of this script is to provide a spatial visualisation of kelp coverage
-# It also shows how the kelp ecosystems abiotic properties stack up against the broader Arctic
+# The purpose of this script is to provide a spatial visualisation of kelp coverage.
+# It also shows how the kelp ecosystems abiotic properties stack up against the broader Arctic.
 
 
 # Source scripts ----------------------------------------------------------
 
+# Load required libraries and data
 source("analyses/4_kelp_cover.R")
 
+# Load environmental layers
 load("data/Arctic_BO.RData")
 Arctic_BO <- Arctic_BO %>% 
   mutate(lon = round(lon, 4), lat = round(lat, 4))
@@ -20,7 +22,7 @@ rm(Arctic_BO, Arctic_AM); gc()
 
 # Maps --------------------------------------------------------------------
 
-# Convenience wrapper to show kelp cover of a species laid over an abiotic variable
+# Convenience wrapper to show kelp cover of a species laid over an abiotic variable.
 
 # Cover options are:
 unique(as.character(adf_summary$family))
@@ -62,7 +64,7 @@ map_cover_abiotic(cover = "Alaria", abiotic = "BO_parmean")
 # Distribution figures ----------------------------------------------------
 
 # Convenience wrapper to show where within the distribution of an abiotic variable
-# the kelp study sites fall, and what the kelp cover at those sites are
+# the kelp study sites fall, and what the kelp cover at those sites are.
 
 # Cover options are:
 unique(as.character(adf_summary$family))

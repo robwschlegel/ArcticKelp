@@ -1,11 +1,13 @@
 # analyses/2_study_region_layers.R
-# The purpose of this script is to download and prep Bio-Oracle data
+# The purpose of this script is to download and prep Bio-Oracle data.
 # This should only need to be run once at the outset of the project.
-# If any sites change/are added, run "analyses/3_study_site_layers.R" 
-# to get the updated values, not this script
+# If any sites are changed/added, run "analyses/3_study_site_layers.R" 
+# to get the updated values, not this script.
 
 # The Bio-Oracle (http://www.bio-oracle.org/code.php) are downloaded directly 
-# from their server and so may be accessed from anywhere
+# from their server and so may be accessed from anywhere.
+
+# NB: The workflow really begins on "analyses/3_study_site_layers.R".
 
 
 # Setup -------------------------------------------------------------------
@@ -34,9 +36,7 @@ options(scipen = 999)
 # Convenience function for loading .asc files
 load_asc <- function(file_name, col_name){
   df <- as.data.frame(raster(file_name), xy = T) %>% 
-    `colnames<-`(c("lon", "lat", col_name))  #%>% 
-  # mutate(lon = round(lon, 4),
-  # lat = round(lat, 4))
+    `colnames<-`(c("lon", "lat", col_name))
 }
 
 
@@ -94,9 +94,7 @@ BO_layers_dl <- load_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO
 BO_layers_present <- as.data.frame(BO_layers_dl, xy = T) %>% 
   dplyr::rename(lon = x, lat = y) %>% 
   filter(BO21_icethickmean_ss >= 0,
-         lat >= min(Arctic_boundary$lat)) #%>%
-# mutate(lon = round(lon, 5), 
-# lat = round(lat, 5))
+         lat >= min(Arctic_boundary$lat))
 rm(BO_layers_dl); gc()
 
 # Clip to Arctic study region
@@ -135,7 +133,7 @@ BO_layers_future <- list_layers_future(datasets = "Bio-ORACLE") %>%
   filter(scenario == "RCP85")
 
 # Download as similar of layers as possible to present data
-# Bottom temperature
+                                           # Bottom temperature
 BO_layers_future_dl <- get_future_layers(c("BO21_templtmin_bdmax", "BO21_tempmean_bdmax", "BO21_templtmax_bdmax", 
                                            # Surface temperature
                                            "BO21_templtmin_ss", "BO21_tempmean_ss", "BO21_templtmax_ss", 
@@ -196,18 +194,14 @@ depth <- read.asciigrid("data/depthclip.asc")
 depth_df <- as.data.frame(depth, xy = T)
 Arctic_depth <- depth_df %>%
   dplyr::rename(bathy = data.depthclip.asc,
-                lon = s1, lat = s2) #%>%
-# filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-# lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+                lon = s1, lat = s2)
 
 # Distance to land
 land_distance <- read.asciigrid("data/landdistclip.asc")
 land_distance_df <- as.data.frame(land_distance, xy = T)
 Arctic_land_distance <- land_distance_df %>%
   dplyr::rename(land_distance = data.landdistclip.asc,
-                lon = s1, lat = s2) #%>%
-# filter(lon >= bbox_arctic[1], lon <= bbox_arctic[2],
-# lat >= bbox_arctic[3], lat <= bbox_arctic[4])
+                lon = s1, lat = s2)
 
 # Combine into single file and save
 Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat")) %>% 
@@ -215,9 +209,7 @@ Arctic_AM <- left_join(Arctic_land_distance, Arctic_depth, by = c("lon", "lat"))
   mutate(in_grid = sp::point.in.polygon(point.x = Arctic_land_distance[["lon"]], point.y = Arctic_land_distance[["lat"]], 
                                         pol.x = Arctic_boundary[["lon"]], pol.y = Arctic_boundary[["lat"]])) %>% 
   filter(in_grid >= 1) %>% 
-  dplyr::select(-in_grid) #%>% 
-  # mutate(lon = round(lon, 5),
-         # lat = round(lat, 5))
+  dplyr::select(-in_grid)
 
 # Find average size of pixels
 unique_lon <- arrange(distinct(Arctic_AM[1]), lon) %>% 

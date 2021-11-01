@@ -1,14 +1,14 @@
 # analyses/1_study_sites.R
-# The purpose of this script is to load the study site coordinate data,
-# clean it up and run a test visual on the site coordinates
+# The purpose of this script is to load the study site coordinate data and clean them.
+# There is also code for test visuals on the site coordinates.
+# The last chunk contains the code used to process the Arctic region bounding polygon.
 
-# NB: The workflow really begins at "analyses/3_study_site_layers.R"
+# NB: The workflow really begins on "analyses/3_study_site_layers.R".
 
 
 # Libraries ---------------------------------------------------------------
 
 .libPaths(c("~/R-packages", .libPaths()))
-# library(rlang, lib.loc = "~/R-packages")
 library(tidyverse)
 library(ggrepel)
 library(measurements)
@@ -33,7 +33,7 @@ bbox_arctic <- c(-95, -50, 50, 80)
   # These data are from the archives of the Canadian Museum of Nature
   # Each line represents one collection
   # RWS: I originally manually edited the column 3 name, but then 
-  # everything went pear shaped, so I'm leaving the file untouched
+  # everything went pear shaped, so I've left the file untouched
 CANA_kelp <- read.csv("data/CANA_Arctic_Kelp.csv")
 colnames(CANA_kelp)[3] <- "Year"
 
@@ -44,7 +44,6 @@ colnames(CANA_kelp)[3] <- "Year"
 # ggplot(data = study_sites, aes(x = lon, y = lat)) +
 #   borders(fill = "grey70", colour = "black") +
 #   geom_point(colour = "red", size = 4) +
-#   # geom_label_repel(aes(label = site)) +
 #   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
 #                   ylim = c(bbox_arctic[3], bbox_arctic[4]),
 #                   expand = F) +
@@ -52,22 +51,21 @@ colnames(CANA_kelp)[3] <- "Year"
 # ggsave("graph/study_area_points.png", width = 9, height = 7)
 
 # Labelled ArcticKelp points
-ggplot(data = study_sites, aes(x = lon, y = lat)) +
-  borders(fill = "grey70", colour = "black") +
-  geom_point(colour = "red", size = 4) +
-  geom_label_repel(aes(label = site)) +
-  coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
-                  ylim = c(bbox_arctic[3], bbox_arctic[4]),
-                  expand = F) +
-  labs(x = NULL, y = NULL) +
-  theme(panel.border = element_rect(colour = "black", fill = NA))
+# ggplot(data = study_sites, aes(x = lon, y = lat)) +
+#   borders(fill = "grey70", colour = "black") +
+#   geom_point(colour = "red", size = 4) +
+#   geom_label_repel(aes(label = site)) +
+#   coord_cartesian(xlim = c(bbox_arctic[1], bbox_arctic[2]),
+#                   ylim = c(bbox_arctic[3], bbox_arctic[4]),
+#                   expand = F) +
+#   labs(x = NULL, y = NULL) +
+#   theme(panel.border = element_rect(colour = "black", fill = NA))
 # ggsave("graph/study_area_pointswlabels.png", width = 9, height = 7)
 
 # CANA collection points
 # ggplot(data = CANA_kelp, aes(x = Longitude, y = Latitude)) +
 #   borders(fill = "grey70", colour = "black") +
 #   geom_point(colour = "red", size = 3) +
-#   # geom_label_repel(aes(label = site)) +
 #   coord_cartesian(xlim = c(-180, 180),
 #                   ylim = c(25, 85)) +
 #   labs(x = NULL, y = NULL)
@@ -75,6 +73,8 @@ ggplot(data = study_sites, aes(x = lon, y = lat)) +
 
 
 # Load Arctic shape file --------------------------------------------------
+
+# NB: The following code only needed to be run once so is commented out here
 
 # Load the Arctic study region shape file
 # Arctic_poly <- readOGR(dsn = "metadata/", layer = "amaplim_lam_poly")

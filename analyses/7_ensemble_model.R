@@ -1,5 +1,5 @@
 # analyses/7_ensemble_model.R
-# This script contains the code used to run an ensemble model with the presence data
+# This script contains the code used to run ensemble models on parallel processors.
 # The order of operations is:
 # 1: Setup the environment
 # 2: Load data
@@ -8,6 +8,10 @@
 # 5: Present projections
 # 6: Future projections
 # 7: Run the pipeline
+# 8: Extract pseudoabsences
+# 9: Model analysis
+# 10: Model visualisations
+# 11: Convert .RData to .grd
 
 
 # 1: Setup ----------------------------------------------------------------
@@ -16,8 +20,6 @@
 source("analyses/1_study_region_sites.R")
 
 # Load additional packages
-# devtools::install_github("biomodhub/biomod2", dependencies = TRUE) # Developmental version. Wasn't needed.
-# remotes::install_github("rspatial/raster") # Uncomment and run this line of code to install the development version of raster
 library(biomod2)
 library(raster)
 library(FNN)
@@ -35,12 +37,6 @@ loadRData <- function(fileName){
 sps_files <- dir("metadata", full.names = T, pattern = "rarefied")
 sps_names <- str_remove(dir("metadata", full.names = F, pattern = "rarefied"), pattern = "_Arct_rarefied_points.csv")
 
-# The coastal data
-# load("data/Arctic_coast.RData")
-
-# The coastal coordinates
-# load("metadata/coastal_coords.RData")
-
 # The present data
 load("data/Arctic_BO.RData")
 
@@ -50,31 +46,30 @@ global_coords <- dplyr::select(Arctic_BO, lon, lat) %>%
 
 # The usdm package can do stepwise elimination of highly inflating variables
 # Calculate vif for the variables in Arctic_BO_stack
-# v0 <- vif(Arctic_BO[, 3:34])
+v0 <- vif(Arctic_BO[, 3:34])
 
 # Identify collinear variables that should be excluded (VIF > 10)
-# v1 <- vifstep(Arctic_BO[, 3:34])
+v1 <- vifstep(Arctic_BO[, 3:34])
 
 # Identify collinear variables that should be excluded (correlation > 0.7)
 # Select only mean values and max SST
-# v2 <- Arctic_BO %>% 
-#   dplyr::select(BO21_templtmax_ss,
-#                 BO21_salinitymean_ss, 
-#                 BO21_icethickmean_ss, 
-#                 BO21_curvelmean_bdmax, 
-#                 BO_parmean, 
-#                 BO21_dissoxmean_bdmax,
-#                 BO21_ironmean_bdmax,
-#                 BO21_nitratemean_bdmax,
-#                 BO21_phosphatemean_bdmax) %>% 
-#   na.omit() %>%
-#   vifcor(th = 0.8)
+v2 <- Arctic_BO %>%
+  dplyr::select(BO21_templtmax_ss,
+                BO21_salinitymean_ss,
+                BO21_icethickmean_ss,
+                BO21_curvelmean_bdmax,
+                BO_parmean,
+                BO21_dissoxmean_bdmax,
+                BO21_ironmean_bdmax,
+                BO21_nitratemean_bdmax,
+                BO21_phosphatemean_bdmax) %>%
+  na.omit() %>%
+  vifcor(th = 0.8)
 
 # Save column names for use with Random Forest variable screening
-# BO_vars <- c(v2@results$Variables)
-# BO_vars <- BO_vars[-5] # Remove PAR because it correlates with SST and Ice
-# BO_vars
-# save(BO_vars, file = "metadata/BO_vars.RData")
+BO_vars <- c(v2@results$Variables)
+BO_vars <- BO_vars[-5] # Remove PAR because it correlates with SST and Ice
+save(BO_vars, file = "metadata/BO_vars.RData")
 load("metadata/BO_vars.RData")
 BO_vars
 
@@ -158,7 +153,7 @@ biomod_pipeline <- function(sps_choice){
   sps_name <- sps$Sp[1]
   
   # Set temp folder save locations
-  # http://www.r-forge.r-project.org/forum/forum.php?thread_id=30946&forum_id=995&group_id=302
+  # See: http://www.r-forge.r-project.org/forum/forum.php?thread_id=30946&forum_id=995&group_id=302
   dir.create(file.path(sps_name), showWarnings = FALSE)
   dir.create(file.path(sps_name,"/Temp"), showWarnings = FALSE)
   rasterOptions(tmpdir = paste0(sps_name,"/Temp"))
@@ -173,7 +168,7 @@ biomod_pipeline <- function(sps_choice){
     resp.xy = as.matrix(sps[,2:3]),
     resp.name = sps_name,
     expl.var = Arctic_excl_stack,
-    #eval.resp.var, eval.expl.var, eval.resp.xy is for sp data to evaluate models. But we are doing the DataSplitTable
+    # eval.resp.var, eval.expl.var, eval.resp.xy is for sp data to evaluate models
     PA.strategy = 'random', # leave random (tried 'disk' but models were not robust enough)
     # PA.dist.min = 0, # units = meters
     # PA.dist.max = NULL, # units = meters
@@ -204,9 +199,11 @@ biomod_pipeline <- function(sps_choice){
   # biomod_option@MAXENT.Phillips$path_to_maxent.jar = paste(system.file(package = "dismo"), "/java", sep = '')
   
   ## Creating DataSplitTable
+  ## NB: This was not used as it did not work consistently across models and runs
   # DataSplitTable <- BIOMOD_cv(biomod_data)
-  # DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, do.full.models = F, 
-  #do.full.models=T models calibrated and evaluated with the whole dataset are done
+  # DataSplitTable <- BIOMOD_cv(biomod_data, k = 5, repetition = 2, 
+  #                             do.full.models = F,
+  #                             # do.full.models = T, # models calibrated and evaluated with the whole dataset are done
   #                             stratified.cv = F, stratify = "both", balance = "pres")
   # DataSplitTable.y <- BIOMOD_cv(biomod_data, stratified.cv = T, stratify = "y", k = 2)
   # colnames(DataSplitTable.y)[1:2] <- c("RUN11","RUN12")
@@ -220,21 +217,22 @@ biomod_pipeline <- function(sps_choice){
   # system.time(
   biomod_model <- BIOMOD_Modeling(
     biomod_data,
-    # models = c('RF', 'GLM'), #, 'MAXENT.Phillips', 'ANN', 'GAM'), # Testing without MAXENT as it doesn't run on my work server
-    #models = c('RF', 'ANN'), # changed to ANN for testing (GLM Warning: 'glm.fit: fitted probabilities numerically 0 or 1 occurred') 
+    # models = c('RF', 'ANN'), # Testing on small quick models
     models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'),
     models.options = biomod_option,
-    NbRunEval = 5, # 5 reps for final models
-    DataSplit = 70, # Either chose a 70/30 split
+    NbRunEval = 5,
+    DataSplit = 70,
     # DataSplitTable = DataSplitTable, # Or the cross-validation method. This takes much longer, but does run.
     ## JG: although it runs now here, it messes sections below and get the GLM warning
     VarImport = 5, # Number of permutations to estimate variable importance
     models.eval.meth = c('TSS', 'ROC', 'FAR', 'ACCURACY', 'SR'),
-    # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'),
+    # models.eval.meth = c('KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI', 'ETS'), # Don't need this many
     rescal.all.models = TRUE,
     do.full.models = FALSE,
     modeling.id = sps_name)
   # ) # 894 seconds for 1 rep
+  
+  # Load if the model has already been run
   # biomod_model <- loadRData(paste0(sps_name,"/",sps_name,".",sps_name,".models.out"))
   
   # Build the ensemble models
@@ -365,7 +363,7 @@ biomod_pipeline <- function(sps_choice){
 
 # 7: Run the pipeline -----------------------------------------------------
 
-# Detect available cores at set accordingly
+# Detect available cores automagically and set accordingly
 # registerDoParallel(cores = detectCores()-1)
 
 # Run one
@@ -416,7 +414,7 @@ presence_absence_fig <- function(sps_choice){
 # presence_absence_fig(sps_files[1])
 
 # Run for all species
-# plyr::l_ply(sps_files, presence_absence_fig, .parallel = TRUE)
+plyr::l_ply(sps_files, presence_absence_fig, .parallel = TRUE)
 
 
 # 9: Full model analysis --------------------------------------------------
@@ -630,17 +628,16 @@ plot_biomod <- function(sps_choice){
 
 # Create all visuals
 registerDoParallel(cores = 5)
-# plyr::l_ply(sps_names, plot_biomod, .parallel = T)
+plyr::l_ply(sps_names, plot_biomod, .parallel = T)
 
 
 # 11: Save ensemble models as .grd files ----------------------------------
 
-# Write function to load these .RData files and save them as .grd files
+# Write function to load results saved as .RData files and save them as .grd files
 
-# Save as a raster file # NB: Still testing
-# testers...
-# sps_choice = "Acla"
-# proj_choice = "2050"
+# RWS: NB: I can't guarantee this code won't break when the required packages are updated by the authors.
+
+# Save as a raster file
 RData_to_grd <- function(df){
   sps_choice <- df$sps_choice; proj_choice <- df$proj_choice
   proj_data <- loadRData(paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
@@ -648,11 +645,6 @@ RData_to_grd <- function(df){
   proj_names <- sapply(strsplit(names(proj_data), "_"), "[[", 2)
   writeRaster(x = proj_data, bylayer = TRUE, suffix = proj_names, overwrite = TRUE,
               filename = paste0("data/ascii_results/proj_",proj_choice,"_",sps_choice,"_ensemble_TSSbin.asc"))
-  # outfile <- writeRaster(proj_data, format = "ascii", overwrite = TRUE, 
-  #                        options = c("INTERLEAVE=BAND", "COMPRESS=LZW"),
-  #                        # suffix = c("EMmeanByTSS", "EMcvByTSS", "EMciInfByTSS", "EMciSupByTSS"),
-  #                        filename = paste0(sps_choice,"/proj_",proj_choice,"/proj_",proj_choice,
-  #                                          "_",sps_choice,"_ensemble_TSSbin.asc"))
 }
 
 # Run them all
@@ -665,131 +657,4 @@ plyr::d_ply(quick_grid, c("plyr_id"), RData_to_grd, .parallel = T)
 # Check the output
 test_rast <- raster("data/ascii_results/proj_2050_Acla_ensemble_TSSbin_EMmeanByTSS.asc")
 plot(test_rast)
-
-
-# 12: Response curves -----------------------------------------------------
-# NB: See the code near the bottom of 10_figures.R for a more polished version
-# NB: This is not working as expected due to BIOMOD2 inability to run within a function environment
-
-# Function for extracting species response curve data
-# sps_choice <- sps_names[5]
-sps_response_data <- function(sps_choice){
-  # Load chosen biomod_model and print evaluation scores
-  biomod_model <- loadRData(paste0(sps_choice,"/",sps_choice,".",sps_choice,".models.out"))
-  
-  # Model scores
-  model_scores <- t(data.frame(get_evaluations(biomod_model))) %>% 
-    data.frame() %>% 
-    mutate(idx = rownames(.),
-           idx = str_replace(idx, "MAXENT.Phillips", "MAXENT_Phillips"),
-           idx = str_replace(idx, "Testing.data", "Testing_data")) %>% 
-    separate(idx, c("type", "model", "run", "PA"), sep = "[.]", remove = T) %>% 
-    mutate(model = case_when(model == "MAXENT_Phillips" ~ "MAXENT.Phillips", TRUE ~ model)) %>% 
-    filter(type == "Testing_data") %>%
-    `row.names<-`(NULL) %>% 
-    dplyr::select(type, model, run, PA, everything())
-  
-  # Target all model data
-  sp_name_ALL <- BIOMOD_LoadModels(biomod_model, models = c('MAXENT.Phillips', 'GLM', 'ANN', 'RF', 'GAM'))
-  
-  # Get the species response curve data
-  sp_dat <- response.plot2(
-    models  = sp_name_ALL,
-    Data = get_formal_data(biomod_model, 'expl.var'),
-    show.variables = get_formal_data(biomod_model, 'expl.var.names'),
-    data_species = get_formal_data(biomod_model, 'resp.var'),
-    do.bivariate = FALSE,
-    fixed.var.metric = 'median',
-    legend = FALSE,
-    plot = FALSE)
-  
-  # Clean up and exit
-  sp_res <- sp_dat %>% 
-    separate(pred.name, c("species", "PA", "run", "model"), sep = "_", remove = T) %>% 
-    left_join(model_scores, by = c("model", "run", "PA"))
-  return(sp_res)
-}
-
-# Get all data for all species
-# NB: For some reason these won't run in parallel
-# It's probably a complication from the loadRData function
-# Or it may be some issue with Slat, which only works occasionally... 
-# registerDoParallel(cores = 5)
-# sp_curve_data <- plyr::ldply(sps_names, sps_response_data, .parallel = F)
-curve_data_Acla <- sps_response_data(sps_names[1])
-curve_data_Aesc <- sps_response_data(sps_names[2])
-curve_data_Lsol <- sps_response_data(sps_names[4])
-curve_data_Slat <- sps_response_data(sps_names[5])
-curve_data_ALL <- rbind(curve_data_Acla, curve_data_Aesc, curve_data_Lsol, curve_data_Slat) %>% 
-  mutate(expl.name = case_when(expl.name == "BO21_templtmax_ss" ~ "surface temperature (max)",
-                               expl.name == "BO21_salinitymean_ss" ~ "surface salinity (mean)",
-                               expl.name == "BO21_icethickmean_ss" ~ "ice thickness (mean)",
-                               expl.name == "BO21_curvelmean_bdmax" ~ "bottom current velocity (mean)",
-                               expl.name == "BO21_ironmean_bdmax" ~ "bottom iron (mean)",
-                               expl.name == "BO21_phosphatemean_bdmax" ~ "bottom phosphate (mean)"),
-         run_PA_model = paste0(run,"_",PA,"_",model))
-
-## ggplot2 response curves
-# tester...
-curve_data_ALL %>%
-  filter(species == "Aesc") %>%
-  filter(model == "RF") %>%
-  # filter(model == "MAXENT.Phillips") %>%
-  filter(TSS >= 0.7) %>% 
-  ggplot(aes(x = expl.val, y = pred.val, colour = model, group = run_PA_model)) +
-  geom_line(size = 1) +
-  facet_grid(species~expl.name, scales = 'free_x', switch = "x") + 
-  labs(x = NULL, y = 'probability of occurence', colour = 'model type') + 
-  scale_color_brewer(type = 'qual', palette = 4) +
-  theme(legend.position = 'bottom',
-        panel.background = element_rect(colour = "black", fill = NULL))
-
-# All data
-response_curve_ALL <- curve_data_ALL %>%
-  # filter(species == "Aesc") %>%
-  # filter(model == "RF") %>%
-  filter(TSS >= 0.7) %>% 
-  ggplot(aes(x = expl.val, y = pred.val, colour = model, group = run_PA_model)) +
-  geom_line(size = 1) +
-  facet_grid(species~expl.name, scales = 'free_x', switch = "x") + 
-  labs(x = NULL, y = 'probability of occurence', colour = 'model',
-       title = "Response curves for all species, models, runs, PA") + 
-  scale_color_brewer(type = 'qual', palette = 4) +
-  theme(legend.position = 'bottom',
-        panel.background = element_rect(colour = "black", fill = NULL))
-ggsave("graph/response_curve_ALL.png", response_curve_ALL, height = 8, width = 12)
-
-# Mean across all PA and runs
-response_curve_model_mean <- curve_data_ALL %>%
-  filter(TSS >= 0.7) %>% 
-  group_by(id, expl.name, species, model) %>% 
-  summarise(expl.val = mean(expl.val, na.rm = T),
-            pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
-  ggplot(aes(x = expl.val, y = pred.val, colour = model)) +
-  geom_line(size = 1) +
-  facet_grid(species~expl.name, scales = 'free_x', switch = "x") + 
-  labs(x = NULL, y = 'probability of occurence', colour = 'model type',
-       title = "Response curves for all species, means over runs and PA for models") + 
-  scale_color_brewer(type = 'qual', palette = 4) +
-  # theme_minimal() +
-  theme(legend.position = 'bottom',
-        panel.background = element_rect(colour = "black", fill = NULL))
-ggsave("graph/response_curve_model_mean.png", response_curve_model_mean, height = 8, width = 12)
-
-# Mean across all models
-response_curve_species_mean <- curve_data_ALL %>%
-  filter(TSS >= 0.7) %>% 
-  group_by(id, expl.name, species) %>% 
-  summarise(expl.val = mean(expl.val, na.rm = T),
-            pred.val = mean(pred.val, na.rm = T), .groups = "drop") %>% 
-  ggplot(aes(x = expl.val, y = pred.val, colour = species)) +
-  geom_line(size = 1) +
-  facet_wrap(~expl.name, scales = 'free_x', switch = "x") + 
-  labs(x = NULL, y = 'probability of occurence', colour = 'model type',
-       title = "Response curves for all species, means over all models") + 
-  scale_color_brewer(type = 'qual', palette = 4) +
-  # theme_minimal() +
-  theme(legend.position = 'bottom',
-        panel.background = element_rect(colour = "black", fill = NULL))
-ggsave("graph/response_curve_species_mean.png", response_curve_species_mean, height = 8, width = 12)
 
