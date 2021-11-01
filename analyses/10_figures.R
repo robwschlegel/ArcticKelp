@@ -260,7 +260,7 @@ ensemble_diff_plot <- function(df, year_label, sq_area_labels){
 
 # Function for plotting ensemble model results
 # sps_choice <- "Acla"
-ensemble_plot <- function(sps_choice, add_legend = F){
+ensemble_plot <- function(sps_choice, add_legend = F, depth_limit = 30){
   
   # Create full species name
   if(sps_choice == "Lsol"){
@@ -290,7 +290,7 @@ ensemble_plot <- function(sps_choice, add_legend = F){
   
   # Calculate sq area coverage per era
   sq_area_labels <- df_project %>% 
-    filter(depth <= 30) %>%
+    filter(depth <= depth_limit) %>%
     # filter(land_distance <= 50 | depth <= 100) %>%
     summarise(area_pres = round(sum(sq_area*proj_pres, na.rm = T), -3),
               area_2050 = round(sum(sq_area*proj_2050, na.rm = T), -3),
@@ -399,6 +399,33 @@ proj_present_overlay <- rbind(proj_present_Acla, proj_present_Aesc, proj_present
   dplyr::select(lon, lat, sq_area) %>% 
   distinct()
 sum(proj_present_overlay$sq_area)
+
+# Project area covered with a 20 m depth limit
+ensemble_Acla_20 <- ensemble_plot("Acla", depth_limit = 20)
+ensemble_Aesc_20 <- ensemble_plot("Aesc", depth_limit = 20)
+ensemble_Lsol_20 <- ensemble_plot("Lsol", depth_limit = 20)
+ensemble_Slat_20 <- ensemble_plot("Slat", depth_limit = 20)
+ensemble_legend_20 <- ensemble_plot("Acla", add_legend = T, depth_limit = 20)
+
+# Combine into one mecha-figure
+fig_3_20 <- ggpubr::ggarrange(ensemble_Acla_20, ensemble_Aesc_20, ensemble_Lsol_20, ensemble_Slat_20, ensemble_legend_20,
+                              ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
+ggsave("figures/fig_3_20.png", fig_3_20, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_3_20.jpg", fig_3_20, width = 7, height = 15, dpi = 600)
+
+
+# Project area covered with a 15 m depth limit
+ensemble_Acla_15 <- ensemble_plot("Acla", depth_limit = 15)
+ensemble_Aesc_15 <- ensemble_plot("Aesc", depth_limit = 15)
+ensemble_Lsol_15 <- ensemble_plot("Lsol", depth_limit = 15)
+ensemble_Slat_15 <- ensemble_plot("Slat", depth_limit = 15)
+ensemble_legend_15 <- ensemble_plot("Acla", add_legend = T, depth_limit = 15)
+
+# Combine into one mecha-figure
+fig_3_15 <- ggpubr::ggarrange(ensemble_Acla_15, ensemble_Aesc_15, ensemble_Lsol_15, ensemble_Slat_15, ensemble_legend_15,
+                              ncol = 1, labels = c("A)", "B)", "C)", "D)", ""), heights = c(1, 1, 1, 1, 0.15))
+ggsave("figures/fig_3_15.png", fig_3_15, width = 7, height = 15, dpi = 600)
+ggsave("figures/fig_3_15.jpg", fig_3_15, width = 7, height = 15, dpi = 600)
 
 
 # Figure 4 ----------------------------------------------------------------
