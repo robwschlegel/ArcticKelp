@@ -1,0 +1,351 @@
+"";"Region";"Site";"Depth_m";"Species";"Biomass_kg_m2"
+"1";"Baffin Bay";"Durban Harbour";10;"Agarum";1,32213333333333
+"2";"Baffin Bay";"Durban Harbour";10;"A.esculenta";0
+"3";"Baffin Bay";"Durban Harbour";10;"Fucus";0
+"4";"Baffin Bay";"Durban Harbour";10;"L.digitata";0
+"5";"Baffin Bay";"Durban Harbour";10;"S.latissima";0
+"6";"Baffin Bay";"Durban Harbour";10;"L.solidungula";0
+"7";"Baffin Bay";"Durban Harbour";10;"Total.Kelp";1,32213333333333
+"8";"Baffin Bay";"Rocks near Durban";5;"Agarum";0,190666666666667
+"9";"Baffin Bay";"Rocks near Durban";5;"A.esculenta";0,647066666666667
+"10";"Baffin Bay";"Rocks near Durban";5;"Fucus";0,0048
+"11";"Baffin Bay";"Rocks near Durban";5;"L.digitata";0
+"12";"Baffin Bay";"Rocks near Durban";5;"S.latissima";0
+"13";"Baffin Bay";"Rocks near Durban";5;"L.solidungula";0
+"14";"Baffin Bay";"Rocks near Durban";5;"Total.Kelp";0,842533333333333
+"15";"Baffin Bay";"S. of Qik";5;"Agarum";0
+"16";"Baffin Bay";"S. of Qik";5;"A.esculenta";0
+"17";"Baffin Bay";"S. of Qik";5;"Fucus";0
+"18";"Baffin Bay";"S. of Qik";5;"L.digitata";0,0148
+"19";"Baffin Bay";"S. of Qik";5;"S.latissima";2,66213333333333
+"20";"Baffin Bay";"S. of Qik";5;"L.solidungula";0
+"21";"Baffin Bay";"S. of Qik";5;"Total.Kelp";2,67693333333333
+"22";"Baffin Bay";"S. of Qik";10;"Agarum";1,97813333333333
+"23";"Baffin Bay";"S. of Qik";10;"A.esculenta";0,872666666666667
+"24";"Baffin Bay";"S. of Qik";10;"Fucus";0
+"25";"Baffin Bay";"S. of Qik";10;"L.digitata";0
+"26";"Baffin Bay";"S. of Qik";10;"S.latissima";1,66106666666667
+"27";"Baffin Bay";"S. of Qik";10;"L.solidungula";8,21786666666667
+"28";"Baffin Bay";"S. of Qik";10;"Total.Kelp";12,7297333333333
+"29";"Davis Strait";"Duck Island";10;"Agarum";1,63893333333333
+"30";"Davis Strait";"Duck Island";10;"A.esculenta";0
+"31";"Davis Strait";"Duck Island";10;"Fucus";0
+"32";"Davis Strait";"Duck Island";10;"L.digitata";0,1604
+"33";"Davis Strait";"Duck Island";10;"S.latissima";0
+"34";"Davis Strait";"Duck Island";10;"L.solidungula";1,1884
+"35";"Davis Strait";"Duck Island";10;"Total.Kelp";2,98773333333333
+"36";"Ellesmere";"Grise fiord";10;"Agarum";0,236
+"37";"Ellesmere";"Grise fiord";10;"A.esculenta";0
+"38";"Ellesmere";"Grise fiord";10;"Fucus";0
+"39";"Ellesmere";"Grise fiord";10;"L.digitata";0
+"40";"Ellesmere";"Grise fiord";10;"S.latissima";0
+"41";"Ellesmere";"Grise fiord";10;"L.solidungula";0
+"42";"Ellesmere";"Grise fiord";10;"Total.Kelp";0,236
+"43";"Ellesmere";"Starnes Fiord";10;"Agarum";0,263
+"44";"Ellesmere";"Starnes Fiord";10;"A.esculenta";0
+"45";"Ellesmere";"Starnes Fiord";10;"Fucus";0
+"46";"Ellesmere";"Starnes Fiord";10;"L.digitata";0
+"47";"Ellesmere";"Starnes Fiord";10;"S.latissima";0
+"48";"Ellesmere";"Starnes Fiord";10;"L.solidungula";0
+"49";"Ellesmere";"Starnes Fiord";10;"Total.Kelp";0,263
+"50";"Foxe Basin";"East Bay";10;"Agarum";0
+"51";"Foxe Basin";"East Bay";10;"A.esculenta";0
+"52";"Foxe Basin";"East Bay";10;"Fucus";0
+"53";"Foxe Basin";"East Bay";10;"L.digitata";0
+"54";"Foxe Basin";"East Bay";10;"S.latissima";0,602
+"55";"Foxe Basin";"East Bay";10;"L.solidungula";0,088
+"56";"Foxe Basin";"East Bay";10;"Total.Kelp";0,69
+"57";"Foxe Basin";"East Bay";15;"Agarum";0
+"58";"Foxe Basin";"East Bay";15;"A.esculenta";0,069
+"59";"Foxe Basin";"East Bay";15;"Fucus";0
+"60";"Foxe Basin";"East Bay";15;"L.digitata";0
+"61";"Foxe Basin";"East Bay";15;"S.latissima";2,529
+"62";"Foxe Basin";"East Bay";15;"L.solidungula";1,375
+"63";"Foxe Basin";"East Bay";15;"Total.Kelp";3,973
+"64";"Foxe Basin";"Station 14";10;"Agarum";0
+"65";"Foxe Basin";"Station 14";10;"A.esculenta";1,048
+"66";"Foxe Basin";"Station 14";10;"Fucus";0
+"67";"Foxe Basin";"Station 14";10;"L.digitata";0
+"68";"Foxe Basin";"Station 14";10;"S.latissima";0,118666666666667
+"69";"Foxe Basin";"Station 14";10;"L.solidungula";9,3548
+"70";"Foxe Basin";"Station 14";10;"Total.Kelp";10,5214666666667
+"71";"Foxe Basin";"Station 14";15;"Agarum";0
+"72";"Foxe Basin";"Station 14";15;"A.esculenta";0,0773333333333333
+"73";"Foxe Basin";"Station 14";15;"Fucus";0
+"74";"Foxe Basin";"Station 14";15;"L.digitata";0
+"75";"Foxe Basin";"Station 14";15;"S.latissima";0,0226666666666667
+"76";"Foxe Basin";"Station 14";15;"L.solidungula";11,548
+"77";"Foxe Basin";"Station 14";15;"Total.Kelp";11,648
+"78";"Foxe Basin";"Station 17";10;"Agarum";0,376
+"79";"Foxe Basin";"Station 17";10;"A.esculenta";0,738
+"80";"Foxe Basin";"Station 17";10;"Fucus";0
+"81";"Foxe Basin";"Station 17";10;"L.digitata";0
+"82";"Foxe Basin";"Station 17";10;"S.latissima";5,557
+"83";"Foxe Basin";"Station 17";10;"L.solidungula";1,277
+"84";"Foxe Basin";"Station 17";10;"Total.Kelp";7,948
+"85";"Foxe Basin";"Station 17";15;"Agarum";0,448
+"86";"Foxe Basin";"Station 17";15;"A.esculenta";0,254
+"87";"Foxe Basin";"Station 17";15;"Fucus";0
+"88";"Foxe Basin";"Station 17";15;"L.digitata";0
+"89";"Foxe Basin";"Station 17";15;"S.latissima";3,531
+"90";"Foxe Basin";"Station 17";15;"L.solidungula";0,247
+"91";"Foxe Basin";"Station 17";15;"Total.Kelp";4,48
+"92";"Hudson Strait";"Bear Island";5;"Agarum";0
+"93";"Hudson Strait";"Bear Island";5;"A.esculenta";0
+"94";"Hudson Strait";"Bear Island";5;"Fucus";0,974
+"95";"Hudson Strait";"Bear Island";5;"L.digitata";0
+"96";"Hudson Strait";"Bear Island";5;"S.latissima";1,689
+"97";"Hudson Strait";"Bear Island";5;"L.solidungula";0
+"98";"Hudson Strait";"Bear Island";5;"Total.Kelp";2,663
+"99";"Hudson Strait";"Bear Island";10;"Agarum";0,063
+"100";"Hudson Strait";"Bear Island";10;"A.esculenta";0
+"101";"Hudson Strait";"Bear Island";10;"Fucus";0
+"102";"Hudson Strait";"Bear Island";10;"L.digitata";0
+"103";"Hudson Strait";"Bear Island";10;"S.latissima";0,273
+"104";"Hudson Strait";"Bear Island";10;"L.solidungula";0
+"105";"Hudson Strait";"Bear Island";10;"Total.Kelp";0,336
+"106";"Hudson Strait";"Bear Island";15;"Agarum";1,745
+"107";"Hudson Strait";"Bear Island";15;"A.esculenta";0
+"108";"Hudson Strait";"Bear Island";15;"Fucus";0
+"109";"Hudson Strait";"Bear Island";15;"L.digitata";0
+"110";"Hudson Strait";"Bear Island";15;"S.latissima";0,456
+"111";"Hudson Strait";"Bear Island";15;"L.solidungula";0
+"112";"Hudson Strait";"Bear Island";15;"Total.Kelp";2,201
+"113";"Hudson Strait";"Station 20";10;"Agarum";1,553
+"114";"Hudson Strait";"Station 20";10;"A.esculenta";0,623
+"115";"Hudson Strait";"Station 20";10;"Fucus";0
+"116";"Hudson Strait";"Station 20";10;"L.digitata";0
+"117";"Hudson Strait";"Station 20";10;"S.latissima";1,807
+"118";"Hudson Strait";"Station 20";10;"L.solidungula";2,779
+"119";"Hudson Strait";"Station 20";10;"Total.Kelp";6,762
+"120";"Hudson Strait";"Station 20";15;"Agarum";0
+"121";"Hudson Strait";"Station 20";15;"A.esculenta";0,09
+"122";"Hudson Strait";"Station 20";15;"Fucus";0
+"123";"Hudson Strait";"Station 20";15;"L.digitata";0,096
+"124";"Hudson Strait";"Station 20";15;"S.latissima";0,096
+"125";"Hudson Strait";"Station 20";15;"L.solidungula";0,06
+"126";"Hudson Strait";"Station 20";15;"Total.Kelp";0,342
+"127";"Hudson Strait";"Station 21";10;"Agarum";1,898
+"128";"Hudson Strait";"Station 21";10;"A.esculenta";1,587
+"129";"Hudson Strait";"Station 21";10;"Fucus";0
+"130";"Hudson Strait";"Station 21";10;"L.digitata";2,074
+"131";"Hudson Strait";"Station 21";10;"S.latissima";6,618
+"132";"Hudson Strait";"Station 21";10;"L.solidungula";2,366
+"133";"Hudson Strait";"Station 21";10;"Total.Kelp";14,543
+"134";"Hudson Strait";"Station 21";15;"Agarum";0,62
+"135";"Hudson Strait";"Station 21";15;"A.esculenta";0,518
+"136";"Hudson Strait";"Station 21";15;"Fucus";0
+"137";"Hudson Strait";"Station 21";15;"L.digitata";0
+"138";"Hudson Strait";"Station 21";15;"S.latissima";1,987
+"139";"Hudson Strait";"Station 21";15;"L.solidungula";1,19
+"140";"Hudson Strait";"Station 21";15;"Total.Kelp";4,315
+"141";"Hudson Strait";"Station 22";10;"Agarum";0,306
+"142";"Hudson Strait";"Station 22";10;"A.esculenta";3,484
+"143";"Hudson Strait";"Station 22";10;"Fucus";0
+"144";"Hudson Strait";"Station 22";10;"L.digitata";0,654
+"145";"Hudson Strait";"Station 22";10;"S.latissima";0,387
+"146";"Hudson Strait";"Station 22";10;"L.solidungula";0
+"147";"Hudson Strait";"Station 22";10;"Total.Kelp";4,831
+"148";"Hudson Strait";"Station 22";15;"Agarum";1,655
+"149";"Hudson Strait";"Station 22";15;"A.esculenta";4,661
+"150";"Hudson Strait";"Station 22";15;"Fucus";0
+"151";"Hudson Strait";"Station 22";15;"L.digitata";0
+"152";"Hudson Strait";"Station 22";15;"S.latissima";0,159
+"153";"Hudson Strait";"Station 22";15;"L.solidungula";0,164
+"154";"Hudson Strait";"Station 22";15;"Total.Kelp";6,639
+"155";"Hudson Strait";"Station 25";10;"Agarum";0,321
+"156";"Hudson Strait";"Station 25";10;"A.esculenta";0,15
+"157";"Hudson Strait";"Station 25";10;"Fucus";0,058
+"158";"Hudson Strait";"Station 25";10;"L.digitata";0
+"159";"Hudson Strait";"Station 25";10;"S.latissima";3,07
+"160";"Hudson Strait";"Station 25";10;"L.solidungula";1,804
+"161";"Hudson Strait";"Station 25";10;"Total.Kelp";5,403
+"162";"Hudson Strait";"Station 3";15;"Agarum";0,967
+"163";"Hudson Strait";"Station 3";15;"A.esculenta";0,219
+"164";"Hudson Strait";"Station 3";15;"Fucus";0
+"165";"Hudson Strait";"Station 3";15;"L.digitata";0
+"166";"Hudson Strait";"Station 3";15;"S.latissima";2,885
+"167";"Hudson Strait";"Station 3";15;"L.solidungula";2,029
+"168";"Hudson Strait";"Station 3";15;"Total.Kelp";6,1
+"169";"Labrador Sea";"Makkovik";10;"Agarum";2,4904
+"170";"Labrador Sea";"Makkovik";10;"A.esculenta";0
+"171";"Labrador Sea";"Makkovik";10;"Fucus";0
+"172";"Labrador Sea";"Makkovik";10;"L.digitata";0
+"173";"Labrador Sea";"Makkovik";10;"S.latissima";0
+"174";"Labrador Sea";"Makkovik";10;"L.solidungula";0
+"175";"Labrador Sea";"Makkovik";10;"Total.Kelp";2,4904
+"176";"North Baffin Island";"Black Point";5;"Agarum";1,8849
+"177";"North Baffin Island";"Black Point";5;"A.esculenta";0,3502
+"178";"North Baffin Island";"Black Point";5;"Fucus";0
+"179";"North Baffin Island";"Black Point";5;"L.digitata";0
+"180";"North Baffin Island";"Black Point";5;"S.latissima";0
+"181";"North Baffin Island";"Black Point";5;"L.solidungula";0,9443
+"182";"North Baffin Island";"Black Point";5;"Total.Kelp";3,1794
+"183";"North Baffin Island";"Black Point";10;"Agarum";2,3252
+"184";"North Baffin Island";"Black Point";10;"A.esculenta";0
+"185";"North Baffin Island";"Black Point";10;"Fucus";0
+"186";"North Baffin Island";"Black Point";10;"L.digitata";0
+"187";"North Baffin Island";"Black Point";10;"S.latissima";0
+"188";"North Baffin Island";"Black Point";10;"L.solidungula";0,1713
+"189";"North Baffin Island";"Black Point";10;"Total.Kelp";2,4965
+"190";"North Baffin Island";"Iceberg Point";10;"Agarum";1,3909
+"191";"North Baffin Island";"Iceberg Point";10;"A.esculenta";0
+"192";"North Baffin Island";"Iceberg Point";10;"Fucus";0
+"193";"North Baffin Island";"Iceberg Point";10;"L.digitata";0
+"194";"North Baffin Island";"Iceberg Point";10;"S.latissima";0
+"195";"North Baffin Island";"Iceberg Point";10;"L.solidungula";0
+"196";"North Baffin Island";"Iceberg Point";10;"Total.Kelp";1,3909
+"197";"North Baffin Island";"Narwhal Cove";5;"Agarum";2,8857
+"198";"North Baffin Island";"Narwhal Cove";5;"A.esculenta";0
+"199";"North Baffin Island";"Narwhal Cove";5;"Fucus";0
+"200";"North Baffin Island";"Narwhal Cove";5;"L.digitata";0
+"201";"North Baffin Island";"Narwhal Cove";5;"S.latissima";0
+"202";"North Baffin Island";"Narwhal Cove";5;"L.solidungula";0
+"203";"North Baffin Island";"Narwhal Cove";5;"Total.Kelp";2,8857
+"204";"North Baffin Island";"Narwhal Cove";10;"Agarum";0,7827
+"205";"North Baffin Island";"Narwhal Cove";10;"A.esculenta";0
+"206";"North Baffin Island";"Narwhal Cove";10;"Fucus";0
+"207";"North Baffin Island";"Narwhal Cove";10;"L.digitata";0
+"208";"North Baffin Island";"Narwhal Cove";10;"S.latissima";0
+"209";"North Baffin Island";"Narwhal Cove";10;"L.solidungula";0
+"210";"North Baffin Island";"Narwhal Cove";10;"Total.Kelp";0,7827
+"211";"North Baffin Island";"Pooh Corner";5;"Agarum";1,5327
+"212";"North Baffin Island";"Pooh Corner";5;"A.esculenta";0
+"213";"North Baffin Island";"Pooh Corner";5;"Fucus";0
+"214";"North Baffin Island";"Pooh Corner";5;"L.digitata";0
+"215";"North Baffin Island";"Pooh Corner";5;"S.latissima";0
+"216";"North Baffin Island";"Pooh Corner";5;"L.solidungula";0
+"217";"North Baffin Island";"Pooh Corner";5;"Total.Kelp";1,5327
+"218";"North Baffin Island";"Pooh Corner";10;"Agarum";1,8059
+"219";"North Baffin Island";"Pooh Corner";10;"A.esculenta";0
+"220";"North Baffin Island";"Pooh Corner";10;"Fucus";0
+"221";"North Baffin Island";"Pooh Corner";10;"L.digitata";0
+"222";"North Baffin Island";"Pooh Corner";10;"S.latissima";0
+"223";"North Baffin Island";"Pooh Corner";10;"L.solidungula";0
+"224";"North Baffin Island";"Pooh Corner";10;"Total.Kelp";1,8059
+"225";"North Baffin Island";"Sheatie's Cabin";5;"Agarum";0,7759
+"226";"North Baffin Island";"Sheatie's Cabin";5;"A.esculenta";0
+"227";"North Baffin Island";"Sheatie's Cabin";5;"Fucus";0
+"228";"North Baffin Island";"Sheatie's Cabin";5;"L.digitata";0
+"229";"North Baffin Island";"Sheatie's Cabin";5;"S.latissima";0
+"230";"North Baffin Island";"Sheatie's Cabin";5;"L.solidungula";0
+"231";"North Baffin Island";"Sheatie's Cabin";5;"Total.Kelp";0,7759
+"232";"North Baffin Island";"Sheatie's Cabin";10;"Agarum";0,4545
+"233";"North Baffin Island";"Sheatie's Cabin";10;"A.esculenta";0
+"234";"North Baffin Island";"Sheatie's Cabin";10;"Fucus";0
+"235";"North Baffin Island";"Sheatie's Cabin";10;"L.digitata";0
+"236";"North Baffin Island";"Sheatie's Cabin";10;"S.latissima";0
+"237";"North Baffin Island";"Sheatie's Cabin";10;"L.solidungula";0
+"238";"North Baffin Island";"Sheatie's Cabin";10;"Total.Kelp";0,4545
+"239";"North Baffin Island";"Trevor's Cove";5;"Agarum";0,162
+"240";"North Baffin Island";"Trevor's Cove";5;"A.esculenta";0,8435
+"241";"North Baffin Island";"Trevor's Cove";5;"Fucus";0,0179
+"242";"North Baffin Island";"Trevor's Cove";5;"L.digitata";0
+"243";"North Baffin Island";"Trevor's Cove";5;"S.latissima";0
+"244";"North Baffin Island";"Trevor's Cove";5;"L.solidungula";0
+"245";"North Baffin Island";"Trevor's Cove";5;"Total.Kelp";1,0234
+"246";"North Baffin Island";"Trevor's Cove";10;"Agarum";0,4137
+"247";"North Baffin Island";"Trevor's Cove";10;"A.esculenta";0
+"248";"North Baffin Island";"Trevor's Cove";10;"Fucus";0
+"249";"North Baffin Island";"Trevor's Cove";10;"L.digitata";0
+"250";"North Baffin Island";"Trevor's Cove";10;"S.latissima";0
+"251";"North Baffin Island";"Trevor's Cove";10;"L.solidungula";0
+"252";"North Baffin Island";"Trevor's Cove";10;"Total.Kelp";0,4137
+"253";"Nunatsiavut";"Evan's Bight";5;"Agarum";0,533733333333333
+"254";"Nunatsiavut";"Evan's Bight";5;"A.esculenta";0
+"255";"Nunatsiavut";"Evan's Bight";5;"Fucus";0
+"256";"Nunatsiavut";"Evan's Bight";5;"L.digitata";1,52586666666667
+"257";"Nunatsiavut";"Evan's Bight";5;"S.latissima";1,13333333333333
+"258";"Nunatsiavut";"Evan's Bight";5;"L.solidungula";1,0384
+"259";"Nunatsiavut";"Evan's Bight";5;"Total.Kelp";4,23133333333333
+"260";"Nunatsiavut";"Evan's Bight";10;"Agarum";2,45773333333333
+"261";"Nunatsiavut";"Evan's Bight";10;"A.esculenta";0
+"262";"Nunatsiavut";"Evan's Bight";10;"Fucus";0
+"263";"Nunatsiavut";"Evan's Bight";10;"L.digitata";0
+"264";"Nunatsiavut";"Evan's Bight";10;"S.latissima";0
+"265";"Nunatsiavut";"Evan's Bight";10;"L.solidungula";1,21693333333333
+"266";"Nunatsiavut";"Evan's Bight";10;"Total.Kelp";3,67466666666667
+"267";"Nunatsiavut";"Hogg Island";5;"Agarum";0,786933333333333
+"268";"Nunatsiavut";"Hogg Island";5;"A.esculenta";0
+"269";"Nunatsiavut";"Hogg Island";5;"Fucus";0
+"270";"Nunatsiavut";"Hogg Island";5;"L.digitata";0
+"271";"Nunatsiavut";"Hogg Island";5;"S.latissima";1,5056
+"272";"Nunatsiavut";"Hogg Island";5;"L.solidungula";5,2528
+"273";"Nunatsiavut";"Hogg Island";5;"Total.Kelp";7,54533333333333
+"274";"Nunatsiavut";"Hogg Island";10;"Agarum";0
+"275";"Nunatsiavut";"Hogg Island";10;"A.esculenta";0
+"276";"Nunatsiavut";"Hogg Island";10;"Fucus";0
+"277";"Nunatsiavut";"Hogg Island";10;"L.digitata";0
+"278";"Nunatsiavut";"Hogg Island";10;"S.latissima";4,43
+"279";"Nunatsiavut";"Hogg Island";10;"L.solidungula";1,19213333333333
+"280";"Nunatsiavut";"Hogg Island";10;"Total.Kelp";5,62213333333333
+"281";"Roes Welcome Sound";"Station 10";10;"Agarum";0
+"282";"Roes Welcome Sound";"Station 10";10;"A.esculenta";0
+"283";"Roes Welcome Sound";"Station 10";10;"Fucus";0
+"284";"Roes Welcome Sound";"Station 10";10;"L.digitata";0
+"285";"Roes Welcome Sound";"Station 10";10;"S.latissima";0,7766
+"286";"Roes Welcome Sound";"Station 10";10;"L.solidungula";0,0072
+"287";"Roes Welcome Sound";"Station 10";10;"Total.Kelp";0,7838
+"288";"Roes Welcome Sound";"Station 10";15;"Agarum";0
+"289";"Roes Welcome Sound";"Station 10";15;"A.esculenta";0,019
+"290";"Roes Welcome Sound";"Station 10";15;"Fucus";0
+"291";"Roes Welcome Sound";"Station 10";15;"L.digitata";0
+"292";"Roes Welcome Sound";"Station 10";15;"S.latissima";0,7751
+"293";"Roes Welcome Sound";"Station 10";15;"L.solidungula";0,0185
+"294";"Roes Welcome Sound";"Station 10";15;"Total.Kelp";0,8126
+"295";"Roes Welcome Sound";"Station 12";10;"Agarum";0
+"296";"Roes Welcome Sound";"Station 12";10;"A.esculenta";2,165
+"297";"Roes Welcome Sound";"Station 12";10;"Fucus";0
+"298";"Roes Welcome Sound";"Station 12";10;"L.digitata";0,329
+"299";"Roes Welcome Sound";"Station 12";10;"S.latissima";1,557
+"300";"Roes Welcome Sound";"Station 12";10;"L.solidungula";0
+"301";"Roes Welcome Sound";"Station 12";10;"Total.Kelp";4,051
+"302";"Roes Welcome Sound";"Station 12";15;"Agarum";0
+"303";"Roes Welcome Sound";"Station 12";15;"A.esculenta";6,7882
+"304";"Roes Welcome Sound";"Station 12";15;"Fucus";0
+"305";"Roes Welcome Sound";"Station 12";15;"L.digitata";5,66
+"306";"Roes Welcome Sound";"Station 12";15;"S.latissima";0,112
+"307";"Roes Welcome Sound";"Station 12";15;"L.solidungula";0,8682
+"308";"Roes Welcome Sound";"Station 12";15;"Total.Kelp";13,4284
+"309";"Roes Welcome Sound";"Station 13";10;"Agarum";0,069
+"310";"Roes Welcome Sound";"Station 13";10;"A.esculenta";0,076
+"311";"Roes Welcome Sound";"Station 13";10;"Fucus";0,046
+"312";"Roes Welcome Sound";"Station 13";10;"L.digitata";0
+"313";"Roes Welcome Sound";"Station 13";10;"S.latissima";6,911
+"314";"Roes Welcome Sound";"Station 13";10;"L.solidungula";0,5963
+"315";"Roes Welcome Sound";"Station 13";10;"Total.Kelp";7,6983
+"316";"Roes Welcome Sound";"Station 13";15;"Agarum";0
+"317";"Roes Welcome Sound";"Station 13";15;"A.esculenta";0
+"318";"Roes Welcome Sound";"Station 13";15;"Fucus";0
+"319";"Roes Welcome Sound";"Station 13";15;"L.digitata";0
+"320";"Roes Welcome Sound";"Station 13";15;"S.latissima";0,03
+"321";"Roes Welcome Sound";"Station 13";15;"L.solidungula";1,445
+"322";"Roes Welcome Sound";"Station 13";15;"Total.Kelp";1,475
+"323";"Roes Welcome Sound";"Station 6";10;"Agarum";0
+"324";"Roes Welcome Sound";"Station 6";10;"A.esculenta";0,018
+"325";"Roes Welcome Sound";"Station 6";10;"Fucus";0,049
+"326";"Roes Welcome Sound";"Station 6";10;"L.digitata";0
+"327";"Roes Welcome Sound";"Station 6";10;"S.latissima";0,688
+"328";"Roes Welcome Sound";"Station 6";10;"L.solidungula";0,249
+"329";"Roes Welcome Sound";"Station 6";10;"Total.Kelp";1,004
+"330";"Roes Welcome Sound";"Station 6";15;"Agarum";0,408
+"331";"Roes Welcome Sound";"Station 6";15;"A.esculenta";1,3901
+"332";"Roes Welcome Sound";"Station 6";15;"Fucus";0,001
+"333";"Roes Welcome Sound";"Station 6";15;"L.digitata";0
+"334";"Roes Welcome Sound";"Station 6";15;"S.latissima";4,0455
+"335";"Roes Welcome Sound";"Station 6";15;"L.solidungula";0,4
+"336";"Roes Welcome Sound";"Station 6";15;"Total.Kelp";6,2446
+"337";"Roes Welcome Sound";"Station 8";10;"Agarum";0
+"338";"Roes Welcome Sound";"Station 8";10;"A.esculenta";0,367
+"339";"Roes Welcome Sound";"Station 8";10;"Fucus";0
+"340";"Roes Welcome Sound";"Station 8";10;"L.digitata";0
+"341";"Roes Welcome Sound";"Station 8";10;"S.latissima";2,949
+"342";"Roes Welcome Sound";"Station 8";10;"L.solidungula";0,0191
+"343";"Roes Welcome Sound";"Station 8";10;"Total.Kelp";3,3351
+"344";"Roes Welcome Sound";"Station 8";15;"Agarum";0,741
+"345";"Roes Welcome Sound";"Station 8";15;"A.esculenta";0
+"346";"Roes Welcome Sound";"Station 8";15;"Fucus";0
+"347";"Roes Welcome Sound";"Station 8";15;"L.digitata";0
+"348";"Roes Welcome Sound";"Station 8";15;"S.latissima";12,5697
+"349";"Roes Welcome Sound";"Station 8";15;"L.solidungula";0
+"350";"Roes Welcome Sound";"Station 8";15;"Total.Kelp";13,3107
