@@ -415,6 +415,8 @@ ensemble_plot <- function(sps_choice, add_legend = F, depth_limit = 30){
            change_2100 = factor(change_2100, 
                                 levels = c("1", "0", "-1"),
                                 labels = c("gain", "no change", "loss")))
+  if(!file.exists(paste0("data/fig_4_",sps_choice,".RData")))
+    save(df_project, file = paste0("data/fig_4_",sps_choice,".RData"))
   
   # Calculate sq area coverage per era
   sq_area_labels <- df_project %>% 
@@ -590,6 +592,8 @@ model_compare_plot <- function(model_choice, add_legend = F){
            pred_diff_2050 = plyr::round_any(pred_2050_mean - pred_present_mean, 10),
            pred_diff_2100 = plyr::round_any(pred_2100_mean - pred_present_mean, 10)) %>% 
     na.omit()
+  if(!file.exists(paste0("data/fig_5_",model_choice,".RData")))
+    save(df_project, file = paste0("data/fig_5_",model_choice,".RData"))
   
   # Calculate sq area coverage per era
   sq_area_labels <- model_join %>% 
